@@ -21,6 +21,9 @@ var full_sync := false     # 校准记录：本段锁相为完全同步
 var calib_used := false
 var draft := 0.0           # 第三版修改稿累计倍率
 var alarm_used := false    # 凌晨四点的闹钟
+var had_detune := false    # 白板笔：本次出现过失谐
+var wipes := false         # 消毒湿巾：本次实验全程生效
+var tape_used := false
 
 func value_base() -> int:
 	return Odds.value_at(energy)

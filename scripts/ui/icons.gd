@@ -239,6 +239,38 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 				ci.draw_line(Vector2(0, 2) + Vector2.from_angle(a) * 12, Vector2(0, 2) + Vector2.from_angle(a) * 14, ink, 1.2)
 			ci.draw_line(Vector2(0, 2), Vector2(0, 2) + Vector2.from_angle(-PI / 2 + TAU * 4 / 12.0) * 8, ink, 2.6)
 			ci.draw_line(Vector2(0, 2), Vector2(0, 2) + Vector2.from_angle(-PI / 2) * 11, ink, 1.8)
+		# —— M3 第 3 批：文具 ——
+		"bandaid":
+			# 一块屏幕，裂缝上斜贴着创可贴
+			_box(ci, Rect2(-26, -20, 52, 36), Pal.c("screen"), ink)
+			ci.draw_polyline(PackedVector2Array([Vector2(-18, -14), Vector2(-6, -4), Vector2(-10, 4), Vector2(6, 12)]), Color(1, 1, 1, 0.6), 1.4, true)
+			ci.draw_set_transform(c, rot - 0.6, Vector2(s, s))
+			_box(ci, Rect2(-18, -6, 36, 12), Color("#e8b88a"), ink)
+			ci.draw_rect(Rect2(-6, -6, 12, 12), Color("#f2d2b0"))
+			for x in [-3, 0, 3]:
+				for y in [-3, 0, 3]:
+					ci.draw_circle(Vector2(x, y), 0.8, Color(ink, 0.5))
+		"marker":
+			# 白板笔，红色笔帽
+			ci.draw_set_transform(c, rot - 0.75, Vector2(s, s))
+			_box(ci, Rect2(-24, -7, 36, 14), paper, ink)
+			_box(ci, Rect2(12, -8, 14, 16), Pal.c("red"), ink)
+			ci.draw_rect(Rect2(-16, -7, 6, 14), Pal.c("red"))
+			_poly(ci, [Vector2(-24, -5), Vector2(-30, -2), Vector2(-30, 2), Vector2(-24, 5)], Color("#9aa0a6"), ink)
+		"wipes":
+			# 扁扁的湿巾包，掀开的封口露出一张
+			_box(ci, Rect2(-26, -12, 52, 28), Color("#cfe6ea"), ink)
+			_box(ci, Rect2(-12, -12, 24, 10), Color("#a8d0d8"), ink)
+			_poly(ci, [Vector2(-8, -12), Vector2(-4, -26), Vector2(8, -22), Vector2(6, -12)], paper, ink)
+			Ink.text(ci, "½", Vector2(16, 12), 12, Pal.c("blue"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"tape_roll":
+			# 透明胶带卷，找不到头
+			ci.draw_circle(Vector2.ZERO, 22.0, Color("#e9dfc4"))
+			ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 40, ink, 1.8, true)
+			ci.draw_arc(Vector2.ZERO, 17.0, 0, TAU, 40, Color(ink, 0.3), 1.0, true)
+			ci.draw_circle(Vector2.ZERO, 11.0, paper)
+			ci.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 32, ink, 1.6, true)
+			Ink.text(ci, "?", Vector2(17, -14), 13, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		_:
 			_box(ci, Rect2(-20, -20, 40, 40), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 8), 20, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

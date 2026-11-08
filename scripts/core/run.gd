@@ -77,6 +77,8 @@ func start_experiment() -> void:
 	assert(can_start())
 	beam = Beam.new()
 	experiment_no += 1
+	if has("wipes"):
+		beam.wipes = true
 
 # —— 概率与价值 ——
 func odds() -> PackedFloat64Array:
@@ -92,6 +94,7 @@ func odds() -> PackedFloat64Array:
 	if has("ultimatum") and b.presses >= 3: d[Odds.LOSS] += 0.10
 	if has("fast_clock") and b.presses == 0: d[Odds.LOSS] += 0.05
 	if has("duty_roster") and b.presses == 0: d[Odds.SUCCESS] += 0.15
+	if b.wipes: d[Odds.LOSS] -= 0.06
 	var q := Odds.apply_mods(p, d)
 	if b.locked():
 		q[Odds.LOSS] = 0.0
@@ -123,6 +126,7 @@ func multiplier() -> float:
 	if has("collimator"): m *= 0.9
 	if beam != null and has("chair"): m *= 1.0 + beam.chair
 	if beam != null and has("third_draft"): m *= 1.0 + beam.draft
+	if beam != null and has("marker") and not beam.had_detune: m *= 1.15
 	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
 	if has("budget"): m *= 1.0 + minf(0.5, floor(money / 10.0) * 0.05)
 	return m
@@ -153,6 +157,10 @@ func accelerate() -> Dictionary:
 		b.diag_used = true
 		k = Odds.STABLE
 		trig.append(["diagnostic", "诊断仪拦下失谐"])
+	if k == Odds.DETUNE and has("tape_roll") and not b.tape_used:
+		b.tape_used = true
+		k = Odds.STABLE
+		trig.append(["tape_roll", "胶带粘住了"])
 	if k == Odds.DETUNE and has("badge") and not stage_badge_used:
 		stage_badge_used = true
 		k = Odds.STABLE
@@ -160,6 +168,11 @@ func accelerate() -> Dictionary:
 	if k == Odds.DETUNE and has("wrong_answer") and rng.randf() < 0.2:
 		k = Odds.PERFECT
 		trig.append(["wrong_answer", "错得很对"])
+	if k == Odds.STABLE and has("bandaid") and b.locked() and rng.randf() < 0.4:
+		k = Odds.SUCCESS
+		trig.append(["bandaid", "稳定 → 成功"])
+	if k == Odds.DETUNE:
+		b.had_detune = true
 	# 破碎抵挡
 	if k == Odds.LOSS and has("coin") and not b.coin_used:
 		b.coin_used = true
@@ -299,6 +312,8 @@ func extract() -> Dictionary:
 
 ## 实验结束：结算经费，刷新商店
 func _finish(v: int) -> Dictionary:
+	if beam != null and beam.wipes:
+		relics.erase("wipes")
 	beam = null
 	total += v
 	experiments_left -= 1

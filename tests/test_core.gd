@@ -309,5 +309,38 @@ func _initialize() -> void:
 		if fired_alarm: break
 	check(fired_alarm, "闹钟：第 7 次后 4 次锁相")
 
+	# —— M3 第 3 批：文具 ——
+	var b3 := Run.new(61)
+	b3.relics.append("tape_roll")
+	var tape_ok := false
+	for i in 500:
+		b3.beam = Beam.new(); b3.beam.energy = 9
+		var r := b3.accelerate()
+		if b3.beam != null and b3.beam.tape_used:
+			tape_ok = r.outcome == Odds.STABLE
+			break
+	check(tape_ok, "胶带：第一次失谐改成保持稳定")
+	var b3w := Run.new(62)
+	b3w.relics.append("wipes")
+	b3w.start_experiment(); b3w.beam.energy = 9
+	check(absf(b3w.odds()[Odds.LOSS] - (Odds.table(9)[Odds.LOSS] - 0.06)) < 1e-9, "湿巾 -6pp")
+	b3w.extract()
+	check(not b3w.has("wipes"), "湿巾用完消失")
+	var b3m := Run.new(63)
+	b3m.relics.append("marker")
+	b3m.start_experiment(); b3m.beam.energy = 5
+	check(absf(b3m.multiplier() - 1.15) < 1e-9, "白板笔 +15%")
+	b3m.beam.had_detune = true
+	check(absf(b3m.multiplier() - 1.0) < 1e-9, "白板笔遇失谐失效")
+	var b3b := Run.new(64)
+	b3b.relics.append("bandaid")
+	var conv := 0
+	for i in 600:
+		b3b.beam = Beam.new(); b3b.beam.energy = 4; b3b.beam.lock_left = 3; b3b.beam.lock_used = true
+		var r := b3b.accelerate()
+		for tg in r.triggers:
+			if tg[0] == "bandaid": conv += 1
+	check(conv > 10, "创可贴锁相时转化稳定（%d）" % conv)
+
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)

@@ -98,6 +98,19 @@ const ALL := {
 	"alarm_4am": {"kind": "relic", "name": "凌晨四点的闹钟", "rarity": RARE, "price": 34,
 		"desc": "一次实验连续加速 7 次且没有引出时，获得一次 4 次安全加速的锁相。",
 		"lore": "没人记得是谁定的。"},
+	# —— M3 第 3 批：文具 ——
+	"bandaid": {"kind": "relic", "name": "贴在屏幕上的创可贴", "rarity": COMMON, "price": 14,
+		"desc": "锁相期间，保持稳定有 40% 概率转为加速成功。",
+		"lore": "上面的裂缝已经被遮住了。"},
+	"marker": {"kind": "relic", "name": "会议室的白板笔", "rarity": COMMON, "price": 14,
+		"desc": "本次实验还没出现过失谐时，科研价值 +15%（一出现失谐就失效）。",
+		"lore": "只有红色还写得出字。"},
+	"wipes": {"kind": "relic", "name": "半盒消毒湿巾", "rarity": COMMON, "price": 12, "consumable": true,
+		"desc": "消耗品：下一次实验全程束流丢失 -6 个百分点，结束后用完。",
+		"lore": "另外半盒去哪了，没人知道。"},
+	"tape_roll": {"kind": "relic", "name": "一卷没拆封的胶带", "rarity": COMMON, "price": 12,
+		"desc": "每次实验第一次射频失谐不降能级（改为保持稳定）。",
+		"lore": "用的时候永远找不到头。"},
 }
 
 ## 污染标签（只改画面，不进数值；DECISIONS 视觉硬规则）
@@ -110,11 +123,12 @@ const TAG := {
 	"lost_data": "纸张", "calib_log": "纸张", "duty_roster": "纸张", "third_draft": "纸张", "reimburse": "纸张",
 	"applications": "纸张", "nobel_list": "纸张",
 	"coffee_cup": "咖啡", "thermos": "咖啡", "alarm_4am": "钟表",
+	"bandaid": "文具", "marker": "文具", "wipes": "文具", "tape_roll": "文具",
 }
 ## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
 const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
 	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
-	"duty_roster", "third_draft", "reimburse", "coffee_cup"]
+	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll"]
 
 static func tag_of(id: String) -> String:
 	return TAG.get(id, "")

@@ -15,6 +15,7 @@ const LEVELS := [0.0, 0.45, 0.75, 1.0]
 
 func _ready() -> void:
 	_init_stains()
+	_init_doodles()
 	for i in 14:
 		scraps.append({"ph": randf() * TAU, "sp": randf_range(0.35, 0.6) * (1.0 if i % 3 else -1.0),
 			"r": randf_range(0.55, 0.95), "w": randf_range(13, 21), "h": randf_range(9, 15),
@@ -35,6 +36,8 @@ func level(tag: String) -> float:
 var hand := 0.0          # 钟表：指针位置（格），弹簧追加速次数
 var _vhand := 0.0
 var stains: Array = []
+var doodles: Array = []     # 文具：铅笔涂鸦 [{pts, k}]
+var crumbs: Array = []
 
 func _process(dt: float) -> void:
 	t += dt
@@ -63,6 +66,9 @@ func _draw() -> void:
 	var cf := level("咖啡")
 	if cf > 0.01:
 		_coffee(h, cf)
+	var st := level("文具")
+	if st > 0.01:
+		_stationery(h, st)
 	var ck := level("钟表")
 	if ck > 0.01:
 		_clock(h, ck)
@@ -199,3 +205,60 @@ func _stadium_pt(h: Vector2, u: float, inset: float) -> Vector2:
 ## 三角形直接画，不走三角化（小三角在缩放后容易被判为退化）
 func _tri(a: Vector2, b: Vector2, c: Vector2, col: Color) -> void:
 	draw_primitive(PackedVector2Array([a, b, c]), PackedColorArray([col, col, col]), PackedVector2Array())
+
+func _init_doodles() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	# 几种手写痕迹：螺旋、划掉的算式、箭头、圈圈
+	var spots := [Vector2(-190, -70), Vector2(150, -88), Vector2(205, 40), Vector2(-120, 70), Vector2(40, -105)]
+	for i in spots.size():
+		var c: Vector2 = spots[i]
+		var pts := PackedVector2Array()
+		match i % 4:
+			0:
+				for k in 40:
+					var a := k * 0.45
+					pts.append(c + Vector2(cos(a), sin(a) * 0.7) * (2.0 + k * 0.45))
+			1:
+				for k in 9:
+					pts.append(c + Vector2(k * 7.0 - 28.0, (6.0 if k % 2 else -6.0) + rng.randf_range(-2, 2)))
+			2:
+				pts = PackedVector2Array([c + Vector2(-26, 8), c + Vector2(-6, -2), c + Vector2(14, -8), c + Vector2(26, -12), c + Vector2(18, -18), c + Vector2(26, -12), c + Vector2(20, -4)])
+			3:
+				for k in 26:
+					var a := k * TAU / 22.0
+					pts.append(c + Vector2(cos(a) * 18.0, sin(a) * 11.0) + Vector2(rng.randf_range(-1.5, 1.5), rng.randf_range(-1.5, 1.5)))
+		doodles.append({"pts": pts, "k": i / float(spots.size())})
+	for i in 16:
+		crumbs.append({"p": Vector2(rng.randf_range(-210, 210), rng.randf_range(118, 132)), "r": rng.randf_range(-1, 1), "l": rng.randf_range(4, 9)})
+
+## 文具：铅笔涂鸦（一笔一笔描出来）+ 舱底一把透明尺 + 橡皮屑
+func _stationery(h: Vector2, p: float) -> void:
+	var ink := Pal.equip_line()
+	var pencil := Color("#5a5f6a")
+	# 涂鸦：按浓度逐个“画出来”
+	for d in doodles:
+		var a := clampf((p - d.k * 0.8) / 0.25, 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		var pts: PackedVector2Array = d.pts
+		var n := int(round(pts.size() * a))
+		if n >= 2:
+			draw_polyline(pts.slice(0, n), Color(pencil, 0.55), 1.4, true)
+	# 透明尺：贴在舱底玻璃上
+	var ra := clampf(p * 2.0, 0.0, 1.0)
+	var r := Rect2(-170, h.y - 44, 300, 18)
+	draw_set_transform(Vector2.ZERO, -0.03)
+	draw_rect(r, Color(Color("#e9e2c8"), 0.55 * ra))
+	draw_rect(r, Color(ink, 0.5 * ra), false, 1.0)
+	for i in 31:
+		var x := r.position.x + 8 + i * 9.5
+		var L := 8.0 if i % 5 == 0 else 4.0
+		draw_line(Vector2(x, r.position.y), Vector2(x, r.position.y + L), Color(ink, 0.55 * ra), 1.0)
+	draw_set_transform(Vector2.ZERO)
+	# 橡皮屑：浓度高了才有
+	var ca := clampf((p - 0.6) / 0.3, 0.0, 1.0)
+	if ca > 0.0:
+		for c in crumbs:
+			var q: Vector2 = c.p
+			draw_line(q, q + Vector2.from_angle(c.r) * c.l, Color("#c9a0a0", 0.8 * ca), 2.6, true)
