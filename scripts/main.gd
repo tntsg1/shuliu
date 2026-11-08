@@ -21,6 +21,7 @@ var cam: Camera2D
 var panel: Control
 var charms: Control
 var dev: Control
+var cel: Control
 var clip_l: Control
 var clip_r: Control
 var overlay: Control
@@ -105,6 +106,7 @@ func _ready() -> void:
 	clip_r.set("side", 1)
 	panel = _ctrl("res://scripts/ui/console_panel.gd", ui)
 	charms = _ctrl("res://scripts/ui/charms.gd", ui)
+	cel = _ctrl("res://scripts/ui/celebrate.gd", ui)
 	overlay = _ctrl("res://scripts/ui/overlay.gd", ui)
 	shop = _ctrl("res://scripts/ui/shop.gd", ui)
 	shop.closed.connect(_on_shop_closed)
@@ -113,7 +115,7 @@ func _ready() -> void:
 	tutorial.set("main", self)
 	if not play_tutorial:
 		tutorial.set("persist", false)
-	for c in [clip_l, clip_r, panel, charms, overlay, shop]:
+	for c in [clip_l, clip_r, panel, charms, cel, overlay, shop]:
 		c.set("main", self)
 	ui.add_child(tutorial)
 	if not play_tutorial:
@@ -589,14 +591,11 @@ func submit() -> void:
 		overlay.hide_card()
 		overlay.card_v = 0.0
 		var quips := ["经费续上了。今晚终于能睡个好觉。", "校长点了点头。你偷偷松了口气。", "差点就要去隔壁实验室打工了。", "导师说“还行”。这是他说过最高的评价。", "实验室保住了。至少保住到下一次考核。"]
-		overlay.celebrate(res.stage + 1, quips[(res.stage + run.experiment_no) % quips.size()])
+		cel.start(res.stage + 1, quips[(res.stage + run.experiment_no) % quips.size()])
 		Sfx.play("perfect", -2.0, 0.8)
-		Sfx.play("boom", -10.0, 1.4)
-		get_tree().create_timer(0.45, true, false, true).timeout.connect(func():
-			Sfx.play("whoosh", -4.0, 0.9)
-			Sfx.play("paper", -2.0, 1.2))
+		Sfx.play("metal", -4.0, 0.7)
 		hitstop(0.12)
-		shake = 1.0
+		shake = 1.2
 		# 1.5 秒后升起“下一阶段目标”卡片
 		var carry := run.total
 		var nl := run.line()
@@ -610,7 +609,7 @@ func submit() -> void:
 			else:
 				lines.append("已经带过去 %s RP，还差 %s RP。" % [fmt(carry), fmt(nl - carry)])
 			overlay.show_card({"title": "下一阶段目标 · 第 %d 阶段" % (run.stage + 1), "title_col": Pal.c("blue"), "value": "%s RP" % fmt(nl),
-				"sub": "累计分达到 %s 即可提交（现在 %s，%d%%）" % [fmt(nl), fmt(carry), int(100.0 * carry / maxf(1.0, nl))], "lines": lines, "keys": ""})
+				"sub": "累计分达到 %s 即可提交（现在 %s，%d%%）" % [fmt(nl), fmt(carry), int(100.0 * carry / maxf(1.0, nl))], "lines": lines, "keys": "", "dy": 150.0})
 	else:
 		mode = M.END
 		Sfx.play("boom", -3.0, 0.7)
@@ -649,8 +648,7 @@ func _review_card() -> void:
 
 func close_review() -> void:
 	overlay.hide_card()
-	if overlay.cel_t >= 0.0:
-		overlay.cel_t = maxf(overlay.cel_t, 8.6)     # 庆祝收尾淡出
+	cel.finish()     # 庆祝收尾淡出
 	review_passed = false
 	mode = M.WALK
 	player.input_enabled = true
@@ -722,7 +720,7 @@ func _process(dt: float) -> void:
 	overlay.danger = clampf((dang - 0.1) / 0.3, 0.0, 1.0)
 	cooldown = maxf(0.0, cooldown - dt)
 	e_guard = maxf(0.0, e_guard - dt)
-	if goal_card.is_valid() and overlay.cel_t >= 1.5:
+	if goal_card.is_valid() and cel.t >= 2.6:
 		var gc := goal_card
 		goal_card = Callable()
 		gc.call()

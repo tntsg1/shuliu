@@ -22,3 +22,8 @@
 | hum | RedSonic Hums Light Machines – electric_hum_buzz_01 |
 
 处理：去前导静音、截短、尾部淡出、loudnorm（-16 LUFS，嗡鸣 -20）、转 Ogg Vorbis。原素材在 G:/audio_library/sonniss。
+| cheer | pixabay（免版税可商用）– cheer_03（人群欢呼） |
+| applause | pixabay（免版税可商用）– applause |
+| confetti | Cinematic Sound Design Hybrid Game & UI Elements – Cofetti Whoosh Pluck Spill |
+| firework | Sound Villain Fireworks Malta – 006 Strong blast with medium crackles |
+| crackle_fw | InspectorJ Essentials 03 Fireworks – Fireworks Multi Close Crackle |

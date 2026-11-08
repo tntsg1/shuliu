@@ -2,7 +2,7 @@ extends Node
 ## 音效（自动加载 Sfx）：真实录音，一次性音效走对象池，嗡鸣环境声单独一路
 
 const NAMES := ["btn", "btn2", "hit", "hit_low", "perfect", "ring", "arc", "crackle", "glass", "discharge",
-	"boom", "lever", "tick", "paper", "whoosh", "metal", "step"]
+	"boom", "lever", "tick", "paper", "whoosh", "metal", "step", "cheer", "applause", "confetti", "firework", "crackle_fw"]
 
 var streams := {}
 var pool: Array[AudioStreamPlayer] = []

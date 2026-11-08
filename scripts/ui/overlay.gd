@@ -332,7 +332,7 @@ func _card(vp: Vector2) -> void:
 	var w := 640.0
 	var h: float = 300.0 + 30.0 * card.get("lines", []).size()
 	var x := vp.x * 0.5 - w * 0.5
-	var y := lerpf(vp.y + 40, vp.y * 0.5 - h * 0.5 - 60, card_v)
+	var y := lerpf(vp.y + 40, vp.y * 0.5 - h * 0.5 - 60 + float(card.get("dy", 0.0)), card_v)
 	draw_set_transform(Vector2(x + w * 0.5, y + h * 0.5), 0.01 * (1.0 - card_v) + 0.006)
 	var o := Vector2(-w * 0.5, -h * 0.5)
 	draw_rect(Rect2(o + Vector2(8, 10), Vector2(w, h)), Color(0, 0, 0, 0.2))
