@@ -42,8 +42,18 @@ func fire(id: String, text: String, roll := {}) -> void:
 		"R": R, "S": FLY_END + R, "roll": roll, "hit": roll.get("hit", true), "tick": -1}
 	if not roll.is_empty():
 		# 指针最终停的位置：中了落在绿色段里，没中落在灰色段里（避开边缘，看得清）
-		var p: float = roll.p
-		var u := randf_range(0.12, 0.88) * p if f.hit else p + randf_range(0.1, 0.9) * (1.0 - p)
+		var u := 0.0
+		if roll.has("segs"):
+			# 多段转盘（红色按钮）：落在选中那一段里
+			var acc := 0.0
+			for i in roll.segs.size():
+				if i == roll.pick:
+					u = acc + randf_range(0.15, 0.85) * roll.segs[i][0]
+					break
+				acc += roll.segs[i][0]
+		else:
+			var p: float = roll.p
+			u = randf_range(0.12, 0.88) * p if f.hit else p + randf_range(0.1, 0.9) * (1.0 - p)
 		f["spin"] = 3.0 + u        # 转 3 圈再停
 	fires.append(f)
 
@@ -336,20 +346,18 @@ func _dial(f: Dictionary, c: Vector2, k: float, el: Color, a: float) -> void:
 	var vp := get_viewport_rect().size
 	# 背景压暗一点，把视线收到中间
 	draw_rect(Rect2(Vector2.ZERO, vp), Color(0, 0, 0, 0.18 * a * clampf((f.t - FLY_END) / 0.15, 0.0, 1.0)))
-	var p: float = f.roll.p
 	var R := 112.0
 	var W := 18.0
 	var top := -PI / 2
-	draw_arc(c, R, 0, TAU, 96, Color(Pal.c("paper2"), a), W, true)
-	draw_arc(c, R, top, top + TAU * p, 64, Color(Pal.c("green"), a), W, true)
+	if f.roll.has("segs"):
+		_dial_segs(f, c, a, R, W, top)
+	else:
+		_dial_two(f, c, a, R, W, top)
 	draw_arc(c, R + W * 0.5, 0, TAU, 96, Color(el, a), 1.6, true)
 	draw_arc(c, R - W * 0.5, 0, TAU, 96, Color(el, a), 1.6, true)
 	for i in 16:
 		var ang := top + TAU * i / 16.0
 		draw_line(c + Vector2.from_angle(ang) * (R - W * 0.5), c + Vector2.from_angle(ang) * (R - W * 0.5 + 5.0), Color(el, 0.5 * a), 1.0)
-	# 概率标签：绿色段中间
-	var mid := top + TAU * p * 0.5
-	Ink.text(self, "%d%%" % int(round(p * 100.0)), c + Vector2.from_angle(mid) * (R + 34.0) + Vector2(0, 7), 20, Color(Pal.c("green").darkened(0.2), a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	# 指针：转盘外的金色三角，指向圆心
 	var ang2 := top + TAU * _spin_at(f, k)
 	var dir := Vector2.from_angle(ang2)
@@ -369,6 +377,8 @@ func _verdict(f: Dictionary, c: Vector2, k: float) -> void:
 	var a := clampf((0.85 - k) / 0.25, 0.0, 1.0)
 	var sc := lerpf(1.8, 1.0, Ink.ease_out_back(clampf(k / 0.16, 0.0, 1.0)))
 	var txt := "生效！" if f.hit else "没中"
+	if f.roll.has("segs"):
+		txt = f.roll.segs[f.roll.pick][1] + "！"
 	var col := Pal.c("gold").darkened(0.15) if f.hit else Pal.c("text2")
 	draw_set_transform(c + Vector2(0, -150), -0.06, Vector2(sc, sc))
 	var w := Pal.bold.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x + 36.0
@@ -401,3 +411,25 @@ func _banner(f: Dictionary, p: Vector2, k: float, rc: Color, el: Color) -> void:
 		var ta := clampf((ww - w * 0.6) / (w * 0.3), 0.0, 1.0)
 		Ink.text(self, title, Vector2(right - 22, p.y - 10), 20, Color(Pal.c("text2"), ta), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 		Ink.text(self, sub, Vector2(right - 22, p.y + 26), 26, Color(Pal.c("text"), ta), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+
+func _dial_two(f: Dictionary, c: Vector2, a: float, R: float, W: float, top: float) -> void:
+	var p: float = f.roll.p
+	draw_arc(c, R, 0, TAU, 96, Color(Pal.c("paper2"), a), W, true)
+	draw_arc(c, R, top, top + TAU * p, 64, Color(Pal.c("green"), a), W, true)
+	var mid := top + TAU * p * 0.5
+	Ink.text(self, "%d%%" % int(round(p * 100.0)), c + Vector2.from_angle(mid) * (R + 34.0) + Vector2(0, 7), 20, Color(Pal.c("green").darkened(0.2), a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+
+## 多段转盘：每段一种颜色，旁边写名字和概率
+func _dial_segs(f: Dictionary, c: Vector2, a: float, R: float, W: float, top: float) -> void:
+	var acc := 0.0
+	for i in f.roll.segs.size():
+		var sg: Array = f.roll.segs[i]
+		var a0 := top + TAU * acc
+		var a1: float = top + TAU * (acc + float(sg[0]))
+		draw_arc(c, R, a0, a1, 40, Color(sg[2], a), W, true)
+		draw_line(c + Vector2.from_angle(a0) * (R - W * 0.5), c + Vector2.from_angle(a0) * (R + W * 0.5), Color(Pal.equip_line(), a), 2.0)
+		var mid: float = (a0 + a1) * 0.5
+		var lp := c + Vector2.from_angle(mid) * (R + 60.0)
+		Ink.text(self, sg[1], lp + Vector2(0, -2), 15, Color(Color(sg[2]).darkened(0.25), a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		Ink.text(self, "%d%%" % int(round(sg[0] * 100.0)), lp + Vector2(0, 17), 14, Color(Pal.c("text2"), a), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+		acc += sg[0]

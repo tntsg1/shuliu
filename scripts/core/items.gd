@@ -29,6 +29,17 @@ const ALL := {
 		"desc": "能级 ≥ 10 时束流丢失概率 -8 个百分点。", "lore": "零下二百六十九度，比财务处还冷。"},
 	"beam_dump": {"kind": "device", "name": "束流收集靶", "rarity": COMMON, "price": 14,
 		"desc": "束流丢失时返还 $（能级 × 2）。", "lore": "所有失败的束流，最后都来到这里。"},
+	# —— M3 第 6 批：电子设备 ——
+	"calorimeter": {"kind": "device", "name": "高分辨率量能器", "rarity": UNCOMMON, "price": 26,
+		"desc": "能级 ≥ 8 时科研价值 ×1.6。", "lore": "能量越高，它越来劲。"},
+	"protect_sys": {"kind": "device", "name": "束流保护系统", "rarity": UNCOMMON, "price": 24,
+		"desc": "每阶段首次束流丢失保留 30% 科研价值。", "lore": "设计寿命十五年，已经服役二十二年。"},
+	"daq": {"kind": "device", "name": "多级数据采集器", "rarity": UNCOMMON, "price": 24,
+		"desc": "本次实验每次连续成功，结算 +3%，最多 +60%。", "lore": "每一次成功都被它记下来，连你自己都忘了。"},
+	"lock_loop": {"kind": "device", "name": "锁相反馈回路", "rarity": UNCOMMON, "price": 26,
+		"desc": "锁相 +1 次安全加速。", "lore": "调得太好，有时候连噪声都被锁住了。"},
+	"bpm": {"kind": "device", "name": "束流位置监测器", "rarity": COMMON, "price": 18,
+		"desc": "保持稳定概率的一半转给加速成功。", "lore": "束流歪一点点，它就会尖叫。"},
 	# —— 饰品 ——
 	"dean_paper": {"kind": "relic", "name": "校长几年前用过的实验稿纸", "rarity": RARE, "price": 42,
 		"desc": "每局首次发生无法被其他效果阻止的束流丢失时，保留当前科研价值的 80%，随后实验结束。",
@@ -155,6 +166,22 @@ const ALL := {
 	"wrench": {"kind": "relic", "name": "隔壁组借走没还的扳手", "rarity": RARE, "price": 38,
 		"desc": "设备槽 +1。",
 		"lore": "我借扳手是为了用，我都用到扳手了我还什么。"},
+	# —— M3 第 6 批：电子 ——
+	"emergency_call": {"kind": "relic", "name": "教授的紧急联系电话", "rarity": LEGEND, "price": 56,
+		"desc": "每阶段首次束流丢失时，直接抵挡破碎并保留全部当前价值，允许继续实验。",
+		"lore": "非紧急情况不要打。"},
+	"red_button": {"kind": "relic", "name": "绝对不能按的红色按钮", "rarity": LEGEND, "price": 50,
+		"desc": "控制台多出一个红按钮，每次实验可按一次，概率公开：潜在成果 ×10（10%）／立即进入 4 次完全同步（25%）／当前束流直接丢失（35%）／获得一件随机精良以上饰品（30%）。",
+		"lore": "屎山代码的一部分"},
+	"printer": {"kind": "relic", "name": "总在交稿前卡纸的打印机", "rarity": COMMON, "price": 14,
+		"desc": "商店刷新费用不再翻倍。",
+		"lore": "它只在交稿前一小时卡纸。"},
+	"last_slide": {"kind": "relic", "name": "组会 PPT 的最后一页", "rarity": UNCOMMON, "price": 26,
+		"desc": "每阶段最后一次实验，科研价值 ×1.5。",
+		"lore": "谢谢大家，欢迎批评指正。"},
+	"calc7": {"kind": "relic", "name": "按什么都等于 7 的计算器", "rarity": UNCOMMON, "price": 24,
+		"desc": "引出时 7% 概率科研价值 ×3。",
+		"lore": "按什么都等于7。"},
 }
 
 ## 污染标签（只改画面，不进数值；DECISIONS 视觉硬规则）
@@ -172,11 +199,13 @@ const TAG := {
 	"meal_card": "证章", "red_flag": "证章", "crooked_seal": "证章",
 	"rf_cavity": "金属", "extractor": "金属", "cryo_magnet": "金属", "beam_dump": "金属",
 	"screw": "金属", "lab8_key": "金属", "extinguisher": "金属", "wrench": "金属",
+	"calorimeter": "电子", "protect_sys": "电子", "daq": "电子", "lock_loop": "电子", "bpm": "电子",
+	"emergency_call": "电子", "red_button": "电子", "printer": "电子", "last_slide": "电子", "calc7": "电子",
 }
 ## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
 const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
 	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
-	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card", "extractor", "beam_dump", "extinguisher"]
+	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card", "extractor", "beam_dump", "extinguisher", "bpm", "printer", "daq"]
 
 static func tag_of(id: String) -> String:
 	return TAG.get(id, "")

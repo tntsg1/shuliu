@@ -11,6 +11,11 @@ var leave_v := 0.0
 var leave_rect := Rect2()
 var hover_leave := false
 var leave_label := "← 先去采购"
+var show_red := false        # 有“绝对不能按的红色按钮”时，控制台上多一个小红按钮
+var red_used := false
+var red_rect := Rect2()
+var hover_red := false
+var red_v := 0.0
 var _vs := 0.0
 # 计数器（滚轮）
 var val_disp := 0.0
@@ -236,6 +241,7 @@ func _draw() -> void:
 	_button(Vector2(1530, y0 + 150))
 	_lever(Vector2(1760, y0 + 210))
 	_leave_tab(y0)
+	_red_box(y0)
 
 func _plate(r: Rect2) -> void:
 	var el := Pal.equip_line()
@@ -522,3 +528,36 @@ func _leave_tab(y0: float) -> void:
 	draw_rect(r, Pal.c("red") if hover_leave else el, false, 2.0 if hover_leave else 1.4)
 	Ink.text(self, leave_label, r.position + Vector2(16, 28), 18, Pal.c("text"), Pal.bold)
 	Ink.text(self, "Esc · 右键", r.position + Vector2(r.size.x - 14, 27), 13, Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)
+
+## 绝对不能按的红色按钮：面板上沿伸出一个小盒子，翻开的透明盖子 + 红按钮；按过以后盖子合上
+func _red_box(y0: float) -> void:
+	red_v = lerpf(red_v, 1.0 if show_red else 0.0, 0.2)
+	if red_v < 0.02:
+		red_rect = Rect2()
+		return
+	var el := Pal.equip_line()
+	var r := Rect2(320, y0 + 16 - 62 * red_v, 150, 62)
+	red_rect = r if red_v > 0.8 and not red_used else Rect2()
+	draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.14))
+	draw_rect(r, Color("#e9c64a"))
+	# 黄黑警示斜纹
+	var x := r.position.x - 20.0
+	while x < r.end.x:
+		draw_line(Vector2(maxf(x, r.position.x), r.position.y + (maxf(x, r.position.x) - x)), Vector2(minf(x + 14, r.end.x), r.position.y + minf(14.0, r.end.x - x)), Color("#2b2a28"), 4.0)
+		x += 16.0
+	draw_rect(r, el, false, 1.6)
+	var c := Vector2(r.position.x + 40, r.get_center().y + 4)
+	var press := 4.0 if hover_red else 0.0
+	draw_circle(c + Vector2(0, 4), 18.0, Pal.c("red").darkened(0.35))
+	draw_circle(c + Vector2(0, press * 0.5), 18.0, Pal.c("red") if not red_used else Pal.c("red").lerp(Pal.c("equip_dark"), 0.6))
+	draw_arc(c + Vector2(0, press * 0.5), 18.0, 0, TAU, 32, el, 1.6, true)
+	# 透明翻盖：没按过时掀开，按过后盖上
+	if red_used:
+		draw_rect(Rect2(c - Vector2(24, 24), Vector2(48, 48)), Color(1, 1, 1, 0.35))
+		draw_rect(Rect2(c - Vector2(24, 24), Vector2(48, 48)), el, false, 1.4)
+	else:
+		draw_colored_polygon(PackedVector2Array([c + Vector2(-24, -24), c + Vector2(24, -24), c + Vector2(20, -40), c + Vector2(-20, -40)]), Color(1, 1, 1, 0.35))
+	Ink.text(self, "绝对不能按", Vector2(r.position.x + 70, r.position.y + 26), 14, Color("#2b2a28"), Pal.bold)
+	Ink.text(self, "已按过" if red_used else "B 键", Vector2(r.position.x + 70, r.position.y + 46), 12, Color("#2b2a28"), Pal.mono)
+	if hover_red and not red_used:
+		draw_rect(r.grow(3), Pal.c("red"), false, 2.0)

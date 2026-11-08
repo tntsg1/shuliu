@@ -394,6 +394,82 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_circle(Vector2.ZERO, 7.0, Color("#3a3d42"))
 			ci.draw_line(Vector2(-30, 0), Vector2(-14, 0), Pal.c("ramp2"), 3.0)
 			Ink.text(ci, "$", Vector2(14, 26), 12, Pal.c("green"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		# —— M3 第 6 批：电子 ——
+		"emergency_call":
+			# 老式红色电话，听筒搁在上面，一张写着号码的小纸条
+			_poly(ci, [Vector2(-22, 22), Vector2(-16, -4), Vector2(16, -4), Vector2(22, 22)], Pal.c("red"), ink)
+			ci.draw_circle(Vector2(0, 9), 8.0, paper)
+			ci.draw_arc(Vector2(0, 9), 8.0, 0, TAU, 20, ink, 1.4, true)
+			_box(ci, Rect2(-24, -16, 48, 9), Pal.c("red"), ink)
+			ci.draw_circle(Vector2(-22, -12), 6.0, Pal.c("red"))
+			ci.draw_circle(Vector2(22, -12), 6.0, Pal.c("red"))
+			_box(ci, Rect2(8, 14, 20, 12), paper, ink)
+			Ink.text(ci, "急", Vector2(18, 24), 9, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"red_button":
+			# 黄黑底座上一颗大红按钮，掀开的透明盖
+			_box(ci, Rect2(-24, 6, 48, 18), Color("#e9c64a"), ink)
+			for i in 4:
+				ci.draw_line(Vector2(-20 + i * 12, 24), Vector2(-12 + i * 12, 6), Color("#2b2a28"), 3.0)
+			ci.draw_circle(Vector2(0, 4), 15.0, Pal.c("red").darkened(0.3))
+			ci.draw_circle(Vector2(0, 0), 15.0, Pal.c("red"))
+			ci.draw_arc(Vector2(0, 0), 15.0, 0, TAU, 28, ink, 1.8, true)
+			_poly(ci, [Vector2(-16, -14), Vector2(16, -14), Vector2(12, -28), Vector2(-12, -28)], Color(1, 1, 1, 0.5), ink)
+		"printer":
+			# 打印机，出纸口卡着一张皱纸
+			_box(ci, Rect2(-24, -8, 48, 24), Color("#d8dde2"), ink)
+			_box(ci, Rect2(-18, -18, 36, 10), Color("#b8bcc0"), ink)
+			ci.draw_circle(Vector2(16, 8), 2.5, Pal.c("red"))
+			_poly(ci, [Vector2(-14, 2), Vector2(14, 2), Vector2(10, 26), Vector2(2, 20), Vector2(-4, 28), Vector2(-12, 22)], paper, ink)
+		"last_slide":
+			# 投影幕：“谢谢！”
+			ci.draw_line(Vector2(-26, -24), Vector2(26, -24), ink, 3.0)
+			_box(ci, Rect2(-24, -22, 48, 34), paper, ink)
+			Ink.text(ci, "谢谢！", Vector2(0, 0), 12, Pal.c("blue"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			ci.draw_line(Vector2(-14, 6), Vector2(14, 6), Color(ink, 0.4), 1.2)
+			ci.draw_line(Vector2(0, 12), Vector2(0, 26), ink, 2.0)
+			ci.draw_line(Vector2(-10, 26), Vector2(10, 26), ink, 2.0)
+		"calc7":
+			# 计算器，屏幕上一个大 7
+			_box(ci, Rect2(-18, -26, 36, 52), Color("#3a3d42"), ink)
+			_box(ci, Rect2(-13, -21, 26, 13), Color("#c8d6b0"), ink)
+			Ink.text(ci, "7", Vector2(8, -10), 12, ink, Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
+			for y in 3:
+				for x in 3:
+					ci.draw_rect(Rect2(-13 + x * 9, -4 + y * 9, 7, 6), Color("#d8dde2") if not (x == 2 and y == 2) else Pal.c("orange"))
+		"calorimeter":
+			# 量能器：一摞彩色晶体条，越往右越高
+			_box(ci, Rect2(-26, -20, 52, 40), Pal.c("equip"), ink)
+			for i in 6:
+				var hh := 6.0 + i * 4.5
+				ci.draw_rect(Rect2(-22 + i * 7.5, 16 - hh, 6, hh), Pal.ramp(i / 5.0))
+			ci.draw_line(Vector2(-30, 0), Vector2(-24, 0), Pal.c("ramp2"), 3.0)
+		"protect_sys":
+			# 盾牌 + 闪电，外面一圈钢框
+			_poly(ci, [Vector2(0, -24), Vector2(20, -16), Vector2(18, 6), Vector2(0, 24), Vector2(-18, 6), Vector2(-20, -16)], Pal.c("equip"), ink)
+			_poly(ci, [Vector2(3, -14), Vector2(-7, 2), Vector2(1, 2), Vector2(-3, 14), Vector2(8, -3), Vector2(0, -3)], Pal.c("gold"), ink)
+		"daq":
+			# 数据采集机箱：一排指示灯 + 一条向上的曲线
+			_box(ci, Rect2(-26, -18, 52, 36), Color("#3a3d42"), ink)
+			_box(ci, Rect2(-22, -14, 44, 20), Pal.c("screen"), ink)
+			ci.draw_polyline(PackedVector2Array([Vector2(-20, 4), Vector2(-10, 0), Vector2(-2, 1), Vector2(6, -6), Vector2(14, -8), Vector2(20, -12)]), Pal.c("green"), 2.0, true)
+			for i in 5:
+				ci.draw_circle(Vector2(-18 + i * 9, 12), 2.2, [Pal.c("green"), Pal.c("green"), Pal.c("gold"), Pal.c("green"), Pal.c("red")][i])
+		"lock_loop":
+			# 一个闭环箭头 + 锁
+			ci.draw_arc(Vector2.ZERO, 18.0, -PI * 0.8, PI * 1.1, 32, Pal.c("lock"), 4.0, true)
+			_poly(ci, [Vector2(-14, -18), Vector2(-4, -22), Vector2(-10, -10)], Pal.c("lock"), ink)
+			_box(ci, Rect2(-7, -2, 14, 12), Pal.c("gold"), ink)
+			ci.draw_arc(Vector2(0, -2), 5.0, PI, TAU, 10, ink, 2.0, true)
+		"bpm":
+			# 束流管上一圈四个电极，中间一个十字准星
+			ci.draw_line(Vector2(-30, 0), Vector2(30, 0), Pal.c("ramp2"), 3.0)
+			ci.draw_circle(Vector2.ZERO, 18.0, Pal.c("equip"))
+			ci.draw_arc(Vector2.ZERO, 18.0, 0, TAU, 32, ink, 1.8, true)
+			for i in 4:
+				var a := PI / 4 + i * PI / 2
+				ci.draw_circle(Vector2.from_angle(a) * 12.0, 3.5, Pal.c("gold"))
+			ci.draw_line(Vector2(-6, 0), Vector2(6, 0), Pal.c("red"), 1.6)
+			ci.draw_line(Vector2(0, -6), Vector2(0, 6), Pal.c("red"), 1.6)
 		_:
 			_box(ci, Rect2(-20, -20, 40, 40), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 8), 20, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

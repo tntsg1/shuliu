@@ -255,6 +255,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 					extract()
 			elif ev.is_action("back"):
 				leave_console()
+			elif ev is InputEventKey and ev.physical_keycode == KEY_B:
+				press_red()
 		M.BLOOM:
 			if ev.is_action("accelerate") or ev.is_action("interact"):
 				if timer > 0.5:
@@ -392,6 +394,48 @@ func _reveal() -> void:
 		return
 	_impact(r)
 	_sync()
+
+## 绝对不能按的红色按钮：抽四格转盘，揭晓后执行
+func press_red() -> void:
+	if mode != M.CONSOLE or not run.can_press_red() or cooldown > 0.0:
+		return
+	var segs_c := [Pal.c("gold"), Pal.c("lock"), Pal.c("red"), Pal.c("blue")]
+	var res := run.press_red()
+	var segs: Array = []
+	for i in Run.RED_SEGS.size():
+		segs.append([Run.RED_SEGS[i][0], Run.RED_SEGS[i][1], segs_c[i]])
+	Sfx.play("btn", 0.0, 0.6)
+	Sfx.play("discharge", -8.0, 1.6)
+	shake = maxf(shake, 0.5)
+	charms.fire("red_button", Run.RED_SEGS[res.pick][1], {"segs": segs, "pick": res.pick, "hit": res.pick != 2, "p": 0.0})
+	mode = M.SPIN
+	await get_tree().create_timer(charms.roll_wait() / dev_speed, true, false, true).timeout
+	mode = M.CONSOLE
+	match int(res.pick):
+		0:
+			Sfx.play("perfect", -2.0, 0.8)
+			chamber.kick(2.4, Pal.c("gold"))
+			overlay.pop("×10", Pal.c("gold"), true)
+			overlay.stamp("潜在成果 ×10", Pal.c("gold"))
+			hitstop(0.14)
+			shake = 0.9
+			_sync()
+		1:
+			Sfx.play("arc", -2.0, 1.1)
+			Sfx.play("ring", -5.0, 1.2)
+			overlay.flash_lock()
+			overlay.stamp("完全同步！", Pal.c("lock"))
+			hitstop(0.12)
+			_sync()
+		2:
+			last_result = {"lost": true, "energy": res.from, "p": 1.0, "fin": res}
+			_lose(res)
+		3:
+			if res.gift != "":
+				gear_bought()
+				Sfx.play("metal", -4.0, 1.3)
+				overlay.stamp("天降：" + Items.ALL[res.gift].name, Pal.c("blue"))
+				charms.fire(res.gift, "从红按钮里掉出来的")
 
 ## 原始结果的揭晓：只盖章、出声、轻震，不执行（之后可能被饰品改写）
 func _pre_reveal(k: int) -> void:
@@ -701,6 +745,8 @@ func _process(dt: float) -> void:
 	if now >= stop_until:
 		Engine.time_scale = (slow_scale if now < slow_until else 1.0) * dev_speed
 	var dang := 0.0
+	panel.show_red = (mode == M.CONSOLE or mode == M.SPIN) and run.has("red_button") and run.beam != null
+	panel.red_used = run.beam != null and run.beam.red_used
 	panel.show_leave = mode == M.CONSOLE
 	panel.leave_label = "← 去审核台" if (run.beam == null and (run.experiments_left <= 0 or run.can_submit())) else "← 先去采购"
 	if mode == M.CONSOLE or mode == M.SPIN:
@@ -951,7 +997,9 @@ func _mouse(ev: InputEventMouse) -> void:
 			if a != "":
 				_card_action(a)
 		M.CONSOLE:
-			if panel.leave_rect.has_point(sp):
+			if panel.red_rect.has_point(sp):
+				press_red()
+			elif panel.leave_rect.has_point(sp):
 				_leave_tab_go()
 			elif panel.hit_button(sp):
 				if run.beam == null:
@@ -1021,8 +1069,11 @@ func _hover() -> void:
 		M.CONSOLE, M.SPIN:
 			panel.hover_btn = mode == M.CONSOLE and panel.hit_button(sp)
 			panel.hover_leave = mode == M.CONSOLE and panel.leave_rect.has_point(sp)
+			panel.hover_red = mode == M.CONSOLE and panel.red_rect.has_point(sp)
+			if panel.hover_red:
+				tip = PackedStringArray(["绝对不能按的红色按钮", "潜在成果 ×10（10%）· 4 次完全同步（25%）", "束流直接丢失（35%）· 随机精良以上饰品（30%）"])
 			panel.hover_knob = mode == M.CONSOLE and panel.hit_knob(sp)
-			hand = panel.hover_btn or panel.hover_knob or panel.hover_leave or panel.dragging or mode == M.SPIN
+			hand = panel.hover_btn or panel.hover_knob or panel.hover_leave or panel.hover_red or panel.dragging or mode == M.SPIN
 			var k: int = panel.seg_at(sp)
 			if k >= 0 and run.beam != null:
 				var p := run.odds()

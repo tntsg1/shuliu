@@ -73,6 +73,9 @@ func _draw() -> void:
 	var ph := level("照片")
 	if ph > 0.01:
 		_photos(h, ph)
+	var ec := level("电子")
+	if ec > 0.01:
+		_scope(h, ec)
 	var mt := level("金属")
 	if mt > 0.01:
 		_metal(h, mt)
@@ -400,3 +403,39 @@ func _photos(h: Vector2, p: float) -> void:
 		draw_set_transform(sh.p + Vector2(0, -19).rotated(sh.r), sh.r - 0.2, Vector2.ONE)
 		draw_rect(Rect2(-12, -5, 24, 10), Color(Color("#e9e2c8"), 0.75 * a))
 	draw_set_transform(Vector2.ZERO)
+
+## 电子：示波器波形叠在舱玻璃上（哑光墨绿，不发光）：一条扫描线、浓度高了再来一条黄线和角上的读数
+func _scope(h: Vector2, p: float) -> void:
+	var green := Color("#3f7a5a")
+	var amber := Color("#b8902a")
+	var a := clampf(p * 1.5, 0.0, 1.0)
+	var w := h.x * 1.5
+	var x0 := -w * 0.5
+	var y0 := h.y * 0.46
+	# 刻度格
+	for i in 11:
+		var x := x0 + w * i / 10.0
+		draw_line(Vector2(x, y0 - 4), Vector2(x, y0 + 4), Color(green, 0.35 * a), 1.0)
+	draw_line(Vector2(x0, y0), Vector2(x0 + w, y0), Color(green, 0.2 * a), 1.0)
+	# 波形 1：一串脉冲，往左扫
+	var pts := PackedVector2Array()
+	for i in 121:
+		var u := float(i) / 120.0
+		var ph := u * 9.0 - t * 1.6
+		var pulse := exp(-pow(fmod(ph, 1.0) - 0.5, 2.0) * 120.0)
+		pts.append(Vector2(x0 + w * u, y0 - 26.0 * pulse - 3.0 * sin(u * 40.0 + t * 3.0)))
+	draw_polyline(pts, Color(green, 0.75 * a), 1.8, true)
+	if p > 0.5:
+		var a2 := clampf((p - 0.5) / 0.25, 0.0, 1.0) * a
+		var pts2 := PackedVector2Array()
+		for i in 121:
+			var u := float(i) / 120.0
+			pts2.append(Vector2(x0 + w * u, -h.y * 0.5 + 14.0 * sin(u * TAU * 3.0 + t * 2.2) * sin(u * PI)))
+		draw_polyline(pts2, Color(amber, 0.6 * a2), 1.4, true)
+	if p > 0.8:
+		var a3 := clampf((p - 0.8) / 0.2, 0.0, 1.0) * a
+		var box := Rect2(h.x - 150, -h.y + 26, 98, 34)
+		draw_rect(box, Color(Color("#e9e6da"), 0.75 * a3))
+		draw_rect(box, Color(green, 0.6 * a3), false, 1.0)
+		draw_string(Pal.mono, box.position + Vector2(6, 14), "CH1  2.00V", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(green, a3))
+		draw_string(Pal.mono, box.position + Vector2(6, 28), "CH2  %.2fV" % (0.5 + 0.3 * sin(t)), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(amber, a3))

@@ -135,7 +135,7 @@ func _initialize() -> void:
 	var bought := 0
 	for i in rs.offers.size():
 		if rs.buy(i) == "": bought += 1
-	check(rs.devices.size() <= Items.device_slots(0) and rs.relics.size() <= Items.relic_slots(0), "槽位上限")
+	check(rs.slot_used("device") <= rs.slot_count("device") and rs.slot_used("relic") <= rs.slot_count("relic"), "槽位上限")
 	var any_id: String = (rs.relics + rs.devices)[0]
 	var m0 := rs.money
 	rs.sell(any_id)
@@ -427,6 +427,57 @@ func _initialize() -> void:
 		for o in b5k.offers:
 			if o.get("free", false): free_n += 1
 	check(free_n > 10 and free_n < 60, "钥匙 10%% 免费（%d/300）" % free_n)
+
+	# —— M3 第 6 批：电子 ——
+	var b6 := Run.new(91)
+	b6.relics.append("emergency_call")
+	b6.dev_force = Odds.LOSS
+	b6.start_experiment(); b6.beam.energy = 12
+	var r6 := b6.accelerate()
+	check(r6.outcome == Odds.STABLE and b6.beam != null, "紧急电话：挡住丢失")
+	check(b6.accelerate().lost, "紧急电话：本阶段只一次")
+	var b6p := Run.new(92)
+	b6p.devices.append("protect_sys")
+	b6p.dev_force = Odds.LOSS
+	b6p.start_experiment(); b6p.beam.energy = 8
+	var pot6 := b6p.potential()
+	check(b6p.accelerate().salvaged == int(floor(pot6 * 0.3)), "保护系统保住 30%")
+	var b6r := Run.new(93)
+	b6r.relics.append("printer")
+	b6r.money = 100
+	b6r.refresh(); b6r.refresh()
+	check(b6r.refresh_cost == Run.REFRESH_BASE, "打印机：刷新不翻倍")
+	var b6c := Run.new(94)
+	b6c.devices.append("calorimeter")
+	b6c.start_experiment(); b6c.beam.energy = 8
+	check(absf(b6c.multiplier() - 1.6) < 1e-9, "量能器 ×1.6")
+	var b6d := Run.new(95)
+	b6d.devices.append("daq")
+	b6d.start_experiment(); b6d.beam.streak = 30
+	check(absf(b6d.multiplier() - 1.6) < 1e-9, "数据采集器上限 +60%")
+	var b6l := Run.new(96)
+	b6l.devices.append("lock_loop")
+	b6l.dev_force = Odds.SUCCESS
+	b6l.start_experiment(); b6l.beam.charge = 5
+	b6l.accelerate()
+	check(b6l.beam.lock_left == Odds.LOCK_PRESSES + 1, "反馈回路 锁相 +1")
+	var b6b := Run.new(97)
+	b6b.devices.append("bpm")
+	b6b.start_experiment(); b6b.beam.energy = 5
+	var base5 := Odds.table(5)
+	check(absf(b6b.odds()[Odds.STABLE] - base5[Odds.STABLE] * 0.5) < 1e-9, "位置监测器：稳定减半")
+	var b6x := Run.new(98)
+	b6x.relics.append("red_button")
+	b6x.start_experiment(); b6x.beam.energy = 5
+	var seen := {}
+	for i in 400:
+		b6x.beam = Beam.new(); b6x.beam.energy = 5
+		var rr6 := b6x.press_red()
+		seen[rr6.pick] = seen.get(rr6.pick, 0) + 1
+		check(not b6x.can_press_red() or b6x.beam == null, "红按钮每束一次")
+		b6x.relics = ["red_button"]
+		b6x.experiments_left = 3
+	check(seen.size() == 4 and seen[2] > 100 and seen[2] < 180, "红按钮四种结果（丢失 %d/400）" % seen.get(2, 0))
 
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)

@@ -38,6 +38,8 @@ var stage_letter_used := false   # 推荐信：本阶段已经加成过
 var stage_had_loss := false      # 流动红旗：本阶段出现过束流丢失
 var promise := 0                 # 毕业承诺：攒给下一次锁相的额外次数（0..4）
 var stage_ext_used := false      # 灭火器：本阶段已经用过
+var stage_call_used := false     # 紧急电话
+var stage_protect_used := false  # 束流保护系统
 # —— 商店 ——
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
@@ -112,6 +114,10 @@ func odds() -> PackedFloat64Array:
 	if b.wipes: d[Odds.LOSS] -= 0.06
 	if has("dose_card") and b.energy >= 10: d[Odds.PERFECT] += 0.06
 	if has("cryo_magnet") and b.energy >= 10: d[Odds.LOSS] -= 0.08
+	# 束流位置监测器：保持稳定的一半转给加速成功
+	if has("bpm"):
+		d[Odds.STABLE] -= p[Odds.STABLE] * 0.5
+		d[Odds.SUCCESS] += p[Odds.STABLE] * 0.5
 	var q := Odds.apply_mods(p, d)
 	if b.locked():
 		q[Odds.LOSS] = 0.0
@@ -146,6 +152,10 @@ func multiplier() -> float:
 	if beam != null and has("marker") and not beam.had_detune: m *= 1.15
 	if has("red_flag") and not stage_had_loss: m *= 1.4
 	if has("extractor"): m *= 1.2
+	if beam != null and has("calorimeter") and beam.energy >= 8: m *= 1.6
+	if beam != null and has("daq"): m *= 1.0 + minf(0.6, beam.streak * 0.03)
+	if beam != null and has("last_slide") and experiments_left == 1: m *= 1.5
+	if beam != null: m *= beam.red_mult
 	if beam != null: m *= beam.screw_mult
 	if beam != null and has("phd_cert") and experiments_left == 1 and total < line(): m *= 2.0
 	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
@@ -209,6 +219,10 @@ func accelerate() -> Dictionary:
 		if lost2:
 			k = Odds.LOSS
 	# 破碎抵挡
+	if k == Odds.LOSS and has("emergency_call") and not stage_call_used:
+		stage_call_used = true
+		k = Odds.STABLE
+		trig.append(["emergency_call", "教授接了电话：挡住了"])
 	if k == Odds.LOSS and has("extinguisher") and not stage_ext_used and b.energy <= 6:
 		stage_ext_used = true
 		k = Odds.STABLE
@@ -238,6 +252,10 @@ func accelerate() -> Dictionary:
 			paper_used = true
 			keep = int(floor(potential() * 0.8))
 			trig.append(["dean_paper", "稿纸抢救 80%"])
+		if keep == 0 and has("protect_sys") and not stage_protect_used:
+			stage_protect_used = true
+			keep = int(floor(potential() * 0.3))
+			trig.append(["protect_sys", "保护系统保住 30%"])
 		res.salvaged = keep
 		if has("beam_dump"):
 			var back := b.energy * 2
@@ -337,6 +355,9 @@ func accelerate() -> Dictionary:
 		b.lock_left = 4 + (2 if has("fast_clock") else 0)
 		res.lock_started = true
 		trig.append(["alarm_4am", "凌晨四点，锁相"])
+	if res.lock_started and has("lock_loop"):
+		b.lock_left += 1
+		trig.append(["lock_loop", "锁相 +1"])
 	if res.lock_started and has("grad_promise") and promise > 0:
 		b.lock_left += promise
 		trig.append(["grad_promise", "兑现承诺：锁相 +%d" % promise])
@@ -360,6 +381,59 @@ func accelerate() -> Dictionary:
 	_log(k, from, b.energy)
 	return res
 
+## 绝对不能按的红色按钮：每次实验一次，四种结果概率公开
+const RED_SEGS := [[0.10, "潜在成果 ×10"], [0.25, "4 次完全同步"], [0.35, "束流直接丢失"], [0.30, "随机精良以上饰品"]]
+
+func can_press_red() -> bool:
+	return beam != null and has("red_button") and not beam.red_used
+
+func press_red() -> Dictionary:
+	var b := beam
+	b.red_used = true
+	var r := rng.randf()
+	var pick := 0
+	var acc := 0.0
+	for i in RED_SEGS.size():
+		acc += RED_SEGS[i][0]
+		if r < acc:
+			pick = i
+			break
+		pick = i
+	if dev_roll == 1:
+		pick = 0
+	elif dev_roll == 0:
+		pick = 2
+	var res := {"pick": pick, "lost": false, "gift": ""}
+	match pick:
+		0:
+			b.red_mult *= 10.0
+		1:
+			b.lock_left += 4
+			b.lock_used = true
+			b.full_sync = true
+		2:
+			res.lost = true
+			res.from = b.energy
+			res.odds = odds()
+			res.salvaged = 0
+			res.triggers = []
+			stage_had_loss = true
+			_log(Odds.LOSS, b.energy, b.energy)
+			b.alive = false
+			res.merge(_finish(0))
+		3:
+			var pool: Array = []
+			for id in Items.ids("relic"):
+				if not has(id) and Items.ALL[id].rarity >= Items.UNCOMMON:
+					pool.append(id)
+			if not pool.is_empty():
+				var g: String = pool[rng.randi() % pool.size()]
+				relics.append(g)
+				if Items.ALL[g].has("uses"):
+					uses[g] = Items.ALL[g].uses
+				res.gift = g
+	return res
+
 ## 饰品概率判定：照常消耗一次随机数（保证结果序列不变），开发者模式可强制中/不中
 func _hit(p: float) -> bool:
 	var h := rng.randf() < p
@@ -381,6 +455,11 @@ func extract() -> Dictionary:
 		if hit:
 			stage_letter_used = true
 			v = int(floor(v * 1.5))
+	if has("calc7"):
+		var h7 := _hit(0.07)
+		trig.append(["calc7", "等于 7：×3！" if h7 else "等于 7……没用", {"p": 0.07, "hit": h7}])
+		if h7:
+			v *= 3
 	promise = 0
 	if has("dean_pen"):
 		stage_pen_used = true
@@ -412,6 +491,8 @@ func submit() -> Dictionary:
 		stage_lost_data_used = false
 		stage_letter_used = false
 		stage_ext_used = false
+		stage_call_used = false
+		stage_protect_used = false
 		stage_had_loss = false
 		var bonus := 15 + 5 * s
 		if has("crooked_seal"):
@@ -480,7 +561,8 @@ func refresh() -> bool:
 	if money < refresh_cost:
 		return false
 	money -= refresh_cost
-	refresh_cost *= 2
+	if not has("printer"):
+		refresh_cost *= 2
 	offers.clear()
 	_fill_offers()
 	return true
