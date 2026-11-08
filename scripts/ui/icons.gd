@@ -203,6 +203,42 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_circle(Vector2(16, 16), 9.0, Pal.c("gold"))
 			ci.draw_arc(Vector2(16, 16), 9.0, 0, TAU, 24, ink, 1.6, true)
 			_star(ci, Vector2(16, 16), 4.5, ink)
+		# —— M3 第 2 批：咖啡 / 钟表 ——
+		"coffee_cup":
+			# 马克杯：杯口一圈褐色干渍，杯底长出一小撮绿毛
+			_box(ci, Rect2(-18, -16, 30, 36), paper, ink)
+			ci.draw_arc(Vector2(14, 2), 8.0, -PI / 2, PI / 2, 12, ink, 3.0, true)
+			ci.draw_rect(Rect2(-18, -16, 30, 6), Color("#8a5a3a"))
+			ci.draw_line(Vector2(-18, -10), Vector2(12, -10), ink, 1.4)
+			for i in 3:
+				ci.draw_line(Vector2(-12 + i * 9, -10), Vector2(-12 + i * 9, -3 + i * 2), Color("#8a5a3a"), 2.0)
+			ci.draw_circle(Vector2(-6, 13), 4.0, Color("#7a9a5a"))
+			ci.draw_circle(Vector2(0, 14), 3.0, Color("#8aaa6a"))
+			ci.draw_rect(Rect2(-14, 4, 20, 4), Color(Pal.c("red"), 0.8))
+		"thermos":
+			# 老式保温杯：深红杯身 + 不锈钢盖，杯口飘出茶叶
+			_box(ci, Rect2(-11, -16, 22, 42), Color("#8a2f2a"), ink)
+			_box(ci, Rect2(-12, -26, 24, 12), Color("#b8bcc0"), ink)
+			ci.draw_line(Vector2(-11, -8), Vector2(11, -8), Color(ink, 0.5), 1.2)
+			ci.draw_line(Vector2(-11, 18), Vector2(11, 18), Color(ink, 0.5), 1.2)
+			Ink.text(ci, "福", Vector2(0, 9), 12, Pal.c("gold"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			_poly(ci, [Vector2(14, -24), Vector2(22, -28), Vector2(20, -20)], Color("#6a8a4a"), ink)
+		"alarm_4am":
+			# 双铃闹钟，指针停在四点
+			ci.draw_circle(Vector2(-14, -18), 7.0, Pal.c("red"))
+			ci.draw_arc(Vector2(-14, -18), 7.0, 0, TAU, 16, ink, 1.6, true)
+			ci.draw_circle(Vector2(14, -18), 7.0, Pal.c("red"))
+			ci.draw_arc(Vector2(14, -18), 7.0, 0, TAU, 16, ink, 1.6, true)
+			ci.draw_line(Vector2(-12, 18), Vector2(-17, 26), ink, 2.4)
+			ci.draw_line(Vector2(12, 18), Vector2(17, 26), ink, 2.4)
+			ci.draw_circle(Vector2(0, 2), 19.0, Pal.c("red"))
+			ci.draw_circle(Vector2(0, 2), 15.0, paper)
+			ci.draw_arc(Vector2(0, 2), 19.0, 0, TAU, 32, ink, 1.8, true)
+			for i in 12:
+				var a := TAU * i / 12.0
+				ci.draw_line(Vector2(0, 2) + Vector2.from_angle(a) * 12, Vector2(0, 2) + Vector2.from_angle(a) * 14, ink, 1.2)
+			ci.draw_line(Vector2(0, 2), Vector2(0, 2) + Vector2.from_angle(-PI / 2 + TAU * 4 / 12.0) * 8, ink, 2.6)
+			ci.draw_line(Vector2(0, 2), Vector2(0, 2) + Vector2.from_angle(-PI / 2) * 11, ink, 1.8)
 		_:
 			_box(ci, Rect2(-20, -20, 40, 40), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 8), 20, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

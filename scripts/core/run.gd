@@ -48,6 +48,10 @@ func seed_text() -> String:
 	var h := "%08X" % (seed_value & 0xFFFFFFFF)
 	return h.substr(0, 4) + "-" + h.substr(4, 4)
 
+## 攒满几格进入锁相（没洗的咖啡杯 -1）
+func lock_need() -> int:
+	return Odds.LOCK_NEED - (1 if has("coffee_cup") else 0)
+
 func has(id: String) -> bool:
 	return relics.has(id) or devices.has(id)
 
@@ -235,14 +239,17 @@ func accelerate() -> Dictionary:
 		trig.append(["koi", "好运 ×%d" % b.koi])
 	var lock_n := Odds.LOCK_PRESSES + (2 if has("fast_clock") else 0)
 	if was_locked:
-		b.lock_left -= 1
+		if has("thermos") and rng.randf() < 0.25:
+			trig.append(["thermos", "锁相没减少"])
+		else:
+			b.lock_left -= 1
 		res.lock_ended = b.lock_left == 0
 		if res.lock_ended:
 			b.full_sync = false
 	else:
 		if not b.lock_used:
 			b.charge = 0 if k == Odds.DETUNE else b.charge + Odds.CHARGE[k]
-			if b.charge >= Odds.LOCK_NEED:
+			if b.charge >= lock_need():
 				b.charge = Odds.LOCK_NEED
 				b.lock_left = lock_n
 				b.lock_used = true
@@ -252,6 +259,11 @@ func accelerate() -> Dictionary:
 			b.lock_left = 3 + (2 if has("fast_clock") else 0)
 			res.lock_started = true
 			trig.append(["coffee", "第七杯咖啡"])
+	if not was_locked and not res.lock_started and has("alarm_4am") and not b.alarm_used and b.presses >= 7:
+		b.alarm_used = true
+		b.lock_left = 4 + (2 if has("fast_clock") else 0)
+		res.lock_started = true
+		trig.append(["alarm_4am", "凌晨四点，锁相"])
 	if res.lock_started and has("fast_clock"):
 		trig.append(["fast_clock", "锁相 +2"])
 	if res.lock_started and has("calib_log") and not b.calib_used:

@@ -14,6 +14,7 @@ var scraps: Array = []
 const LEVELS := [0.0, 0.45, 0.75, 1.0]
 
 func _ready() -> void:
+	_init_stains()
 	for i in 14:
 		scraps.append({"ph": randf() * TAU, "sp": randf_range(0.35, 0.6) * (1.0 if i % 3 else -1.0),
 			"r": randf_range(0.55, 0.95), "w": randf_range(13, 21), "h": randf_range(9, 15),
@@ -21,8 +22,19 @@ func _ready() -> void:
 			"spin": randf_range(-3, 3), "rest": Vector2(randf_range(-200, 200), randf_range(100, 128)),
 			"rest_rot": randf_range(-0.6, 0.6), "lines": 1 + randi() % 3})
 
+func _init_stains() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for i in 7:
+		stains.append({"p": Vector2(rng.randf_range(-230, 230), rng.randf_range(-100, 100)), "r": rng.randf_range(14, 30),
+			"a0": rng.randf() * TAU, "span": rng.randf_range(4.2, 6.0), "k": i / 7.0, "drip": rng.randf() < 0.4})
+
 func level(tag: String) -> float:
 	return lv.get(tag, 0.0)
+
+var hand := 0.0          # 钟表：指针位置（格），弹簧追加速次数
+var _vhand := 0.0
+var stains: Array = []
 
 func _process(dt: float) -> void:
 	t += dt
@@ -38,12 +50,22 @@ func _process(dt: float) -> void:
 		var r := Ink.spring(lv.get(tg, 0.0), _lvv.get(tg, 0.0), target, 3.0, dt)
 		lv[tg] = r[0]
 		_lvv[tg] = r[1]
+	var presses: int = main.run.beam.presses if main.run.beam != null else 0
+	var rr := Ink.spring(hand, _vhand, float(presses), 9.0, dt)
+	hand = rr[0]
+	_vhand = rr[1]
 	queue_redraw()
 
 func _draw() -> void:
 	if chamber == null:
 		return
 	var h: Vector2 = Geo.CH_SIZE * 0.5
+	var cf := level("咖啡")
+	if cf > 0.01:
+		_coffee(h, cf)
+	var ck := level("钟表")
+	if ck > 0.01:
+		_clock(h, ck)
 	var p := level("纸张")
 	if p > 0.01:
 		_paper(h, p)
@@ -99,9 +121,81 @@ func _paper(h: Vector2, p: float) -> void:
 		draw_rect(r, Color(nt.c, 0.92 * a))
 		draw_rect(Rect2(-17, -17, 34, 6), Color(nt.c.darkened(0.1), 0.92 * a))
 		var fold := 7.0 + 4.0 * lift
-		draw_colored_polygon(PackedVector2Array([Vector2(17 - fold, 17), Vector2(17, 17 - fold), Vector2(17 - fold * 0.9, 17 - fold * 0.9)]), Color(nt.c.darkened(0.25), a))
+		_tri(Vector2(17 - fold, 17), Vector2(17, 17 - fold), Vector2(17 - fold * 0.9, 17 - fold * 0.9), Color(nt.c.darkened(0.25), a))
 		draw_rect(r, Color(ink, 0.6 * a), false, 1.0)
 		for k in 3:
 			var y := -6.0 + k * 7.0
 			draw_line(Vector2(-11, y), Vector2(7 - k * 4, y + sin(k + i) * 1.5), Color(ink, 0.55 * a), 1.2, true)
 	draw_set_transform(Vector2.ZERO)
+
+## 咖啡：玻璃上一圈圈杯底印（不闭合的褐色圆环，环边颜色更深）+ 顺着玻璃往下淌的一道
+func _coffee(h: Vector2, p: float) -> void:
+	var brown := Color("#8a5a3a")
+	for s in stains:
+		var a := clampf((p - s.k * 0.85) / 0.15, 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		var c: Vector2 = s.p
+		draw_circle(c, s.r, Color(brown, 0.06 * a))
+		draw_arc(c, s.r, s.a0, s.a0 + s.span, 40, Color(brown, 0.45 * a), 2.6, true)
+		draw_arc(c, s.r - 2.5, s.a0 + 0.3, s.a0 + s.span - 0.4, 40, Color(brown, 0.18 * a), 1.2, true)
+		if s.drip:
+			var top: Vector2 = c + Vector2(0, s.r)
+			var L: float = 24.0 + 16.0 * sin(s.a0 * 3.0)
+			draw_line(top, top + Vector2(1.5, L), Color(brown, 0.35 * a), 2.2, true)
+			draw_circle(top + Vector2(1.5, L + 1), 2.6, Color(brown, 0.4 * a))
+
+## 钟表：舱玻璃内侧一圈表盘刻度；一枚指针沿刻度走，每加速一次走一格
+func _clock(h: Vector2, p: float) -> void:
+	var ink := Pal.equip_line()
+	var inset := 8.0
+	var n := 60
+	for i in n:
+		var u := float(i) / n
+		var a := clampf(p * 1.4 - (0.35 if i % 5 != 0 else 0.0), 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		var big := i % 5 == 0
+		var pt := _stadium_pt(h, u, inset)
+		var nrm := _stadium_pt(h, u, inset + 1.0) - pt
+		var L := 12.0 if big else 6.0
+		draw_line(pt, pt + nrm.normalized() * L, Color(ink, (0.8 if big else 0.45) * a), 2.6 if big else 1.3)
+		if big and p > 0.6:
+			var num := str(12 if i == 0 else i / 5)
+			Ink.text(self, num, pt + nrm.normalized() * 24.0 + Vector2(0, 4), 11, Color(ink, 0.6 * clampf((p - 0.6) / 0.25, 0.0, 1.0)), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+	# 指针：小红三角，每次加速走一格（满 60 格绕回）
+	var u2 := fposmod(hand / 60.0, 1.0)
+	var hp := _stadium_pt(h, u2, inset + 12.0)
+	var nn := (_stadium_pt(h, u2, inset + 13.0) - hp).normalized()
+	var tg := nn.orthogonal()
+	var col := Color(Pal.c("red"), clampf(p * 1.6, 0.0, 1.0))
+	_tri(hp + nn * 3.0, hp - nn * 14.0 + tg * 7.0, hp - nn * 14.0 - tg * 7.0, col)
+
+## 胶囊形舱壁上的点：u 0..1 顺时针（从顶边中点出发），inset 向内缩进
+func _stadium_pt(h: Vector2, u: float, inset: float) -> Vector2:
+	var r := h.y - inset
+	var hx := h.x - h.y
+	var straight := 2.0 * hx
+	var arc := PI * r
+	var per := 2.0 * straight + 2.0 * arc
+	var d := fposmod(u, 1.0) * per
+	# 顶边中点 → 顶边右端
+	if d < hx:
+		return Vector2(d, -r)
+	d -= hx
+	if d < arc:
+		var a := -PI / 2 + d / r
+		return Vector2(hx, 0) + Vector2.from_angle(a) * r
+	d -= arc
+	if d < straight:
+		return Vector2(hx - d, r)
+	d -= straight
+	if d < arc:
+		var a2 := PI / 2 + d / r
+		return Vector2(-hx, 0) + Vector2.from_angle(a2) * r
+	d -= arc
+	return Vector2(-hx + d, -r)
+
+## 三角形直接画，不走三角化（小三角在缩放后容易被判为退化）
+func _tri(a: Vector2, b: Vector2, c: Vector2, col: Color) -> void:
+	draw_primitive(PackedVector2Array([a, b, c]), PackedColorArray([col, col, col]), PackedVector2Array())

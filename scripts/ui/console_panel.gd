@@ -390,7 +390,8 @@ func _hatch(r: Rect2, k: int) -> void:
 func _lamps(p: Vector2) -> void:
 	var el := Pal.equip_line()
 	Ink.text(self, "锁相充能", p + Vector2(0, -2), 16, Pal.c("text2"))
-	for i in 6:
+	var need: int = main.run.lock_need() if main != null and main.run != null else 6
+	for i in need:
 		var c := p + Vector2(118 + i * 46, -8)
 		var on := i < charge or locked
 		var s := 1.0 + lamp_pop[i] * 0.35

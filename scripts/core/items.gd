@@ -88,6 +88,16 @@ const ALL := {
 	"nobel_list": {"kind": "relic", "name": "去年的诺奖预测名单", "rarity": LEGEND, "price": 52,
 		"desc": "能级 ≥ 12 时，超级同步概率翻倍，每次成功加速获得 $4。",
 		"lore": "名单上有你导师。被划掉了。"},
+	# —— M3 第 2 批：咖啡 / 钟表 ——
+	"coffee_cup": {"kind": "relic", "name": "没洗的咖啡杯", "rarity": COMMON, "price": 16,
+		"desc": "锁相充能只需 5 格（原 6 格）。",
+		"lore": "杯底已经形成了独立的生态系统。"},
+	"thermos": {"kind": "relic", "name": "前任主任的保温杯", "rarity": RARE, "price": 38,
+		"desc": "锁相期间每次加速 25% 概率不消耗锁相次数。",
+		"lore": "里面的茶叶比这台加速器还老。"},
+	"alarm_4am": {"kind": "relic", "name": "凌晨四点的闹钟", "rarity": RARE, "price": 34,
+		"desc": "一次实验连续加速 7 次且没有引出时，获得一次 4 次安全加速的锁相。",
+		"lore": "没人记得是谁定的。"},
 }
 
 ## 污染标签（只改画面，不进数值；DECISIONS 视觉硬规则）
@@ -99,11 +109,12 @@ const TAG := {
 	"budget": "纸张", "coffee": "咖啡", "fast_clock": "钟表",
 	"lost_data": "纸张", "calib_log": "纸张", "duty_roster": "纸张", "third_draft": "纸张", "reimburse": "纸张",
 	"applications": "纸张", "nobel_list": "纸张",
+	"coffee_cup": "咖啡", "thermos": "咖啡", "alarm_4am": "钟表",
 }
 ## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
 const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
 	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
-	"duty_roster", "third_draft", "reimburse"]
+	"duty_roster", "third_draft", "reimburse", "coffee_cup"]
 
 static func tag_of(id: String) -> String:
 	return TAG.get(id, "")

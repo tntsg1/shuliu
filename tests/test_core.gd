@@ -270,5 +270,44 @@ func _initialize() -> void:
 			break
 	check(m3_bonus_seen, "忘记保存的数据触发")
 
+	# —— M3 第 2 批：咖啡 / 钟表 ——
+	var b2c := Run.new(51)
+	b2c.relics.append("coffee_cup")
+	check(b2c.lock_need() == 5, "咖啡杯：5 格锁相")
+	var b2_locked := false
+	for i in 300:
+		b2c.beam = Beam.new(); b2c.beam.energy = 3; b2c.beam.charge = 4
+		var r := b2c.accelerate()
+		if r.outcome == Odds.SUCCESS:
+			b2_locked = r.lock_started
+			break
+	check(b2_locked, "咖啡杯：4+1=5 格就锁相")
+	# 保温杯：锁相次数有时不减
+	var b2t := Run.new(52)
+	b2t.relics.append("thermos")
+	var kept := 0
+	for i in 400:
+		b2t.beam = Beam.new(); b2t.beam.energy = 4; b2t.beam.lock_left = 3; b2t.beam.lock_used = true
+		b2t.accelerate()
+		if b2t.beam != null and b2t.beam.lock_left == 3:
+			kept += 1
+	check(kept > 60 and kept < 160, "保温杯 25%% 不消耗（%d/400）" % kept)
+	# 闹钟：第 7 次加速后进入 4 次锁相
+	var b2a := Run.new(53)
+	b2a.relics.append("alarm_4am")
+	var fired_alarm := false
+	for tries in 200:
+		b2a.beam = Beam.new(); b2a.beam.energy = 2; b2a.beam.lock_used = true
+		for i in 7:
+			if b2a.beam == null: break
+			b2a.beam.energy = 2
+			var r := b2a.accelerate()
+			if i < 6 and b2a.beam != null:
+				check(not b2a.beam.alarm_used, "闹钟不早响")
+			elif b2a.beam != null:
+				fired_alarm = b2a.beam.alarm_used and b2a.beam.lock_left == 4
+		if fired_alarm: break
+	check(fired_alarm, "闹钟：第 7 次后 4 次锁相")
+
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)
