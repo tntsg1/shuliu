@@ -156,7 +156,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			for i in 3:
 				ci.draw_line(Vector2(-16, -8 + i * 8), Vector2(16, -8 + i * 8), Color(ink, 0.4), 1.2)
 			ci.draw_polyline(PackedVector2Array([Vector2(-10, 12), Vector2(-3, 19), Vector2(13, 3)]), Pal.c("green"), 3.0, true)
-			Ink.text(ci, "1994", Vector2(10, -19), 8, Color(ink, 0.7), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+			Ink.text(ci, "2000", Vector2(10, -19), 8, Color(ink, 0.7), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 		"duty_roster":
 			# 排班表：网格，周末两列全是红圈
 			_box(ci, Rect2(-26, -22, 52, 44), paper, ink)
