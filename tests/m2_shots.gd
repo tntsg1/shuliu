@@ -6,6 +6,7 @@ var main: Node
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots/"))
 	main = load("res://main.tscn").instantiate()
+	main.play_tutorial = false
 	main.play_intro = false
 	root.add_child(main)
 	_go()

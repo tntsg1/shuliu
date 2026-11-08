@@ -24,6 +24,12 @@ var intro: Control
 var play_intro := true
 var gear: Node2D
 var shop: Control
+var tutorial: Control
+var play_tutorial := true
+var walk_goal := ""        # 点击寻路到达后要做的事：shop / console
+var cursor := -1
+var hover_interact := false
+var mouse_sp := Vector2(-999, -999)   # 最近一次鼠标事件的屏幕坐标
 
 var cam_pos := Vector2(960, 540)
 var cam_vel := Vector2.ZERO
@@ -84,8 +90,16 @@ func _ready() -> void:
 	overlay = _ctrl("res://scripts/ui/overlay.gd", ui)
 	shop = _ctrl("res://scripts/ui/shop.gd", ui)
 	shop.closed.connect(_on_shop_closed)
+	tutorial = Control.new()
+	tutorial.set_script(load("res://scripts/ui/tutorial.gd"))
+	tutorial.set("main", self)
+	if not play_tutorial:
+		tutorial.set("persist", false)
 	for c in [clip_l, clip_r, panel, overlay, shop]:
 		c.set("main", self)
+	ui.add_child(tutorial)
+	if not play_tutorial:
+		tutorial.call_deferred("stop")
 	var il := CanvasLayer.new()
 	il.layer = 30
 	add_child(il)
@@ -131,7 +145,7 @@ func _inputs() -> void:
 	var map := {
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"interact": [KEY_E], "accelerate": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER],
-		"back": [KEY_ESCAPE], "submit": [KEY_F], "theme": [KEY_F2], "restart": [KEY_R],
+		"back": [KEY_ESCAPE], "submit": [KEY_F], "help": [KEY_F1], "theme": [KEY_F2], "restart": [KEY_R],
 	}
 	for a in map:
 		if not InputMap.has_action(a):
@@ -160,10 +174,17 @@ func fmt(v: int) -> String:
 
 # —— 输入 ——
 func _unhandled_input(ev: InputEvent) -> void:
+	if ev is InputEventMouse:
+		_mouse(ev)
+		return
 	if ev.is_echo() or not ev.is_pressed():
 		return
 	if intro.active:
 		intro.skip()
+		return
+	if ev.is_action("help"):
+		tutorial.persist = false
+		tutorial.start(true)
 		return
 	if ev.is_action("theme"):
 		Pal.set_dark(not Pal.dark)
@@ -455,6 +476,7 @@ func _sync() -> void:
 
 # —— 每帧 ——
 func _process(dt: float) -> void:
+	_hover()
 	var now := Time.get_ticks_usec() / 1e6
 	if now >= stop_until:
 		Engine.time_scale = slow_scale if now < slow_until else 1.0
@@ -488,7 +510,7 @@ func _process(dt: float) -> void:
 				prompt.show_at(Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "E", "开始实验")
 			elif _near_terminal():
 				prompt.show_at(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 225), "E", "采购终端")
-			else:
+			elif not hover_interact:
 				prompt.hide_now()
 		M.ENTER:
 			if absf(player.position.x - Geo.CONSOLE_STAND) < 3.0 or timer > 1.6:
@@ -586,6 +608,7 @@ func open_shop() -> void:
 	shop.show_shop()
 
 func _on_shop_closed() -> void:
+	cursor = -1
 	mode = M.WALK
 	player.input_enabled = true
 	overlay.strip_t = 1.0
@@ -602,3 +625,149 @@ func _triggers(r: Dictionary) -> void:
 		Sfx.play("tick", -6.0, 1.6)
 	if r.get("money", 0) > 0:
 		Sfx.play("btn2", -8.0, 1.5)
+
+# —— 结算卡按钮（鼠标可点，同时显示快捷键） ——
+func card_buttons() -> Array:
+	if mode == M.END:
+		return [{"label": "重新开始", "key": "R", "action": "restart"}]
+	if mode != M.RESULT:
+		return []
+	if run.must_submit():
+		return [{"label": "提交考核", "key": "F / 空格", "action": "submit"}]
+	var out: Array = []
+	out.append({"label": "继续实验" if run.can_submit() else "注入新束流", "key": "E / 空格", "action": "new"})
+	if run.can_submit():
+		out.append({"label": "提交考核", "key": "F", "action": "submit"})
+	out.append({"label": "离开（去采购）", "key": "Esc", "action": "leave"})
+	return out
+
+func _card_action(a: String) -> void:
+	match a:
+		"restart": restart()
+		"submit": submit()
+		"new":
+			if run.can_start(): _new_beam()
+		"leave": leave_console()
+
+# —— 鼠标 ——
+func _mouse(ev: InputEventMouse) -> void:
+	var sp: Vector2 = ev.position
+	mouse_sp = sp
+	if mode == M.SHOP:
+		shop.mouse(ev)
+		return
+	if ev is InputEventMouseMotion:
+		if panel.dragging:
+			panel.drag_to(sp.y)
+		return
+	var mb := ev as InputEventMouseButton
+	if mb == null:
+		return
+	if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed and panel.dragging:
+		if panel.end_drag() and mode == M.CONSOLE:
+			extract()
+		return
+	if not mb.pressed:
+		return
+	if intro.active:
+		intro.skip()
+		return
+	if mb.button_index == MOUSE_BUTTON_RIGHT:
+		if mode == M.RESULT and not run.must_submit():
+			leave_console()
+		return
+	if mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	match mode:
+		M.RESULT, M.END:
+			var a: String = overlay.button_at(sp)
+			if a != "":
+				_card_action(a)
+		M.CONSOLE:
+			if panel.hit_button(sp):
+				accelerate()
+			elif panel.hit_knob(sp) and e_guard <= 0.0:
+				panel.start_drag()
+		M.SPIN:
+			panel.skip()
+		M.BLOOM:
+			if timer > 0.5:
+				_finish_bloom()
+		M.WALK:
+			var wp := _to_world(sp)
+			if _terminal_rect().has_point(wp):
+				_walk_to(Geo.TERMINAL_X + 35, "shop")
+			elif _console_rect().has_point(wp):
+				_walk_to(Geo.CONSOLE_STAND, "console")
+			elif wp.y > Geo.CEIL and wp.y < Geo.FLOOR + 30:
+				_walk_to(wp.x, "")
+
+func _terminal_rect() -> Rect2:
+	return Rect2(Geo.TERMINAL_X - 10, Geo.FLOOR - 200, 90, 200)
+
+func _console_rect() -> Rect2:
+	return Rect2(Geo.CONSOLE_X - 10, Geo.FLOOR - 180, 170, 180)
+
+func _walk_to(x: float, goal: String) -> void:
+	player.auto_target = clampf(x, Geo.WALK_MIN, Geo.WALK_MAX)
+	walk_goal = goal
+	Sfx.play("tick", -14.0, 0.9)
+
+## 每帧：悬停高亮、说明纸签、光标形状、点击寻路到达
+func _hover() -> void:
+	var sp := mouse_sp
+	var wp := _to_world(sp)
+	var hand := false
+	hover_interact = false
+	var tip := PackedStringArray()
+	panel.hover_btn = false
+	panel.hover_knob = false
+	overlay.hover_btn = -1
+	match mode:
+		M.WALK:
+			if _terminal_rect().has_point(wp) or _console_rect().has_point(wp):
+				hand = true
+				hover_interact = true
+				var is_term := _terminal_rect().has_point(wp)
+				prompt.show_at(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 225) if is_term else Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "点击", "去采购" if is_term else "开始实验")
+		M.CONSOLE, M.SPIN:
+			panel.hover_btn = mode == M.CONSOLE and panel.hit_button(sp)
+			panel.hover_knob = mode == M.CONSOLE and panel.hit_knob(sp)
+			hand = panel.hover_btn or panel.hover_knob or panel.dragging or mode == M.SPIN
+			var k: int = panel.seg_at(sp)
+			if k >= 0 and run.beam != null:
+				var p := run.odds()
+				tip = PackedStringArray([Odds.NAMES[k], "下一次加速出现这个结果的真实概率：%.1f%%" % (p[k] * 100.0)])
+		M.RESULT, M.END:
+			overlay.hover_btn = overlay.hover_at(sp)
+			hand = overlay.hover_btn >= 0
+	if tip.is_empty() and mode != M.SHOP:
+		var id: String = gear.item_at(wp)
+		if id != "":
+			var d: Dictionary = Items.ALL[id]
+			tip = PackedStringArray([d.name + "（" + ("设备" if d.kind == "device" else "饰品") + " · " + Items.RARITY_NAME[d.rarity] + "）", d.desc])
+			if d.lore != "":
+				tip.append("“" + d.lore + "”")
+			if run.uses.has(id):
+				tip.append("剩余 %d 次" % run.uses[id])
+	overlay.tip(tip, sp)
+	var shape := Input.CURSOR_POINTING_HAND if hand else Input.CURSOR_ARROW
+	if panel.dragging:
+		shape = Input.CURSOR_DRAG
+	if shape != cursor and mode != M.SHOP:
+		cursor = shape
+		Input.set_default_cursor_shape(shape)
+	# 点击寻路：到了就做事
+	if mode == M.WALK and walk_goal != "" and player.auto_target >= 0.0 and absf(player.position.x - player.auto_target) < 4.0:
+		var g := walk_goal
+		walk_goal = ""
+		player.auto_target = -1.0
+		if g == "shop":
+			open_shop()
+		elif g == "console":
+			enter_console()
+	elif mode == M.WALK and player.auto_target < 0.0:
+		walk_goal = ""
+
+func _to_world(sp: Vector2) -> Vector2:
+	return get_viewport().get_canvas_transform().affine_inverse() * sp

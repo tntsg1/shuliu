@@ -24,6 +24,11 @@ var _vst := 0.0
 var strip_t := 1.0
 var toast := ""
 var toast_t := 0.0
+var btn_rects: Array = []   # 结算卡按钮 [{rect, action}]
+var hover_btn := -1
+var tip_lines: PackedStringArray = PackedStringArray()
+var tip_pos := Vector2.ZERO
+var tip_v := 0.0
 var trigs: Array = []     # 饰品触发纸签 {id, s, t}
 var pops: Array = []      # 飞字 {s, col, big, t}
 var red := 0.0            # 红色边缘闪
@@ -87,6 +92,7 @@ func _process(dt: float) -> void:
 		bloom_v += dt
 		r = Ink.spring(bloom_disp, _vb, float(bloom_target), 4.2, dt); bloom_disp = r[0]; _vb = r[1]
 	toast_t = maxf(0.0, toast_t - dt)
+	tip_v = lerpf(tip_v, 1.0 if not tip_lines.is_empty() else 0.0, 1.0 - exp(-18.0 * dt))
 	red = maxf(0.0, red - dt * 2.2)
 	lockfx = maxf(0.0, lockfx - dt * 1.2)
 	for p in pops:
@@ -112,6 +118,7 @@ func _draw() -> void:
 	_strip(vp)
 	_pops(vp)
 	_trigs(vp)
+	_tip(vp)
 	if bloom_v >= 0.0:
 		_bloom(vp)
 	if st_t >= 0.0:
@@ -205,7 +212,23 @@ func _card(vp: Vector2) -> void:
 		Ink.text(self, l, o + Vector2(64, ly), 18, Pal.c("blue"), Pal.hand)
 		ly += 30.0
 	draw_line(o + Vector2(40, h - 62), o + Vector2(w - 40, h - 62), Color(el, 0.4), 1.0)
-	Ink.text(self, card.get("keys", ""), o + Vector2(64, h - 30), 18, Pal.c("text"))
+	# 可点击的纸按钮（同时标出快捷键）
+	btn_rects.clear()
+	var bx := o.x + 48.0
+	var btns: Array = main.card_buttons()
+	for i in btns.size():
+		var b: Dictionary = btns[i]
+		var label: String = b.label
+		var bw := Pal.bold.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x + Pal.mono.get_string_size(b.key, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 52
+		var br := Rect2(bx, o.y + h - 54, bw, 40)
+		var hot := hover_btn == i
+		draw_rect(br.grow(2) if hot else br, Pal.c("gold") if hot else Pal.c("paper2"))
+		draw_rect(br, Pal.equip_line(), false, 2.0 if hot else 1.4)
+		Ink.text(self, label, br.position + Vector2(14, 27), 18, Pal.c("text"), Pal.bold)
+		Ink.text(self, b.key, br.end - Vector2(12, 13), 13, Pal.c("text2"), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
+		# 按钮矩形转回屏幕坐标（卡片绕中心有极小旋转，可忽略）
+		btn_rects.append({"rect": Rect2(br.position + Vector2(x + w * 0.5, y + h * 0.5), br.size), "action": b.action})
+		bx += bw + 14.0
 	draw_set_transform(Vector2.ZERO)
 
 ## 屏幕边缘：危险时红色呼吸 + 心跳闪；锁相时紫色一闪（平涂渐变，无辉光）
@@ -260,3 +283,52 @@ func _trigs(vp: Vector2) -> void:
 		Ink.text(self, tg.s, Vector2(62, 34), 18, Color(Pal.c("text"), a), Pal.bold)
 		draw_set_transform(Vector2.ZERO)
 		i += 1
+
+func button_at(p: Vector2) -> String:
+	if card_v < 0.9:
+		return ""
+	for i in btn_rects.size():
+		if btn_rects[i].rect.has_point(p):
+			return btn_rects[i].action
+	return ""
+
+func hover_at(p: Vector2) -> int:
+	if card_v < 0.9:
+		return -1
+	for i in btn_rects.size():
+		if btn_rects[i].rect.has_point(p):
+			return i
+	return -1
+
+## 悬停说明纸签：跟随鼠标，自动避开屏幕边缘
+func tip(lines: PackedStringArray, p: Vector2) -> void:
+	tip_lines = lines
+	tip_pos = p
+
+func _tip(vp: Vector2) -> void:
+	if tip_lines.is_empty() or tip_v < 0.02:
+		return
+	var w := 0.0
+	for i in tip_lines.size():
+		var f: Font = Pal.bold if i == 0 else Pal.font
+		w = maxf(w, f.get_string_size(tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 17 if i == 0 else 15).x)
+	w = minf(w + 32, 460.0)
+	var h := 0.0
+	for i in tip_lines.size():
+		h += 30.0 if i == 0 else Pal.font.get_multiline_string_size(tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15).y + 6
+	h += 22.0
+	var p := tip_pos + Vector2(22, 18)
+	if p.x + w > vp.x - 10: p.x = tip_pos.x - w - 16
+	if p.y + h > vp.y - 10: p.y = tip_pos.y - h - 10
+	var a := tip_v
+	draw_rect(Rect2(p + Vector2(4, 5), Vector2(w, h)), Color(0, 0, 0, 0.15 * a))
+	draw_rect(Rect2(p, Vector2(w, h)), Color(Pal.c("paper"), a))
+	draw_rect(Rect2(p, Vector2(w, h)), Color(Pal.equip_line(), a), false, 1.6)
+	var y := p.y + 30.0
+	for i in tip_lines.size():
+		if i == 0:
+			Ink.text(self, tip_lines[i], Vector2(p.x + 16, y), 17, Color(Pal.c("text"), a), Pal.bold)
+			y += 10.0
+		else:
+			draw_multiline_string(Pal.font, Vector2(p.x + 16, y + 14), tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15, -1, Color(Pal.c("text") if i == 1 else Pal.c("blue"), a))
+			y += Pal.font.get_multiline_string_size(tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15).y + 6

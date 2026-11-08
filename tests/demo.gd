@@ -6,6 +6,7 @@ var main: Node
 
 func _initialize() -> void:
 	main = load("res://main.tscn").instantiate()
+	main.play_tutorial = false
 	root.add_child(main)
 	_go()
 

@@ -19,6 +19,9 @@ var money_disp := 0.0
 var _vm := 0.0
 var card_rects: Array = []
 var inv_rects: Array = []   # [{rect, id}]
+var refresh_rect := Rect2()
+var close_rect := Rect2()
+var hover_extra := ""
 var t := 0.0
 
 const CARD := Vector2(272, 448)
@@ -32,7 +35,6 @@ func show_shop() -> void:
 	open = true
 	area = "shop"
 	sel = 0
-	mouse_filter = MOUSE_FILTER_STOP
 	money_disp = main.run.money
 	for i in 5:
 		stamp_t[i] = 0.5 if i < main.run.offers.size() and main.run.offers[i].sold else -1.0
@@ -111,17 +113,25 @@ func _say(s: String) -> void:
 	msg = s
 	msg_t = 2.0
 
-func _gui_input(ev: InputEvent) -> void:
+func mouse(ev: InputEvent) -> void:
 	if not open:
 		return
 	if ev is InputEventMouseMotion:
+		hover_extra = "refresh" if refresh_rect.has_point(ev.position) else ("close" if close_rect.has_point(ev.position) else "")
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hover_extra != "" or _over_any(ev.position) else Input.CURSOR_ARROW)
 		for i in card_rects.size():
 			if card_rects[i].has_point(ev.position) and (area != "shop" or sel != i):
 				area = "shop"; sel = i
 		for i in inv_rects.size():
 			if inv_rects[i].rect.has_point(ev.position) and (area != "inv" or sel != i):
 				area = "inv"; sel = i
+	elif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT:
+		hide_shop()
 	elif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+		if refresh_rect.has_point(ev.position):
+			_refresh(); return
+		if close_rect.has_point(ev.position):
+			hide_shop(); return
 		for i in card_rects.size():
 			if card_rects[i].has_point(ev.position):
 				area = "shop"; sel = i; _confirm(); return
@@ -165,10 +175,18 @@ func _draw() -> void:
 	Ink.text(self, "$ %d" % int(round(money_disp)), Vector2(pr.end.x - 260, pr.position.y + 66), 44, Pal.c("green"), Pal.mono)
 	Ink.text(self, "经费", Vector2(pr.end.x - 320, pr.position.y + 60), 16, Pal.c("text2"))
 	var rc := Rect2(pr.end.x - 520, pr.position.y + 32, 170, 40)
-	draw_rect(rc, Pal.c("paper2"))
+	refresh_rect = rc
+	draw_rect(rc.grow(2) if hover_extra == "refresh" else rc, Pal.c("gold") if hover_extra == "refresh" else Pal.c("paper2"))
 	draw_rect(rc, el, false, 1.4)
 	Ink.text(self, "R  刷新  $%d" % run.refresh_cost, rc.position + Vector2(16, 28), 17, ink if run.money >= run.refresh_cost else Pal.c("text2"))
 	draw_line(pr.position + Vector2(40, 90), Vector2(pr.end.x - 40, pr.position.y + 90), Color(el, 0.5), 1.4)
+	# 关闭（×）
+	close_rect = Rect2(pr.end.x - 64, pr.position.y + 14, 48, 48)
+	var xc := close_rect.get_center()
+	if hover_extra == "close":
+		draw_circle(xc, 22.0, Color(Pal.c("red"), 0.15))
+	draw_line(xc - Vector2(12, 12), xc + Vector2(12, 12), Pal.c("red") if hover_extra == "close" else ink, 3.0, true)
+	draw_line(xc + Vector2(-12, 12), xc + Vector2(12, -12), Pal.c("red") if hover_extra == "close" else ink, 3.0, true)
 	# 商品卡
 	card_rects.clear()
 	var n := run.offers.size()
@@ -208,10 +226,10 @@ func _draw() -> void:
 		var id: String = _inv_items()[sel]
 		var d: Dictionary = Items.ALL[id]
 		Ink.text(self, d.name + "：" + d.desc, Vector2(pr.position.x + 48, iy + 150), 16, ink)
-		Ink.text(self, "E / 空格 卖出 +$%d" % Items.sell_price(id), Vector2(pr.end.x - 48, iy + 150), 16, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+		Ink.text(self, "点击 / E 卖出 +$%d" % Items.sell_price(id), Vector2(pr.end.x - 48, iy + 150), 16, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 	# 页脚
 	draw_line(Vector2(pr.position.x + 40, pr.end.y - 70), Vector2(pr.end.x - 40, pr.end.y - 70), Color(el, 0.4), 1.0)
-	Ink.text(self, "← →  选择      ↑ ↓  商品 / 已有      E / 空格  购买或卖出      R  刷新      Esc  离开", Vector2(pr.position.x + 48, pr.end.y - 32), 17, ink)
+	Ink.text(self, "鼠标：点击商品购买 · 点击已有物品卖出 · 右键离开      键盘：← → 选择  ↑ ↓ 切换  E 购买/卖出  R 刷新  Esc 离开", Vector2(pr.position.x + 48, pr.end.y - 32), 16, ink)
 	if msg_t > 0.0:
 		var a := clampf(msg_t / 0.3, 0.0, 1.0)
 		Ink.text(self, msg, Vector2(pr.end.x - 48, pr.end.y - 32), 18, Color(Pal.c("red"), a), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -254,6 +272,9 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	draw_rect(tag, Pal.c("gold") if can else Pal.c("paper2"))
 	draw_rect(tag, el, false, 1.4)
 	Ink.text(self, "$%d" % d.price, tag.get_center() + Vector2(0, 8), 20, ink if can else Pal.c("red"), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+	if hot and not o.sold:
+		var can2: bool = main.run.money >= d.price
+		Ink.text(self, ("点击购买" if can2 else "经费不够"), o2 + Vector2(16, cr.size.y - 22), 15, Pal.c("red") if not can2 else Pal.c("green"), Pal.bold)
 	# 已购印章
 	if o.sold:
 		var k := clampf(stamp_t[i] / 0.14, 0.0, 1.0) if stamp_t[i] >= 0.0 else 1.0
@@ -263,3 +284,10 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 		draw_rect(Rect2(-90, -30, 180, 60), Pal.c("red"), false, 4.0)
 		Ink.text(self, "已购入", Vector2(0, 14), 34, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
+
+func _over_any(p: Vector2) -> bool:
+	for r in card_rects:
+		if r.has_point(p): return true
+	for e in inv_rects:
+		if e.rect.has_point(p): return true
+	return false

@@ -34,6 +34,16 @@ var enabled := false
 var hint := ""
 var t := 0.0
 var jolt := 0.0
+var btn_c := Vector2.ZERO      # 按钮中心（屏幕坐标）
+var knob := Vector2.ZERO       # 拉杆球（屏幕坐标）
+var lever_top := 0.0
+var lever_len := 120.0
+var dragging := false
+var drag_v := 0.0
+var hover_btn := false
+var hover_knob := false
+var tape_rect := Rect2()
+var seg_x := PackedFloat32Array()
 # 概率指针：沿纸带循环滑动、减速、停在结果段
 var spinning := false
 var spin_done := false
@@ -155,8 +165,12 @@ func _process(dt: float) -> void:
 		Sfx.play("tick", -12.0, 1.1, 0.08, 0.025)
 	# 拉杆：先被拉下，再弹回（欠阻尼弹簧更有机械感）
 	var k2 := 90.0
-	_vlv += (-k2 * lever - 9.0 * _vlv) * dt
-	lever += _vlv * dt
+	if dragging:
+		lever = lerpf(lever, drag_v, 1.0 - exp(-30.0 * dt))
+		_vlv = 0.0
+	else:
+		_vlv += (-k2 * lever - 9.0 * _vlv) * dt
+		lever += _vlv * dt
 	if show_v > 0.002 or show_t > 0.0:
 		queue_redraw()
 
@@ -265,6 +279,8 @@ func _tape(r: Rect2) -> void:
 		for i in 13:
 			zz.append(Vector2(side + (4.0 if i % 2 == 0 else -4.0), pr.position.y + pr.size.y * i / 12.0))
 		draw_polyline(zz, Color(el, 0.4), 1.0, true)
+	tape_rect = r
+	seg_x.clear()
 	var x := r.position.x
 	var centers: Array = []
 	var total := 0.0
@@ -280,6 +296,7 @@ func _tape(r: Rect2) -> void:
 		_hatch(sr, k)
 		draw_rect(sr, el, false, 1.2)
 		centers.append(sr.get_center().x)
+		seg_x.append(sr.end.x)
 		x += w
 	# 印字：标签按最小间距左右避让，并用细线指回色段
 	var lab: Array = centers.duplicate()
@@ -376,7 +393,10 @@ func _lamps(p: Vector2) -> void:
 		Ink.text(self, "锁相 · 剩余 %d 次安全加速" % lock_left, tx, 17, Pal.c("paper"), Pal.bold)
 
 func _button(c: Vector2) -> void:
+	btn_c = c
 	var el := Pal.equip_line()
+	if hover_btn and enabled:
+		draw_arc(c, 86.0, 0, TAU, 64, Pal.c("red"), 3.0, true)
 	# 底座（俯视的金属环 + 侧面厚度）
 	draw_circle(c + Vector2(0, 10), 78.0, Pal.c("equip_dark").darkened(0.15))
 	draw_circle(c, 78.0, Pal.c("equip_dark"))
@@ -409,7 +429,11 @@ func _lever(base: Vector2) -> void:
 	# 手柄位置：0=上（待命），1=下（已引出）
 	var k := clampf(lever, 0.0, 1.2)
 	var hy := lerpf(-130.0, -10.0, k)
-	var knob := base + Vector2(0, hy)
+	knob = base + Vector2(0, hy)
+	lever_top = base.y - 130.0
+	if (hover_knob or dragging) and enabled:
+		draw_arc(knob, 28.0, 0, TAU, 32, Pal.c("red"), 3.0, true)
+		Ink.text(self, "往下拖到底", base + Vector2(-150, -40), 15, Pal.c("red"), Pal.hand)
 	draw_line(base + Vector2(0, -2), knob, el, 8.0, true)
 	draw_line(base + Vector2(0, -2), knob, Pal.c("equip"), 5.0, true)
 	draw_circle(knob, 21.0, Pal.c("gold") if enabled else Pal.c("equip_dark"))
@@ -417,3 +441,30 @@ func _lever(base: Vector2) -> void:
 	draw_arc(knob, 13.0, PI * 1.1, PI * 1.6, 12, Color(1, 1, 1, 0.5), 4.0, true)
 	Ink.text(self, "引出", base + Vector2(56, -86), 26, Pal.c("text"), Pal.bold)
 	Ink.text(self, "E", base + Vector2(56, -56), 15, Pal.c("text2"), Pal.mono)
+
+# —— 鼠标命中 ——
+func hit_button(p: Vector2) -> bool:
+	return show_v > 0.9 and p.distance_to(btn_c) < 70.0
+
+func hit_knob(p: Vector2) -> bool:
+	return show_v > 0.9 and p.distance_to(knob) < 32.0
+
+func start_drag() -> void:
+	dragging = true
+	drag_v = lever
+
+func drag_to(y: float) -> void:
+	drag_v = clampf((y - lever_top) / lever_len, 0.0, 1.0)
+
+## 松手：拖到 75% 以上即引出
+func end_drag() -> bool:
+	dragging = false
+	return drag_v >= 0.75
+
+func seg_at(p: Vector2) -> int:
+	if show_v < 0.9 or not tape_rect.grow(6).has_point(p):
+		return -1
+	for k in seg_x.size():
+		if p.x <= seg_x[k]:
+			return k
+	return seg_x.size() - 1

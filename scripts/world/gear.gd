@@ -65,3 +65,24 @@ func _draw() -> void:
 	if run.relics.has("chair"):
 		var b: float = bounce.get("chair", 0.0)
 		Icons.draw(self, "chair", Vector2(848, Geo.FLOOR - 34 - sin(b * PI) * 8.0), 70.0, -b * 0.2)
+
+## 鼠标悬停：返回该世界坐标下的设备或饰品 id
+func item_at(p: Vector2) -> String:
+	if main == null or main.run == null:
+		return ""
+	var run: Run = main.run
+	for i in run.devices.size():
+		var x: float = DEVICE_X[i % DEVICE_X.size()]
+		if Rect2(x - 34, Geo.BEAMY - 46, 68, 92).has_point(p):
+			return run.devices[i]
+	var shown := 0
+	for id in run.relics:
+		if id == "chair":
+			if Rect2(812, Geo.FLOOR - 72, 72, 72).has_point(p):
+				return id
+			continue
+		var c := Vector2(SHELF.position.x + 28 + (shown % 3) * 50, SHELF.position.y + 20 + (shown / 3) * 48)
+		if p.distance_to(c) < 24.0:
+			return id
+		shown += 1
+	return ""

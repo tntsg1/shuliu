@@ -36,6 +36,8 @@ func _process(dt: float) -> void:
 	var want := 0.0
 	if input_enabled:
 		want = Input.get_axis("move_left", "move_right")
+		if want != 0.0:
+			auto_target = -1.0
 	if auto_target >= 0.0:
 		var dx := auto_target - position.x
 		want = clampf(dx / 30.0, -1.0, 1.0)
