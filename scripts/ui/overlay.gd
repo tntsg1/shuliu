@@ -78,6 +78,8 @@ func hide_card() -> void:
 	card_t = 0.0
 
 var bloom_meme := {}       # 奇葩事件 {name, first}
+var form_card := {}        # 束流形态成果卡（Forms.describe + first/no）
+var form_art := FormArt.new()
 
 func show_bloom(v: int) -> void:
 	bloom_target = v
@@ -87,6 +89,7 @@ func show_bloom(v: int) -> void:
 
 func hide_bloom() -> void:
 	bloom_v = -1.0
+	form_card = {}
 
 func pop(s: String, col: Color, big: bool) -> void:
 	pops.append({"s": s, "col": col, "big": big, "t": 0.0, "x": randf_range(-40, 40)})
@@ -176,6 +179,8 @@ func _draw() -> void:
 	_tip(vp)
 	if bloom_v >= 0.0:
 		_bloom(vp)
+		if not form_card.is_empty():
+			_form_card(vp)
 	if not tl.is_empty():
 		_tally(vp)
 	if not prev.is_empty():
@@ -554,3 +559,84 @@ func _celebrate(vp: Vector2) -> void:
 			draw_set_transform(q.p, q.r, Vector2(absf(cos(q.r * 1.7)) * 0.85 + 0.15, 1.0))
 			draw_rect(Rect2(-q.s * 0.5, q.s), Color(q.c, qa2))
 			draw_set_transform(Vector2.ZERO)
+
+## 束流形态成果卡：引出后从左边甩进来，迷你画 + 名字 + 档次章 + 加成 + 称号，第一次做出来贴“新发现！”
+func _form_card(vp: Vector2) -> void:
+	var d := form_card
+	var k := clampf((bloom_v - 0.3) / 0.45, 0.0, 1.0)
+	if k <= 0.0:
+		return
+	var out := clampf((bloom_v - 3.3) / 0.3, 0.0, 1.0)
+	var e := Ink.ease_out_back(k)
+	var W := 400.0
+	var H := 520.0
+	var c := Vector2(lerpf(-W, 60.0 + W * 0.5, e) - out * (W + 120.0), vp.y * 0.5 - 20.0)
+	var rot := (1.0 - e) * -0.25 - 0.025
+	draw_set_transform(c, rot)
+	var r := Rect2(-W * 0.5, -H * 0.5, W, H)
+	var el := Pal.equip_line()
+	var legend: bool = d.legend != ""
+	var head := Pal.c("gold").darkened(0.15) if legend else (Pal.c("blue") if d.tier == 2 else (Pal.c("green") if d.tier == 1 else Pal.c("ink2")))
+	draw_rect(Rect2(r.position + Vector2(10, 14), r.size), Color(0, 0, 0, 0.25))
+	draw_rect(r, Pal.c("paper"))
+	draw_rect(Rect2(r.position, Vector2(W, 48)), head)
+	Ink.text(self, "实验成果 · #%d · E%d 引出" % [d.get("no", 1), d.energy], r.position + Vector2(20, 32), 20, Pal.c("paper"), Pal.bold)
+	draw_rect(r, el, false, 2.0)
+	# 画框：迷你束流
+	var box := Rect2(r.position + Vector2(24, 66), Vector2(W - 48, 230))
+	draw_rect(box, Pal.c("inner0"))
+	draw_rect(box, Color(el, 0.6), false, 1.4)
+	for gx in range(1, 12):
+		draw_line(Vector2(box.position.x + gx * box.size.x / 12.0, box.position.y), Vector2(box.position.x + gx * box.size.x / 12.0, box.end.y), Color(Pal.c("grid"), 0.6), 1.0)
+	var st := d.duplicate()
+	st["g"] = float(d.peak)
+	st["t"] = t
+	st["dmg"] = 0.6 if d.damaged else 0.0
+	st["col"] = Pal.ramp(clampf((d.peak - 1) / 12.0, 0.0, 1.0))
+	st["core_r"] = 9.0 + clampf((d.peak - 1) / 12.0, 0.0, 1.0) * 16.0
+	st["card"] = true
+	st["omen"] = 0.0
+	st["grow"] = 1.0
+	var cs := 0.62
+	form_art.draw(self, box.get_center() + Vector2(0, 6), cs, st)
+	draw_set_transform(c, rot)
+	# 名字（太长就缩）
+	var name: String = d.name
+	var fs := 34
+	while fs > 18 and Pal.bold.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > W - 48:
+		fs -= 1
+	Ink.text(self, name, Vector2(0, r.position.y + 346), fs, Pal.c("text"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	var y := r.position.y + 374.0
+	if d.from != "":
+		Ink.text(self, d.from, Vector2(0, y), 16, Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+		y += 24.0
+	# 档次章 + 加成
+	var bonus_s := ("成果加成 +%d%%" % int(round(d.bonus * 100.0))) if d.bonus > 0.0 else "成果加成 —"
+	Ink.text(self, bonus_s, Vector2(r.position.x + 120, y + 26), 18, Pal.c("green") if d.bonus > 0.0 else Pal.c("text2"), Pal.bold)
+	var sk := clampf((bloom_v - 0.75) / 0.16, 0.0, 1.0)
+	if sk > 0.0:
+		var ssc := lerpf(2.2, 1.0, Ink.ease_out_back(sk))
+		draw_set_transform(c + Vector2(r.position.x + 64, y + 18).rotated(rot), rot - 0.2, Vector2(ssc, ssc))
+		draw_arc(Vector2.ZERO, 30.0, 0, TAU, 32, head, 3.0, true)
+		Ink.text(self, d.rank, Vector2(0, 8), 20, head, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		draw_set_transform(c, rot)
+	y += 62.0
+	draw_multiline_string(Pal.hand, Vector2(r.position.x + 28, y), d.desc, HORIZONTAL_ALIGNMENT_LEFT, W - 56, 18, -1, Pal.c("blue"))
+	y += 52.0
+	if d.damaged:
+		Ink.text(self, "受损：引出时掉回了 E%d，加成按%s档算" % [d.energy, Forms.TIER_NAMES[Forms.tier_of(d.energy)]], Vector2(r.position.x + 28, y), 14, Pal.c("red"))
+		y += 22.0
+	for tr in d.traits:
+		Ink.text(self, "◆ " + Forms.TRAITS[tr].name + "：" + Forms.TRAITS[tr].desc, Vector2(r.position.x + 28, y), 14, Pal.c("text2"))
+		y += 20.0
+	# 新发现 / 已收录
+	var nk := clampf((bloom_v - 1.0) / 0.18, 0.0, 1.0)
+	if nk > 0.0:
+		var nsc := lerpf(2.0, 1.0, Ink.ease_out_back(nk))
+		draw_set_transform(c + Vector2(W * 0.5 - 40, -H * 0.5 + 10).rotated(rot), rot + 0.22, Vector2(nsc, nsc))
+		var ncol := Pal.c("red") if d.first else Pal.c("text2")
+		var txt := "新发现！" if d.first else "已收录"
+		draw_rect(Rect2(-58, -18, 116, 36), Pal.c("paper"))
+		draw_rect(Rect2(-58, -18, 116, 36), ncol, false, 3.0)
+		Ink.text(self, txt, Vector2(0, 8), 20, ncol, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	draw_set_transform(Vector2.ZERO)

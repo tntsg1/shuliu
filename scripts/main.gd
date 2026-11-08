@@ -9,6 +9,8 @@ var world: Node2D
 var lab: Node2D
 var chamber: Node2D
 var pollution: Node2D
+var form: Node2D            # 束流形态层
+var bloom_form := {}        # 这一束引出时的形态（成果卡）
 var detector: Node2D
 var desk: Node2D
 var review: Node2D
@@ -85,6 +87,10 @@ func _ready() -> void:
 	pollution.set("main", self)
 	pollution.set("chamber", chamber)
 	chamber.move_child(pollution, 1)      # 在束流之上、舱框之下
+	form = _node("res://scripts/world/form_layer.gd", chamber)
+	form.set("main", self)
+	form.set("chamber", chamber)
+	chamber.move_child(form, 2)           # 形态在污染之上、舱框之下
 	shot = _node("res://scripts/world/shot.gd", world)
 	gear = _node("res://scripts/world/gear.gd", world)
 	gear.set("main", self)
@@ -335,6 +341,7 @@ func _new_beam() -> void:
 	Sfx.play("btn2", -6.0)
 	run.start_experiment()
 	chamber.inject()
+	form.reset()
 	panel.reset_beam()
 	panel.val_disp = Odds.value_at(1)
 	_sync()
@@ -547,6 +554,9 @@ func extract() -> void:
 	var kind := "burst" if run.beam.lock_used else ("dirty" if run.beam.energy >= 10 else "precise")
 	detector.set_meta("kind", kind)
 	shot.fire(Pal.ramp(clampf((bloom_energy - 1) / 12.0, 0.0, 1.0)))
+	bloom_form = Forms.of(run)
+	bloom_form["first"] = Forms.record(bloom_form)
+	bloom_form["no"] = run.experiment_no
 	var fin := run.extract()
 	_triggers(fin)
 	bloom_value = fin.gained
@@ -583,6 +593,7 @@ func _on_shot_arrived() -> void:
 	clip_l.show_t = 0.0
 	clip_r.show_t = 0.0
 	overlay.show_bloom(bloom_value)
+	overlay.form_card = bloom_form
 
 func _finish_bloom() -> void:
 	overlay.hide_bloom()
@@ -888,7 +899,7 @@ func _process(dt: float) -> void:
 				overlay.st_t = -1.0
 				_show_result()
 		M.BLOOM:
-			if timer > 2.6:
+			if timer > 3.6:
 				_finish_bloom()
 	# 相机：临界阻尼弹簧
 	var r := Ink.spring2(cam_pos, cam_vel, cam_target, cam_omega, dt)

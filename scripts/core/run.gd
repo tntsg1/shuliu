@@ -181,6 +181,7 @@ func multiplier() -> float:
 	if beam != null and has("phd_cert") and experiments_left == 1 and total < line(): m *= 2.0
 	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
 	if has("budget"): m *= 1.0 + minf(0.5, floor(money / 10.0) * 0.05)
+	if beam != null: m *= 1.0 + Forms.bonus(beam.energy)   # 束流形态：成形 +10%、成熟 +25%
 	return m
 
 func potential() -> int:
@@ -246,18 +247,22 @@ func accelerate() -> Dictionary:
 		trig.append(["lab_cat", "猫踩了一脚：丢失 → 完美同步" if hc else "猫看了一眼，走了", {"p": 0.5, "hit": hc}])
 		if hc:
 			k = Odds.PERFECT
+			b.saved = true
 	if k == Odds.LOSS and has("emergency_call") and not stage_call_used:
 		stage_call_used = true
 		k = Odds.STABLE
+		b.saved = true
 		trig.append(["emergency_call", "教授接了电话：挡住了"])
 	if k == Odds.LOSS and has("extinguisher") and not stage_ext_used and b.energy <= 6:
 		stage_ext_used = true
 		k = Odds.STABLE
+		b.saved = true
 		trig.append(["extinguisher", "灭火器喷上了"])
 	if k == Odds.LOSS and has("coin") and not b.coin_used:
 		b.coin_used = true
 		if _hit(0.5):
 			k = Odds.STABLE
+			b.saved = true
 			trig.append(["coin", "正面！挡住了", {"p": 0.5, "hit": true}])
 		else:
 			trig.append(["coin", "反面……", {"p": 0.5, "hit": false}])
@@ -270,6 +275,7 @@ func accelerate() -> Dictionary:
 			trig.append(["schrodinger", "盒子打开了：没了"])
 		else:
 			trig.append(["schrodinger", "盒子打开了：还活着！"])
+			b.saved = true
 	if k == Odds.LOSS and dev_god:
 		k = Odds.STABLE
 	for kk in Odds.N:
@@ -344,6 +350,9 @@ func accelerate() -> Dictionary:
 		rejected_stacks = 0
 		trig.append(["rejected", "怨气爆发 +3"])
 	b.energy = clampi(b.energy + delta, 1, Odds.EMAX)
+	b.peak = maxi(b.peak, b.energy)
+	if k == Odds.SUPER:
+		b.crowned = true
 	var good := Odds.is_good(k)
 	if good:
 		b.streak += 1
@@ -424,6 +433,7 @@ func accelerate() -> Dictionary:
 	if res.lock_started and has("calib_log") and not b.calib_used:
 		b.calib_used = true
 		b.full_sync = true
+		b.synced = true
 		res["full_sync"] = true
 		trig.append(["calib_log", "完全同步"])
 	# 便利贴：成功率够高时预备下一次必定成功
@@ -480,6 +490,7 @@ func press_red() -> Dictionary:
 			b.lock_left += 4
 			b.lock_used = true
 			b.full_sync = true
+			b.synced = true
 		2:
 			res.lost = true
 			res.from = b.energy

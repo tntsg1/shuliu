@@ -71,3 +71,9 @@ static func record(id: String) -> bool:
 	c.set_value("memes", id, int(c.get_value("memes", id, 0)) + 1)
 	c.save(CODEX)
 	return first
+
+static func seen_count_in(section: String, id: String) -> int:
+	var c := ConfigFile.new()
+	if c.load(CODEX) != OK:
+		return 0
+	return int(c.get_value(section, id, 0))

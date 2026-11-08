@@ -450,7 +450,30 @@ func _initialize() -> void:
 	var b6c := Run.new(94)
 	b6c.devices.append("calorimeter")
 	b6c.start_experiment(); b6c.beam.energy = 8
-	check(absf(b6c.multiplier() - 1.6) < 1e-9, "量能器 ×1.6")
+	check(absf(b6c.multiplier() - 1.6 * 1.1) < 1e-9, "量能器 ×1.6（E8 成形 +10%）")
+	# —— 束流形态 ——
+	check(Forms.tier_of(6) == 0 and Forms.tier_of(7) == 1 and Forms.tier_of(13) == 2, "形态档：E7 成形、E13 成熟")
+	check(Forms.route_of([]) == "std" and Forms.route_of(["coin", "magnet_sc"]) == "std", "没有纸张/吉祥物走标准")
+	check(Forms.route_of(["note100", "lucky_cat", "plant"]) == "mascot", "持有最多的标签决定路线")
+	check(Forms.route_of(["note100", "lucky_cat"]) == "mascot" and Forms.route_of(["lucky_cat", "note100"]) == "paper", "并列取最近买的")
+	check(Forms.legend_of(15, []).is_empty() and Forms.legend_of(16, []).id == "blackhole", "黑洞 E16")
+	check(Forms.legend_of(20, []).id == "bigbang" and Forms.legend_of(20, ["lab8_key"]).id == "door" and Forms.legend_of(25, ["lab8_key"]).id == "foil", "传说优先级")
+	check(Forms.omen(13, 13, []) > 0.0 and Forms.omen(11, 11, []) == 0.0, "接近 E16 有预兆")
+	var fd := Forms.describe("paper", 6, 13, ["saved"], {})
+	check(fd.name == "劫后余生的论文风暴" and fd.damaged and fd.bonus == 0.0, "掉档不退化、受损、加成按当前档")
+	var ld := Forms.describe("mascot", 16, 16, [], Forms.legend_of(16, []))
+	check(ld.name == "黑洞（别担心）" and ld.from == "由橘猫束流演化而来" and ld.rank == "传说", "传说保留来路")
+	var fr := Run.new(3)
+	fr.start_experiment()
+	fr.dev_force = Odds.PERFECT
+	for i in 5: fr.accelerate()
+	fr.dev_force = Odds.DETUNE
+	fr.accelerate()
+	check(fr.beam.peak == 11 and fr.beam.energy == 10, "峰值记录")
+	fr.dev_force = Odds.LOSS
+	fr.relics.append("coin"); fr.dev_roll = 1
+	fr.accelerate()
+	check(fr.beam != null and fr.beam.saved and Forms.of(fr).name.begins_with("劫后余生的"), "硬币救回 → 劫后余生")
 	var b6d := Run.new(95)
 	b6d.devices.append("daq")
 	b6d.start_experiment(); b6d.beam.streak = 30
