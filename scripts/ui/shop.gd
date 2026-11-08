@@ -418,7 +418,11 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 		Icons.draw(self, o.id, c + Vector2(0, -cr.size.y * 0.5 + 110 - 6.0 * ch), 110.0 * absf(sx) * (1.0 + 0.08 * ch), sin(t * 3.0) * 0.05 * ch)
 	draw_set_transform(c, tilt, Vector2(absf(sx), 1.0 + 0.025 * ch))
 	# 名称
-	draw_string(Pal.bold, o2 + Vector2(16, 204), d.name, HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32, 19, ink)
+	# 名字太长就缩小字号，别被截断
+	var nfs := 19
+	while nfs > 13 and Pal.bold.get_string_size(d.name, HORIZONTAL_ALIGNMENT_LEFT, -1, nfs).x > cr.size.x - 32:
+		nfs -= 1
+	draw_string(Pal.bold, o2 + Vector2(16, 204), d.name, HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32, nfs, ink)
 	# 效果
 	draw_multiline_string(Pal.font, o2 + Vector2(16, 236), d.desc, HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32, 15, 7, ink)
 	# 物品故事

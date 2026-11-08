@@ -342,5 +342,51 @@ func _initialize() -> void:
 			if tg[0] == "bandaid" and tg[2].hit: conv += 1
 	check(conv > 10, "创可贴锁相时转化稳定（%d）" % conv)
 
+	# —— M3 第 4 批：证章 ——
+	var b4 := Run.new(71)
+	b4.relics.append("crooked_seal")
+	b4.total = b4.line()
+	var mm := b4.money
+	var sr := b4.submit()
+	check(sr.bonus == 30 and b4.money - mm == 30, "公章奖金 ×2")
+	var b4f := Run.new(72)
+	b4f.relics.append("red_flag")
+	b4f.start_experiment()
+	check(absf(b4f.multiplier() - 1.4) < 1e-9, "红旗 ×1.4")
+	b4f.stage_had_loss = true
+	check(absf(b4f.multiplier() - 1.0) < 1e-9, "红旗：丢过就没了")
+	var b4d := Run.new(73)
+	b4d.relics.append("dose_card")
+	b4d.start_experiment(); b4d.beam.energy = 11
+	check(b4d.odds()[Odds.PERFECT] > Odds.table(11)[Odds.PERFECT] + 0.059, "剂量卡 +6pp")
+	var b4m := Run.new(74)
+	b4m.relics.append("meal_card")
+	var m0b := b4m.money
+	check(b4m.on_shop_open() == 2 and b4m.money == m0b + 2, "饭卡 +$2")
+	var b4p := Run.new(75)
+	b4p.relics.append("phd_cert")
+	b4p.start_experiment(); b4p.experiments_left = 1
+	check(absf(b4p.multiplier() - 2.0) < 1e-9, "博士证书：最后一次没够线 ×2")
+	var b4g := Run.new(76)
+	b4g.relics.append("grad_promise")
+	b4g.dev_force = Odds.DETUNE
+	b4g.start_experiment(); b4g.beam.energy = 4
+	b4g.accelerate()
+	check(b4g.promise == 1, "毕业承诺：失谐攒 1 次")
+	b4g.beam.charge = 5
+	b4g.dev_force = Odds.SUCCESS
+	var rg := b4g.accelerate()
+	check(rg.lock_started and b4g.beam.lock_left == Odds.LOCK_PRESSES + 1 and b4g.promise == 0, "毕业承诺：锁相 +1 后清零")
+	var b4l := Run.new(77)
+	b4l.relics.append("rec_letter")
+	b4l.dev_roll = 1
+	b4l.start_experiment(); b4l.beam.energy = 6
+	var pot4 := b4l.potential()
+	var t4 := b4l.total
+	var fin4 := b4l.extract()
+	check(b4l.total - t4 == int(floor(pot4 * 1.5)) and not fin4.triggers.is_empty(), "推荐信必中 +50%")
+	b4l.start_experiment(); b4l.beam.energy = 6
+	check(b4l.extract().triggers.is_empty(), "推荐信本阶段只一次")
+
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)

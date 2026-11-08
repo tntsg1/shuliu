@@ -34,6 +34,9 @@ var rejected_stacks := 0
 var best_potential := 0       # 本局到过的最高潜在成果（忘记保存的数据）
 var lost_bonus := 0           # 下一次引出额外加上的科研点
 var stage_lost_data_used := false
+var stage_letter_used := false   # 推荐信：本阶段已经加成过
+var stage_had_loss := false      # 流动红旗：本阶段出现过束流丢失
+var promise := 0                 # 毕业承诺：攒给下一次锁相的额外次数（0..4）
 # —— 商店 ——
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
@@ -55,6 +58,13 @@ func seed_text() -> String:
 ## 攒满几格进入锁相（没洗的咖啡杯 -1）
 func lock_need() -> int:
 	return Odds.LOCK_NEED - (1 if has("coffee_cup") else 0)
+
+## 打开采购终端（饭卡）
+func on_shop_open() -> int:
+	if has("meal_card"):
+		money += 2
+		return 2
+	return 0
 
 func has(id: String) -> bool:
 	return relics.has(id) or devices.has(id)
@@ -99,6 +109,7 @@ func odds() -> PackedFloat64Array:
 	if has("fast_clock") and b.presses == 0: d[Odds.LOSS] += 0.05
 	if has("duty_roster") and b.presses == 0: d[Odds.SUCCESS] += 0.15
 	if b.wipes: d[Odds.LOSS] -= 0.06
+	if has("dose_card") and b.energy >= 10: d[Odds.PERFECT] += 0.06
 	var q := Odds.apply_mods(p, d)
 	if b.locked():
 		q[Odds.LOSS] = 0.0
@@ -131,6 +142,8 @@ func multiplier() -> float:
 	if beam != null and has("chair"): m *= 1.0 + beam.chair
 	if beam != null and has("third_draft"): m *= 1.0 + beam.draft
 	if beam != null and has("marker") and not beam.had_detune: m *= 1.15
+	if has("red_flag") and not stage_had_loss: m *= 1.4
+	if beam != null and has("phd_cert") and experiments_left == 1 and total < line(): m *= 2.0
 	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
 	if has("budget"): m *= 1.0 + minf(0.5, floor(money / 10.0) * 0.05)
 	return m
@@ -204,6 +217,7 @@ func accelerate() -> Dictionary:
 		"lost": false, "salvaged": 0, "money": 0, "triggers": trig}
 	# 束流丢失（可能被稿纸抢救）
 	if k == Odds.LOSS:
+		stage_had_loss = true
 		res.lost = true
 		res.to = from
 		var keep := 0
@@ -262,6 +276,9 @@ func accelerate() -> Dictionary:
 		money += 4
 		res.money += 4
 		trig.append(["nobel_list", "+$4"])
+	if k == Odds.DETUNE and has("grad_promise") and promise < 4:
+		promise += 1
+		trig.append(["grad_promise", "下次锁相 +%d" % promise])
 	if k == Odds.DETUNE and has("rejected"):
 		rejected_stacks = mini(5, rejected_stacks + 1)
 	if (k == Odds.PERFECT or k == Odds.SUPER) and has("koi") and b.koi < 5:
@@ -296,6 +313,10 @@ func accelerate() -> Dictionary:
 		b.lock_left = 4 + (2 if has("fast_clock") else 0)
 		res.lock_started = true
 		trig.append(["alarm_4am", "凌晨四点，锁相"])
+	if res.lock_started and has("grad_promise") and promise > 0:
+		b.lock_left += promise
+		trig.append(["grad_promise", "兑现承诺：锁相 +%d" % promise])
+		promise = 0
 	if res.lock_started and has("fast_clock"):
 		trig.append(["fast_clock", "锁相 +2"])
 	if res.lock_started and has("calib_log") and not b.calib_used:
@@ -329,10 +350,20 @@ func _log(k: int, from: int, to: int) -> void:
 func extract() -> Dictionary:
 	var v := potential() + lost_bonus
 	lost_bonus = 0
+	var trig: Array = []
+	if has("rec_letter") and not stage_letter_used:
+		var hit := _hit(0.25)
+		trig.append(["rec_letter", "评分 +50%" if hit else "系主任没空", {"p": 0.25, "hit": hit}])
+		if hit:
+			stage_letter_used = true
+			v = int(floor(v * 1.5))
+	promise = 0
 	if has("dean_pen"):
 		stage_pen_used = true
 	best_value = maxi(best_value, v)
-	return _finish(v)
+	var fin := _finish(v)
+	fin["triggers"] = trig
+	return fin
 
 ## 实验结束：结算经费，刷新商店
 func _finish(v: int) -> Dictionary:
@@ -355,7 +386,11 @@ func submit() -> Dictionary:
 		stage_badge_used = false
 		stage_pen_used = false
 		stage_lost_data_used = false
+		stage_letter_used = false
+		stage_had_loss = false
 		var bonus := 15 + 5 * s
+		if has("crooked_seal"):
+			bonus *= 2
 		money += bonus
 		return {"passed": true, "stage": s, "won": won(), "bonus": bonus}
 	failed = true

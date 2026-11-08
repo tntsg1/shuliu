@@ -111,6 +111,28 @@ const ALL := {
 	"tape_roll": {"kind": "relic", "name": "一卷没拆封的胶带", "rarity": COMMON, "price": 12,
 		"desc": "每次实验第一次射频失谐不降能级（改为保持稳定）。",
 		"lore": "从哪撕开啊？"},
+	# —— M3 第 4 批：证章 ——
+	"rec_letter": {"kind": "relic", "name": "系主任的推荐信", "rarity": UNCOMMON, "price": 24,
+		"desc": "主动引出时 25% 概率科研评分 +50%。每阶段第一次触发后失效，下一阶段恢复。",
+		"lore": "他甚至没看过实验数据。"},
+	"grad_promise": {"kind": "relic", "name": "导师的毕业承诺", "rarity": LEGEND, "price": 50,
+		"desc": "每次失谐，给下一次锁相 +1 次安全加速，最多累计 +4。成功引出后清零。",
+		"lore": "明年一定能毕业。"},
+	"phd_cert": {"kind": "relic", "name": "博士学位证书（未填写姓名）", "rarity": LEGEND, "price": 48,
+		"desc": "本阶段最后一次实验时，若累计分仍未达标，所有成功带来的科研倍率额外 ×2。若最终仍未通过，本局不给任何局外解锁进度。",
+		"lore": "先把名字写上去吧。"},
+	"dose_card": {"kind": "relic", "name": "过期的辐射剂量卡", "rarity": UNCOMMON, "price": 24,
+		"desc": "能级 ≥ 10 时，完美同步概率 +6 个百分点。",
+		"lore": "真的过期了吗？"},
+	"meal_card": {"kind": "relic", "name": "食堂的饭卡", "rarity": COMMON, "price": 12,
+		"desc": "每次打开采购终端获得 $2。",
+		"lore": "绝对的圣遗物！余额永远是 3.5 元。"},
+	"red_flag": {"kind": "relic", "name": "安全生产流动红旗", "rarity": RARE, "price": 34,
+		"desc": "本阶段还没发生过束流丢失时，引出价值 ×1.4。",
+		"lore": "今年终于要被收回了。"},
+	"crooked_seal": {"kind": "relic", "name": "盖歪了的公章", "rarity": RARE, "price": 36,
+		"desc": "过阶段奖金 ×2。",
+		"lore": "盖上去之前谁都不知道它会歪向哪边。"},
 }
 
 ## 污染标签（只改画面，不进数值；DECISIONS 视觉硬规则）
@@ -124,11 +146,13 @@ const TAG := {
 	"applications": "纸张", "nobel_list": "纸张",
 	"coffee_cup": "咖啡", "thermos": "咖啡", "alarm_4am": "钟表",
 	"bandaid": "文具", "marker": "文具", "wipes": "文具", "tape_roll": "文具",
+	"rec_letter": "证章", "grad_promise": "证章", "phd_cert": "证章", "dose_card": "证章",
+	"meal_card": "证章", "red_flag": "证章", "crooked_seal": "证章",
 }
 ## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
 const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
 	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
-	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll"]
+	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card"]
 
 static func tag_of(id: String) -> String:
 	return TAG.get(id, "")

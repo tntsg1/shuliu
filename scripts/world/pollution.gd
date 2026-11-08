@@ -16,6 +16,7 @@ const LEVELS := [0.0, 0.45, 0.75, 1.0]
 func _ready() -> void:
 	_init_stains()
 	_init_doodles()
+	_init_seals()
 	for i in 14:
 		scraps.append({"ph": randf() * TAU, "sp": randf_range(0.35, 0.6) * (1.0 if i % 3 else -1.0),
 			"r": randf_range(0.55, 0.95), "w": randf_range(13, 21), "h": randf_range(9, 15),
@@ -38,6 +39,7 @@ var _vhand := 0.0
 var stains: Array = []
 var doodles: Array = []     # 文具：铅笔涂鸦 [{pts, k}]
 var crumbs: Array = []
+var seals: Array = []      # 证章：舱玻璃上的红章
 
 func _process(dt: float) -> void:
 	t += dt
@@ -66,6 +68,9 @@ func _draw() -> void:
 	var cf := level("咖啡")
 	if cf > 0.01:
 		_coffee(h, cf)
+	var sl := level("证章")
+	if sl > 0.01:
+		_seals(h, sl)
 	var st := level("文具")
 	if st > 0.01:
 		_stationery(h, st)
@@ -262,3 +267,42 @@ func _stationery(h: Vector2, p: float) -> void:
 		for c in crumbs:
 			var q: Vector2 = c.p
 			draw_line(q, q + Vector2.from_angle(c.r) * c.l, Color("#c9a0a0", 0.8 * ca), 2.6, true)
+
+func _init_seals() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 23
+	var words := ["合格", "已审", "同意", "作废", "存档", "加急", "复核", "批准", "待定"]
+	# 沿舱玻璃一圈靠边放，别挡中间的束流
+	var spots := [Vector2(-200, -88), Vector2(178, 82), Vector2(-60, -104), Vector2(222, -40), Vector2(-226, 50),
+		Vector2(90, -100), Vector2(-150, 98), Vector2(40, 104), Vector2(-246, -20)]
+	for i in spots.size():
+		seals.append({"p": spots[i], "rot": rng.randf_range(-0.6, 0.6), "r": rng.randf_range(17, 25),
+			"round": rng.randf() < 0.6, "word": words[i], "k": i / float(spots.size()), "gap": rng.randf() * TAU,
+			"ink": rng.randf_range(0.35, 0.6)})
+
+## 证章：歪歪扭扭的红章盖满舱玻璃；浓度上来时一个个“啪”地盖上（先大后小）
+func _seals(h: Vector2, p: float) -> void:
+	var red := Pal.c("red")
+	for sd in seals:
+		var a := clampf((p - sd.k * 0.9) / 0.1, 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		var sc := lerpf(1.5, 1.0, Ink.ease_out_cubic(a))
+		var col := Color(red, sd.ink * a)
+		draw_set_transform(sd.p, sd.rot, Vector2(sc, sc))
+		var r: float = sd.r
+		if sd.round:
+			# 印泥不匀：圆环断开一小段
+			draw_arc(Vector2.ZERO, r, sd.gap, sd.gap + TAU - 0.5, 40, col, 2.6, true)
+			draw_arc(Vector2.ZERO, r - 4.0, 0, TAU, 40, Color(col, col.a * 0.6), 1.0, true)
+			var pts := PackedVector2Array()
+			for i in 10:
+				var rr := 6.0 if i % 2 == 0 else 2.6
+				pts.append(Vector2.from_angle(-PI / 2 + i * PI / 5) * rr + Vector2(0, -5))
+			draw_colored_polygon(pts, col)
+			Ink.text(self, sd.word, Vector2(0, 11), 9, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		else:
+			var w := r * 2.2
+			draw_rect(Rect2(-w * 0.5, -r * 0.55, w, r * 1.1), col, false, 2.4)
+			Ink.text(self, sd.word, Vector2(0, 6), 14, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	draw_set_transform(Vector2.ZERO)

@@ -271,6 +271,62 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_circle(Vector2.ZERO, 11.0, paper)
 			ci.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 32, ink, 1.6, true)
 			Ink.text(ci, "?", Vector2(17, -14), 13, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		# —— M3 第 4 批：证章 ——
+		"rec_letter":
+			# 信封半抽出一封信，落款处一个红色签名
+			_box(ci, Rect2(-24, -4, 48, 28), Color("#e6d7b4"), ink)
+			_box(ci, Rect2(-18, -26, 36, 32), paper, ink)
+			for i in 3:
+				ci.draw_line(Vector2(-12, -18 + i * 6), Vector2(12, -18 + i * 6), Color(ink, 0.4), 1.2)
+			ci.draw_polyline(PackedVector2Array([Vector2(-2, 0), Vector2(3, -4), Vector2(6, 0), Vector2(10, -3), Vector2(13, 0)]), Pal.c("red"), 1.6, true)
+			ci.draw_polyline(PackedVector2Array([Vector2(-24, -4), Vector2(0, 12), Vector2(24, -4)]), ink, 1.6, true)
+		"grad_promise":
+			# 学位帽 + 一张写着“明年”的小纸条
+			_poly(ci, [Vector2(-26, -8), Vector2(0, -20), Vector2(26, -8), Vector2(0, 4)], Color("#2b2a28"), ink)
+			_box(ci, Rect2(-14, -2, 28, 12), Color("#2b2a28"), ink)
+			ci.draw_line(Vector2(18, -10), Vector2(20, 8), Pal.c("gold"), 2.0)
+			ci.draw_circle(Vector2(20, 9), 3.0, Pal.c("gold"))
+			_box(ci, Rect2(-18, 14, 30, 13), paper, ink)
+			Ink.text(ci, "明年", Vector2(-3, 25), 9, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"phd_cert":
+			# 证书：红色封皮翻开，姓名处一条空横线
+			_box(ci, Rect2(-26, -20, 52, 40), Color("#8a2f2a"), ink)
+			_box(ci, Rect2(-22, -16, 44, 32), paper, ink)
+			Ink.text(ci, "学位证书", Vector2(0, -6), 8, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			ci.draw_line(Vector2(-14, 6), Vector2(14, 6), Pal.c("red"), 1.4)
+			Ink.text(ci, "?", Vector2(0, 5), 9, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			ci.draw_circle(Vector2(12, 11), 4.0, Color(Pal.c("red"), 0.7))
+		"dose_card":
+			# 剂量卡：胶片窗变了色
+			_box(ci, Rect2(-18, -24, 36, 48), Color("#d8dde2"), ink)
+			ci.draw_rect(Rect2(-18, -24, 36, 9), Color("#2b2a28"))
+			_box(ci, Rect2(-10, -10, 20, 20), Color("#7a5aa0"), ink)
+			ci.draw_rect(Rect2(-10, -10, 10, 20), Color("#b088c8"))
+			Ink.text(ci, "过期", Vector2(0, 20), 8, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			_box(ci, Rect2(-4, -30, 8, 8), Color("#9aa0a6"), ink)
+		"meal_card":
+			# 饭卡：蓝色卡片 + 磨花的芯片 + 余额
+			ci.draw_set_transform(c, rot - 0.12, Vector2(s, s))
+			_box(ci, Rect2(-26, -16, 52, 32), Pal.c("blue"), ink)
+			_box(ci, Rect2(-20, -8, 12, 10), Pal.c("gold"), ink)
+			Ink.text(ci, "¥3.5", Vector2(10, 10), 11, paper, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			ci.draw_line(Vector2(-20, 8), Vector2(0, 8), Color(paper, 0.6), 1.4)
+		"red_flag":
+			# 流动红旗：旗杆 + 带金穗的红旗
+			ci.draw_line(Vector2(-18, -26), Vector2(-18, 28), Color("#9aa0a6"), 3.0)
+			ci.draw_circle(Vector2(-18, -27), 3.0, Pal.c("gold"))
+			_poly(ci, [Vector2(-17, -22), Vector2(22, -18), Vector2(18, -2), Vector2(22, 12), Vector2(-17, 8)], Pal.c("red"), ink)
+			_star(ci, Vector2(-6, -8), 5.0, Pal.c("gold"))
+			for i in 4:
+				ci.draw_line(Vector2(-14 + i * 10, 8 + i * 1.0), Vector2(-14 + i * 10, 14 + i * 1.0), Pal.c("gold"), 2.0)
+		"crooked_seal":
+			# 圆形红章，印面歪着盖
+			ci.draw_set_transform(c, rot + 0.35, Vector2(s, s))
+			ci.draw_circle(Vector2.ZERO, 22.0, Color(Pal.c("red"), 0.12))
+			ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 40, Pal.c("red"), 3.0, true)
+			ci.draw_arc(Vector2.ZERO, 17.0, 0, TAU, 40, Color(Pal.c("red"), 0.6), 1.0, true)
+			_star(ci, Vector2(0, -2), 8.0, Pal.c("red"))
+			ci.draw_line(Vector2(-10, 10), Vector2(10, 10), Pal.c("red"), 2.0)
 		_:
 			_box(ci, Rect2(-20, -20, 40, 40), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 8), 20, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

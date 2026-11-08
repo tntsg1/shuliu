@@ -406,11 +406,16 @@ func extract() -> void:
 	detector.set_meta("kind", kind)
 	shot.fire(Pal.ramp(clampf((bloom_energy - 1) / 12.0, 0.0, 1.0)))
 	var fin := run.extract()
+	_triggers(fin)
 	bloom_value = fin.gained
 	last_result = {"lost": false, "energy": bloom_energy, "fin": fin}
 	chamber.empty()
 
 func _on_shot_arrived() -> void:
+	# 推荐信在引出时抽卡：等它揭晓了再开花
+	var wait: float = charms.roll_wait()
+	if wait > 0.0:
+		await get_tree().create_timer(wait / dev_speed, true, false, true).timeout
 	mode = M.BLOOM
 	timer = 0.0
 	detector.bloom(bloom_energy, detector.get_meta("kind", "precise"))
@@ -679,7 +684,12 @@ func open_shop() -> void:
 	player.input_enabled = false
 	prompt.hide_now()
 	overlay.strip_t = 0.0
+	var meal: int = run.on_shop_open()
 	shop.show_shop()
+	if meal > 0:
+		shop.money_disp -= meal
+		shop._say("食堂的饭卡：+$%d" % meal)
+		Sfx.play("btn2", -8.0, 1.6)
 
 func _on_shop_closed() -> void:
 	cursor = -1
