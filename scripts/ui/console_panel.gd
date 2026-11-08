@@ -6,6 +6,10 @@ const H := 300.0
 var main: Node
 var show_t := 0.0
 var show_v := 0.0
+var show_leave := false     # 实验进行中可以离开去采购（由主逻辑每帧设置）
+var leave_v := 0.0
+var leave_rect := Rect2()
+var hover_leave := false
 var _vs := 0.0
 # 计数器（滚轮）
 var val_disp := 0.0
@@ -214,6 +218,7 @@ func _draw() -> void:
 	# —— 右：按钮 + 拉杆 ——
 	_button(Vector2(1530, y0 + 150))
 	_lever(Vector2(1760, y0 + 210))
+	_leave_tab(y0)
 
 func _plate(r: Rect2) -> void:
 	var el := Pal.equip_line()
@@ -484,3 +489,19 @@ func seg_at(p: Vector2) -> int:
 		if p.x <= seg_x[k]:
 			return k
 	return seg_x.size() - 1
+
+## 面板左上角伸出的纸签：实验进行中随时离开去采购，束流留在舱里等你回来
+func _leave_tab(y0: float) -> void:
+	leave_v = lerpf(leave_v, 1.0 if show_leave else 0.0, 0.2)
+	if leave_v < 0.02:
+		leave_rect = Rect2()
+		return
+	var el := Pal.equip_line()
+	var h := 40.0
+	var r := Rect2(60, y0 + 14 - h * leave_v - (4.0 if hover_leave else 0.0), 236, h + 8)
+	leave_rect = r if leave_v > 0.8 else Rect2()
+	draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.12))
+	draw_rect(r, Pal.c("gold") if hover_leave else Pal.c("paper"))
+	draw_rect(r, Pal.c("red") if hover_leave else el, false, 2.0 if hover_leave else 1.4)
+	Ink.text(self, "← 先去采购", r.position + Vector2(16, 28), 18, Pal.c("text"), Pal.bold)
+	Ink.text(self, "Esc · 右键", r.position + Vector2(r.size.x - 14, 27), 13, Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)

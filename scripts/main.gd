@@ -226,6 +226,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 				accelerate()
 			elif ev.is_action("interact") and e_guard <= 0.0:
 				extract()
+			elif ev.is_action("back"):
+				leave_console()
 		M.BLOOM:
 			if ev.is_action("accelerate") or ev.is_action("interact"):
 				if timer > 0.5:
@@ -270,7 +272,16 @@ func _console_ready() -> void:
 	clip_l.show_t = 1.0
 	clip_r.show_t = 1.0
 	overlay.strip_t = 0.0
-	_new_beam()
+	if run.beam != null:
+		# 中途离开又回来：束流还在舱里，接着加速
+		Sfx.play("arc", -16.0, 1.2)
+		_sync()
+		mode = M.CONSOLE
+		e_guard = 0.4
+		cooldown = 0.25
+		overlay.say("束流还在，继续实验")
+	else:
+		_new_beam()
 
 func _new_beam() -> void:
 	overlay.hide_card()
@@ -510,7 +521,11 @@ func leave_console() -> void:
 	clip_r.show_t = 0.0
 	overlay.strip_t = 1.0
 	cam_omega = 3.6
-	chamber.empty()
+	panel.show_leave = false
+	if run.beam == null:
+		chamber.empty()
+	else:
+		overlay.say("束流在舱里等你，随时回控制台继续")
 
 func restart() -> void:
 	run = Run.new()
@@ -542,6 +557,7 @@ func _process(dt: float) -> void:
 	if now >= stop_until:
 		Engine.time_scale = (slow_scale if now < slow_until else 1.0) * dev_speed
 	var dang := 0.0
+	panel.show_leave = mode == M.CONSOLE and run.beam != null
 	if mode == M.CONSOLE or mode == M.SPIN:
 		dang = shown_dang
 		Sfx.set_hum(true, shown_e, clampf(dang / 0.35, 0.0, 1.0), shown_lock)
@@ -568,7 +584,7 @@ func _process(dt: float) -> void:
 				cam_target = Vector2(1000, 520)
 				zoom_target = 1.6
 			if _near_console():
-				prompt.show_at(Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "E", "开始实验")
+				prompt.show_at(Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "E", "继续实验" if run.beam != null else "开始实验")
 			elif _near_terminal():
 				prompt.show_at(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 225), "E", "采购终端")
 			elif not hover_interact:
@@ -762,6 +778,9 @@ func _mouse(ev: InputEventMouse) -> void:
 	if mb.button_index == MOUSE_BUTTON_RIGHT:
 		if mode == M.RESULT and not run.must_submit():
 			leave_console()
+		elif mode == M.CONSOLE and run.beam != null:
+			leave_console()
+			_walk_to(Geo.TERMINAL_X + 35, "shop")
 		return
 	if mb.button_index != MOUSE_BUTTON_LEFT:
 		return
@@ -771,7 +790,10 @@ func _mouse(ev: InputEventMouse) -> void:
 			if a != "":
 				_card_action(a)
 		M.CONSOLE:
-			if panel.hit_button(sp):
+			if panel.leave_rect.has_point(sp):
+				leave_console()
+				_walk_to(Geo.TERMINAL_X + 35, "shop")
+			elif panel.hit_button(sp):
 				accelerate()
 			elif panel.hit_knob(sp) and e_guard <= 0.0:
 				panel.start_drag()
@@ -816,9 +838,12 @@ func _hover() -> void:
 				hand = true
 				hover_interact = true
 				var is_term := _terminal_rect().has_point(wp)
-				prompt.show_at(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 225) if is_term else Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "点击", "去采购" if is_term else "开始实验")
+				prompt.show_at(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 225) if is_term else Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "点击", "去采购" if is_term else ("继续实验" if run.beam != null else "开始实验"))
 		M.CONSOLE, M.SPIN:
 			panel.hover_btn = mode == M.CONSOLE and panel.hit_button(sp)
+			panel.hover_leave = mode == M.CONSOLE and panel.leave_rect.has_point(sp)
+			if panel.hover_leave:
+				hand = true
 			panel.hover_knob = mode == M.CONSOLE and panel.hit_knob(sp)
 			hand = panel.hover_btn or panel.hover_knob or panel.dragging or mode == M.SPIN
 			var k: int = panel.seg_at(sp)

@@ -510,7 +510,7 @@ func buy(i: int) -> String:
 	return ""
 
 func sell(id: String) -> int:
-	if beam != null or not has(id):
+	if not has(id):
 		return 0
 	var v: int = Items.sell_price(id)
 	relics.erase(id)
