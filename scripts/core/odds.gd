@@ -10,7 +10,7 @@ const CHARGE := [0, 2, 1, 0, 0, 0]
 
 const BASE := 40.0
 const GROWTH := 1.32
-const EMAX := 20
+const EMAX := 99
 const LOCK_NEED := 6
 const LOCK_PRESSES := 4
 
@@ -40,6 +40,14 @@ static func table(e: int, lock := false) -> PackedFloat64Array:
 		p[1] -= extra * 0.7
 		p[0] -= extra * 0.1
 		p[2] -= extra * 0.2
+		# E18 以后：丢失继续往上爬，但永远到不了 100%——成功总留着一丝（E50 约 7%、E99 约 2.6%）
+		if e > 18:
+			var more := 25.0 * (1.0 - exp(-(e - 18) / 20.0))
+			var rest: float = 100.0 - p[4]
+			var k: float = (rest - more) / rest
+			for i in 4:
+				p[i] *= k
+			p[4] += more
 	else:
 		for i in range(keys.size() - 1):
 			var a: int = keys[i]

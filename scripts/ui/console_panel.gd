@@ -204,9 +204,25 @@ func _draw() -> void:
 	Ink.text(self, "能级", Vector2(76, y0 + 82), 17, Pal.c("text2"))
 	_drums(Vector2(76, y0 + 96), e_disp, 2, 46.0, 66.0, "E")
 	Ink.text(self, "潜在成果", Vector2(250, y0 + 82), 17, Pal.c("text2"))
-	_drums(Vector2(250, y0 + 96), val_disp, 5, 38.0, 66.0, "")
+	# 潜在成果超过 5 位数：鼓轮换成“万 / 亿 / 万亿”为单位
+	var shown := val_disp
+	var unit := ""
+	if val_disp >= 9.9999e11:
+		shown = val_disp / 1e12
+		unit = "万亿"
+	elif val_disp >= 9.9999e7:
+		shown = val_disp / 1e8
+		unit = "亿"
+	elif val_disp >= 99999.5:
+		shown = val_disp / 1e4
+		unit = "万"
+	if unit != "":
+		shown = floor(shown)
+	_drums(Vector2(250, y0 + 96), shown, 5, 38.0, 66.0, "")
 	if flash_val > 0.0:
 		draw_rect(Rect2(244, y0 + 90, 196, 78), Color(Pal.c("gold"), 0.35 * flash_val), false, 4.0)
+	if unit != "":
+		Ink.text(self, unit, Vector2(446, y0 + 132), 20, Pal.c("red"), Pal.bold)
 	Ink.text(self, "RP", Vector2(446, y0 + 170), 16, Pal.c("text2"), Pal.mono)
 	if hint != "":
 		draw_set_transform(Vector2(76, y0 + 222), -0.02)

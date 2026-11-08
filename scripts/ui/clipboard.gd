@@ -173,6 +173,14 @@ func _dashed(a: Vector2, b: Vector2, col: Color) -> void:
 		draw_line(a.lerp(b, float(i) / maxf(1, n)), a.lerp(b, float(i + 1) / maxf(1, n)), col, 1.4)
 
 static func _fmt(v: int) -> String:
+	# 太大的数用“万 / 亿 / 万亿”简写
+	var av := absi(v)
+	if av >= 1000000000000:
+		return ("-" if v < 0 else "") + "%.2f 万亿" % (av / 1e12)
+	if av >= 100000000:
+		return ("-" if v < 0 else "") + "%.2f 亿" % (av / 1e8)
+	if av >= 1000000:
+		return ("-" if v < 0 else "") + "%.1f 万" % (av / 1e4)
 	var s := str(absi(v))
 	var out := ""
 	while s.length() > 3:
