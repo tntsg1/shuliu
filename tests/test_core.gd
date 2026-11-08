@@ -479,5 +479,52 @@ func _initialize() -> void:
 		b6x.experiments_left = 3
 	check(seen.size() == 4 and seen[2] > 100 and seen[2] < 180, "红按钮四种结果（丢失 %d/400）" % seen.get(2, 0))
 
+	# —— M3 第 7 批：书籍 / 吉祥物 ——
+	var b7 := Run.new(101)
+	b7.relics.append("schrodinger")
+	b7.dev_force = Odds.LOSS
+	b7.start_experiment(); b7.beam.energy = 9
+	var r7 := b7.accelerate()
+	check(r7.get("sch", false) and b7.beam != null and b7.beam.sch_pending, "薛定谔：丢失进入待定")
+	var pot7 := b7.potential()
+	var t7 := b7.total
+	b7.sch_end()
+	check(b7.total - t7 == int(floor(pot7 * 0.3)) and b7.beam == null, "薛定谔：结束保留 30%")
+	var b7g := Run.new(102)
+	b7g.relics.append("schrodinger")
+	b7g.dev_force = Odds.LOSS
+	b7g.start_experiment(); b7g.beam.energy = 9
+	b7g.accelerate()
+	b7g.beam.sch_gamble = true
+	b7g.dev_force = Odds.SUCCESS
+	var rg7 := b7g.accelerate()
+	check(not rg7.lost and b7g.beam.energy == 10, "薛定谔：赌赢继续")
+	var b7f := Run.new(103)
+	b7f.relics.append("schrodinger")
+	b7f.relics.append("dean_paper")
+	b7f.dev_force = Odds.LOSS
+	b7f.start_experiment(); b7f.beam.energy = 9
+	b7f.accelerate()
+	b7f.beam.sch_gamble = true
+	b7f.dev_force = Odds.STABLE
+	var rf7 := b7f.accelerate()
+	check(rf7.lost and rf7.salvaged == 0, "薛定谔：赌输全部归零（稿纸也救不了）")
+	var b7c := Run.new(104)
+	b7c.relics.append("lab_cat")
+	b7c.dev_force = Odds.LOSS
+	b7c.dev_roll = 1
+	b7c.start_experiment(); b7c.beam.energy = 6
+	check(b7c.accelerate().outcome == Odds.PERFECT, "猫：丢失 → 完美同步")
+	var b7i := Run.new(105)
+	b7i.relics.append("impossible")
+	b7i.dev_force = Odds.PERFECT
+	b7i.start_experiment(); b7i.beam.energy = 14
+	b7i.accelerate()
+	check(b7i.beam.imp_mult == 5.0, "结果不可能 ×5")
+	var b7p := Run.new(106)
+	b7p.relics.append("plant")
+	b7p.total = b7p.line()
+	check(b7p.submit().bonus == 21, "盆栽 +$6")
+
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)

@@ -73,6 +73,12 @@ func _draw() -> void:
 	var ph := level("照片")
 	if ph > 0.01:
 		_photos(h, ph)
+	var bk := level("书籍")
+	if bk > 0.01:
+		_formulas(h, bk)
+	var ms := level("吉祥物")
+	if ms > 0.01:
+		_mascots(h, ms)
 	var ec := level("电子")
 	if ec > 0.01:
 		_scope(h, ec)
@@ -439,3 +445,64 @@ func _scope(h: Vector2, p: float) -> void:
 		draw_rect(box, Color(green, 0.6 * a3), false, 1.0)
 		draw_string(Pal.mono, box.position + Vector2(6, 14), "CH1  2.00V", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(green, a3))
 		draw_string(Pal.mono, box.position + Vector2(6, 28), "CH2  %.2fV" % (0.5 + 0.3 * sin(t)), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(amber, a3))
+
+const FORMULAS := ["E=mc²", "ψ(x,t)", "∇·B=0", "ħω", "ΔxΔp≥ħ/2", "F=qv×B", "β≈0.9999", "σ=?", "∮E·dl", "p<0.05?"]
+
+## 书籍：手写公式在舱里慢慢飘过，像有人在玻璃上演算
+func _formulas(h: Vector2, p: float) -> void:
+	var ink := Pal.c("blue")
+	var n := int(round(2.0 + 6.0 * p))
+	for i in n:
+		var sp := 14.0 + (i % 3) * 6.0
+		var x := fposmod(i * 137.0 + t * sp, h.x * 2.2) - h.x * 1.1
+		var y := -h.y * 0.62 + fmod(i * 53.0, h.y * 1.25)
+		var edge := clampf(1.0 - absf(x) / (h.x * 0.95), 0.0, 1.0)
+		var a := clampf(p * 1.4, 0.0, 1.0) * clampf(edge * 3.0, 0.0, 1.0) * 0.55
+		draw_set_transform(Vector2(x, y + sin(t * 0.8 + i) * 4.0), sin(i * 1.3) * 0.12)
+		draw_string(Pal.hand, Vector2.ZERO, FORMULAS[i % FORMULAS.size()], HORIZONTAL_ALIGNMENT_CENTER, -1, 16 + (i % 2) * 4, Color(ink, a))
+	draw_set_transform(Vector2.ZERO)
+
+## 吉祥物：一只橘猫隔一会儿从舱底走过（走到一半会停下来舔爪子）；浓度高了角上还摆一盆绿植
+func _mascots(h: Vector2, p: float) -> void:
+	var ink := Pal.equip_line()
+	var cyc := fmod(t, 14.0)
+	if cyc < 9.0:
+		var u := cyc / 9.0
+		var span := h.x - 120.0      # 只在舱底平直的那段玻璃里走，别走出胶囊的弧边
+		var x := lerpf(-span, span, u)
+		if u > 0.45 and u < 0.6:
+			x = lerpf(-span, span, 0.45)
+		var y := h.y - 30.0
+		var walk := 0.0 if (u > 0.45 and u < 0.6) else sin(t * 10.0)
+		var a := clampf(p * 1.6, 0.0, 1.0) * clampf(minf(u, 1.0 - u) / 0.08, 0.0, 1.0)
+		var o := Color(Pal.c("orange"), a)
+		var l := Color(ink, a)
+		# 身体 + 尾巴
+		draw_set_transform(Vector2(x, y))
+		draw_colored_polygon(_oval(Vector2(0, -12), 20.0, 10.0), o)
+		draw_polyline(PackedVector2Array([Vector2(-18, -14), Vector2(-28, -24), Vector2(-26, -34)]), o, 4.0, true)
+		# 腿
+		for i in 4:
+			var lx := -12.0 + i * 8.0
+			draw_line(Vector2(lx, -4), Vector2(lx + walk * (2.5 if i % 2 == 0 else -2.5), 6), o, 3.5)
+		# 头
+		draw_circle(Vector2(20, -20), 8.0, o)
+		draw_colored_polygon(PackedVector2Array([Vector2(14, -25), Vector2(16, -34), Vector2(20, -27)]), o)
+		draw_colored_polygon(PackedVector2Array([Vector2(22, -27), Vector2(25, -34), Vector2(27, -24)]), o)
+		draw_circle(Vector2(23, -21), 1.2, l)
+		draw_set_transform(Vector2.ZERO)
+	if p > 0.6:
+		var a2 := clampf((p - 0.6) / 0.3, 0.0, 1.0)
+		var c := Vector2(-h.x + 70, h.y - 30)
+		draw_colored_polygon(PackedVector2Array([c + Vector2(-12, -14), c + Vector2(12, -14), c + Vector2(9, 6), c + Vector2(-9, 6)]), Color(Color("#c0704a"), a2))
+		for k in 5:
+			var ang := -PI / 2 + (k - 2) * 0.45
+			var tip := c + Vector2(0, -14) + Vector2.from_angle(ang) * (20.0 + 4.0 * sin(t * 1.5 + k))
+			draw_line(c + Vector2(0, -14), tip, Color(Color("#5a9a5a"), a2), 4.0, true)
+
+func _oval(c: Vector2, rx: float, ry: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in 16:
+		var a := TAU * i / 16.0
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+	return pts

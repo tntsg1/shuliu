@@ -27,6 +27,10 @@ var tape_used := false
 var screw_mult := 1.0       # 螺丝：潜在成果翻倍的累计倍数
 var red_mult := 1.0         # 红色按钮 ×10
 var red_used := false
+var cat_used := false       # 实验室的猫
+var imp_mult := 1.0         # 《这个结果不可能》×5
+var sch_pending := false    # 薛定谔：等玩家选“结束 / 再加速一次”
+var sch_gamble := false     # 薛定谔：这一下是赌命的“再加速一次”
 
 func value_base() -> int:
 	return Odds.value_at(energy)

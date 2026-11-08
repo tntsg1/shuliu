@@ -40,6 +40,7 @@ var promise := 0                 # 毕业承诺：攒给下一次锁相的额外
 var stage_ext_used := false      # 灭火器：本阶段已经用过
 var stage_call_used := false     # 紧急电话
 var stage_protect_used := false  # 束流保护系统
+var stage_sch_used := false      # 薛定谔的实验报告
 # —— 商店 ——
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
@@ -155,7 +156,7 @@ func multiplier() -> float:
 	if beam != null and has("calorimeter") and beam.energy >= 8: m *= 1.6
 	if beam != null and has("daq"): m *= 1.0 + minf(0.6, beam.streak * 0.03)
 	if beam != null and has("last_slide") and experiments_left == 1: m *= 1.5
-	if beam != null: m *= beam.red_mult
+	if beam != null: m *= beam.red_mult * beam.imp_mult
 	if beam != null: m *= beam.screw_mult
 	if beam != null and has("phd_cert") and experiments_left == 1 and total < line(): m *= 2.0
 	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
@@ -219,6 +220,12 @@ func accelerate() -> Dictionary:
 		if lost2:
 			k = Odds.LOSS
 	# 破碎抵挡
+	if k == Odds.LOSS and has("lab_cat") and not b.cat_used:
+		b.cat_used = true
+		var hc := _hit(0.5)
+		trig.append(["lab_cat", "猫踩了一脚：丢失 → 完美同步" if hc else "猫看了一眼，走了", {"p": 0.5, "hit": hc}])
+		if hc:
+			k = Odds.PERFECT
 	if k == Odds.LOSS and has("emergency_call") and not stage_call_used:
 		stage_call_used = true
 		k = Odds.STABLE
@@ -234,6 +241,15 @@ func accelerate() -> Dictionary:
 			trig.append(["coin", "正面！挡住了", {"p": 0.5, "hit": true}])
 		else:
 			trig.append(["coin", "反面……", {"p": 0.5, "hit": false}])
+	var gamble := b.sch_gamble
+	if gamble:
+		b.sch_gamble = false
+		b.sch_pending = false
+		if not Odds.is_good(k):
+			k = Odds.LOSS
+			trig.append(["schrodinger", "盒子打开了：没了"])
+		else:
+			trig.append(["schrodinger", "盒子打开了：还活着！"])
 	if k == Odds.LOSS and dev_god:
 		k = Odds.STABLE
 	for kk in Odds.N:
@@ -242,17 +258,26 @@ func accelerate() -> Dictionary:
 	b.presses += 1
 	var res := {"outcome": k, "raw": raw, "from": from, "odds": p, "lock_started": false, "lock_ended": false,
 		"lost": false, "salvaged": 0, "money": 0, "triggers": trig}
+	# 薛定谔：丢失进入待定，等玩家选
+	if k == Odds.LOSS and not gamble and has("schrodinger") and not stage_sch_used:
+		stage_sch_used = true
+		b.sch_pending = true
+		trig.append(["schrodinger", "待定：既丢了，又没丢"])
+		res["sch"] = true
+		res.to = from
+		_log(Odds.LOSS, from, from)
+		return res
 	# 束流丢失（可能被稿纸抢救）
 	if k == Odds.LOSS:
 		stage_had_loss = true
 		res.lost = true
 		res.to = from
 		var keep := 0
-		if has("dean_paper") and not paper_used:
+		if has("dean_paper") and not paper_used and not gamble:
 			paper_used = true
 			keep = int(floor(potential() * 0.8))
 			trig.append(["dean_paper", "稿纸抢救 80%"])
-		if keep == 0 and has("protect_sys") and not stage_protect_used:
+		if keep == 0 and has("protect_sys") and not stage_protect_used and not gamble:
 			stage_protect_used = true
 			keep = int(floor(potential() * 0.3))
 			trig.append(["protect_sys", "保护系统保住 30%"])
@@ -279,6 +304,14 @@ func accelerate() -> Dictionary:
 	# 执行结果
 	var was_locked := b.locked()
 	var delta: int = Odds.DELTA[k]
+	if k == Odds.PERFECT and has("qm_book2"):
+		var hq := _hit(0.3)
+		trig.append(["qm_book2", "第二册翻到了：再 +1" if hq else "翻到的是目录", {"p": 0.3, "hit": hq}])
+		if hq:
+			delta += 1
+	if k == Odds.PERFECT and has("impossible") and b.imp_mult == 1.0 and p[Odds.PERFECT] < 0.05:
+		b.imp_mult = 5.0
+		trig.append(["impossible", "这个结果不可能：×5"])
 	if k == Odds.PERFECT and has("rf_cavity"):
 		delta += 1
 		trig.append(["rf_cavity", "完美同步再 +1"])
@@ -380,6 +413,18 @@ func accelerate() -> Dictionary:
 	best_potential = maxi(best_potential, potential())
 	_log(k, from, b.energy)
 	return res
+
+## 薛定谔：选“结束”——保留 30%，实验结束
+func sch_end() -> Dictionary:
+	var b := beam
+	b.sch_pending = false
+	var keep := int(floor(potential() * 0.3))
+	stage_had_loss = true
+	b.alive = false
+	var fin := _finish(keep)
+	fin["lost"] = true
+	fin["salvaged"] = keep
+	return fin
 
 ## 绝对不能按的红色按钮：每次实验一次，四种结果概率公开
 const RED_SEGS := [[0.10, "潜在成果 ×10"], [0.25, "4 次完全同步"], [0.35, "束流直接丢失"], [0.30, "随机精良以上饰品"]]
@@ -497,6 +542,8 @@ func submit() -> Dictionary:
 		var bonus := 15 + 5 * s
 		if has("crooked_seal"):
 			bonus *= 2
+		if has("plant"):
+			bonus += 6
 		money += bonus
 		return {"passed": true, "stage": s, "won": won(), "bonus": bonus}
 	failed = true

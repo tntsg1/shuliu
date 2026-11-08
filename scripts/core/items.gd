@@ -182,6 +182,22 @@ const ALL := {
 	"calc7": {"kind": "relic", "name": "按什么都等于 7 的计算器", "rarity": UNCOMMON, "price": 24,
 		"desc": "引出时 7% 概率科研价值 ×3。",
 		"lore": "按什么都等于7。"},
+	# —— M3 第 7 批：书籍 / 吉祥物 ——
+	"impossible": {"kind": "relic", "name": "《这个结果不可能》", "rarity": LEGEND, "price": 52,
+		"desc": "完美同步发生时，若抽取前它的概率低于 5%，当前科研价值 ×5。每次实验最多一次。",
+		"lore": "审稿人要求解释实验结果，作者表示自己也想知道。"},
+	"schrodinger": {"kind": "relic", "name": "薛定谔的实验报告", "rarity": LEGEND, "price": 54,
+		"desc": "束流丢失时进入待定：选“结束”保留 30% 科研价值；选“再加速一次”——成功则撤销丢失继续实验，失败则全部归零。每阶段一次。",
+		"lore": ""},
+	"qm_book2": {"kind": "relic", "name": "量子力学（第二册）", "rarity": RARE, "price": 36,
+		"desc": "完美同步时 30% 概率额外 +1 能级。",
+		"lore": "第一册永远都是找不到的。"},
+	"plant": {"kind": "relic", "name": "楼道里没人浇水的盆栽", "rarity": COMMON, "price": 14,
+		"desc": "每阶段开始时获得 $6。",
+		"lore": "活的比培养皿的微生物好。"},
+	"lab_cat": {"kind": "relic", "name": "不属于任何课题组的猫", "rarity": LEGEND, "price": 56,
+		"desc": "每次实验第一次束流丢失时，50% 概率改成完美同步。",
+		"lore": "哈基米南北路多。"},
 }
 
 ## 污染标签（只改画面，不进数值；DECISIONS 视觉硬规则）
@@ -201,11 +217,12 @@ const TAG := {
 	"screw": "金属", "lab8_key": "金属", "extinguisher": "金属", "wrench": "金属",
 	"calorimeter": "电子", "protect_sys": "电子", "daq": "电子", "lock_loop": "电子", "bpm": "电子",
 	"emergency_call": "电子", "red_button": "电子", "printer": "电子", "last_slide": "电子", "calc7": "电子",
+	"impossible": "书籍", "schrodinger": "书籍", "qm_book2": "书籍", "plant": "吉祥物", "lab_cat": "吉祥物",
 }
 ## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
 const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
 	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
-	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card", "extractor", "beam_dump", "extinguisher", "bpm", "printer", "daq"]
+	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card", "extractor", "beam_dump", "extinguisher", "bpm", "printer", "daq", "plant", "qm_book2"]
 
 static func tag_of(id: String) -> String:
 	return TAG.get(id, "")

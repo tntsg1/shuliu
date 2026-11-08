@@ -470,6 +470,46 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 				ci.draw_circle(Vector2.from_angle(a) * 12.0, 3.5, Pal.c("gold"))
 			ci.draw_line(Vector2(-6, 0), Vector2(6, 0), Pal.c("red"), 1.6)
 			ci.draw_line(Vector2(0, -6), Vector2(0, 6), Pal.c("red"), 1.6)
+		# —— M3 第 7 批：书籍 / 吉祥物 ——
+		"impossible":
+			# 期刊封面，大大的“？！”
+			_box(ci, Rect2(-20, -26, 40, 52), Color("#2f5d9e"), ink)
+			_box(ci, Rect2(-15, -20, 30, 8), paper, ink)
+			Ink.text(ci, "?!", Vector2(0, 14), 22, Pal.c("gold"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"schrodinger":
+			# 一个纸箱，盖子半开，露出一双猫眼（? 和 !）
+			_poly(ci, [Vector2(-24, -6), Vector2(24, -6), Vector2(20, 24), Vector2(-20, 24)], Color("#c9a26a"), ink)
+			_poly(ci, [Vector2(-24, -6), Vector2(-4, -20), Vector2(2, -10)], Color("#d9b47a"), ink)
+			_poly(ci, [Vector2(24, -6), Vector2(8, -22), Vector2(2, -10)], Color("#d9b47a"), ink)
+			ci.draw_circle(Vector2(-7, 6), 3.0, Pal.c("gold"))
+			ci.draw_circle(Vector2(7, 6), 3.0, Pal.c("gold"))
+			Ink.text(ci, "50%", Vector2(0, 21), 9, ink, Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+		"qm_book2":
+			# 厚书，书脊写着“量子力学 II”
+			_box(ci, Rect2(-20, -24, 40, 48), Color("#6a4fb0"), ink)
+			ci.draw_rect(Rect2(-20, -24, 8, 48), Color("#4f3a88"))
+			_box(ci, Rect2(-8, -14, 24, 14), paper, ink)
+			Ink.text(ci, "II", Vector2(4, -3), 11, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			Ink.text(ci, "ψ", Vector2(4, 18), 14, Pal.c("gold"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"plant":
+			# 陶盆里几片顽强的叶子
+			_poly(ci, [Vector2(-14, 6), Vector2(14, 6), Vector2(10, 26), Vector2(-10, 26)], Color("#c0704a"), ink)
+			_box(ci, Rect2(-16, 2, 32, 6), Color("#a85a3a"), ink)
+			for a in [-0.9, -0.3, 0.3, 0.9]:
+				var tip := Vector2.from_angle(-PI / 2 + a) * 24.0 + Vector2(0, 2)
+				_poly(ci, [Vector2(0, 2), tip + tip.orthogonal().normalized() * 6.0, tip, tip - tip.orthogonal().normalized() * 6.0], Color("#5a9a5a"), ink)
+		"lab_cat":
+			# 一只橘猫的脑袋，眯着眼
+			ci.draw_circle(Vector2(0, 4), 20.0, Pal.c("orange"))
+			_poly(ci, [Vector2(-18, -6), Vector2(-14, -26), Vector2(-4, -14)], Pal.c("orange"), ink)
+			_poly(ci, [Vector2(18, -6), Vector2(14, -26), Vector2(4, -14)], Pal.c("orange"), ink)
+			ci.draw_arc(Vector2(0, 4), 20.0, 0, TAU, 32, ink, 1.8, true)
+			ci.draw_arc(Vector2(-8, 2), 4.0, PI + 0.4, TAU - 0.4, 8, ink, 1.6, true)
+			ci.draw_arc(Vector2(8, 2), 4.0, PI + 0.4, TAU - 0.4, 8, ink, 1.6, true)
+			ci.draw_line(Vector2(-3, 10), Vector2(3, 10), ink, 1.4)
+			for s2 in [-1.0, 1.0]:
+				ci.draw_line(Vector2(s2 * 8, 10), Vector2(s2 * 22, 8), Color(ink, 0.6), 1.0)
+				ci.draw_line(Vector2(s2 * 8, 12), Vector2(s2 * 22, 14), Color(ink, 0.6), 1.0)
 		_:
 			_box(ci, Rect2(-20, -20, 40, 40), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 8), 20, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

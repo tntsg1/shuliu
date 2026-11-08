@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE }
 
 var run: Run
 var mode := M.WALK
@@ -231,6 +231,11 @@ func _unhandled_input(ev: InputEvent) -> void:
 					open_shop()
 				elif _near_review():
 					open_review()
+		M.CHOICE:
+			if ev.is_action("interact"):
+				_sch_end()
+			elif ev.is_action("accelerate"):
+				_sch_go()
 		M.REVIEW:
 			if ev.is_action("back"):
 				close_review()
@@ -389,6 +394,9 @@ func _reveal() -> void:
 	mode = M.CONSOLE
 	if raw != r.outcome:
 		overlay.strike_next = true
+	if r.get("sch", false):
+		_sch_choice(r)
+		return
 	if r.lost:
 		_lose(r)
 		return
@@ -436,6 +444,46 @@ func press_red() -> void:
 				Sfx.play("metal", -4.0, 1.3)
 				overlay.stamp("天降：" + Items.ALL[res.gift].name, Pal.c("blue"))
 				charms.fire(res.gift, "从红按钮里掉出来的")
+
+## 薛定谔的实验报告：束流“既丢了又没丢”，玩家二选一
+func _sch_choice(r: Dictionary) -> void:
+	mode = M.CHOICE
+	Sfx.play("glass", -6.0, 1.3)
+	Sfx.play("ring", -6.0, 0.6)
+	chamber.kick(1.4, Pal.c("lock"))
+	overlay.flash_red(0.5)
+	overlay.stamp("束流丢失？", Pal.c("lock"), false, true)
+	shake = 0.6
+	hitstop(0.1)
+	var keep := int(floor(run.potential() * 0.3))
+	var q := run.odds()
+	var win: float = q[Odds.SUCCESS] + q[Odds.PERFECT] + q[Odds.SUPER]
+	overlay.show_card({"title": "薛定谔的实验报告 · 待定", "title_col": Pal.c("lock"), "value": "E%d：既丢了，又没丢" % run.beam.energy,
+		"sub": "盒子还没打开。你来决定。",
+		"lines": ["结束：保留 30%%，拿走 %s RP。" % fmt(keep),
+			"再加速一次：加速成功 / 完美 / 超级同步就撤销丢失（%.0f%%）；" % (win * 100.0),
+			"　　　　　　其他任何结果，全部归零。"], "keys": ""})
+
+func _sch_end() -> void:
+	overlay.hide_card()
+	var fin := run.sch_end()
+	last_result = {"lost": true, "energy": int(shown_e), "p": 1.0, "fin": fin}
+	Sfx.play("paper", -4.0, 0.9)
+	chamber.lose()
+	overlay.strike_next = true
+	overlay.stamp("保留 30%", Pal.c("lock"))
+	mode = M.LOSING
+	timer = 0.0
+
+func _sch_go() -> void:
+	overlay.hide_card()
+	run.beam.sch_gamble = true
+	mode = M.CONSOLE
+	cooldown = 0.0
+	Sfx.play("arc", -4.0, 0.8)
+	overlay.strike_next = true
+	overlay.stamp("再赌一次！", Pal.c("red"))
+	accelerate()
 
 ## 原始结果的揭晓：只盖章、出声、轻震，不执行（之后可能被饰品改写）
 func _pre_reveal(k: int) -> void:
@@ -930,6 +978,8 @@ func _triggers(r: Dictionary) -> void:
 func card_buttons() -> Array:
 	if mode == M.END:
 		return [{"label": "重新开始", "key": "R", "action": "restart"}]
+	if mode == M.CHOICE:
+		return [{"label": "结束，保留 30%", "key": "E", "action": "sch_end"}, {"label": "再加速一次", "key": "空格", "action": "sch_go"}]
 	if mode == M.REVIEW:
 		if review_passed:
 			return [{"label": "好的", "key": "E", "action": "close_review"}]
@@ -957,6 +1007,8 @@ func _card_action(a: String) -> void:
 			if run.can_start(): _new_beam()
 		"leave": leave_console()
 		"close_review": close_review()
+		"sch_end": _sch_end()
+		"sch_go": _sch_go()
 
 # —— 鼠标 ——
 func _mouse(ev: InputEventMouse) -> void:
@@ -992,7 +1044,7 @@ func _mouse(ev: InputEventMouse) -> void:
 	if mb.button_index != MOUSE_BUTTON_LEFT:
 		return
 	match mode:
-		M.RESULT, M.END, M.REVIEW:
+		M.RESULT, M.END, M.REVIEW, M.CHOICE:
 			var a: String = overlay.button_at(sp)
 			if a != "":
 				_card_action(a)
@@ -1078,7 +1130,7 @@ func _hover() -> void:
 			if k >= 0 and run.beam != null:
 				var p := run.odds()
 				tip = PackedStringArray([Odds.NAMES[k], "下一次加速出现这个结果的真实概率：%.1f%%" % (p[k] * 100.0)])
-		M.RESULT, M.END, M.REVIEW:
+		M.RESULT, M.END, M.REVIEW, M.CHOICE:
 			overlay.hover_btn = overlay.hover_at(sp)
 			hand = overlay.hover_btn >= 0
 	if tip.is_empty() and mode != M.SHOP:
