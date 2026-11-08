@@ -89,7 +89,7 @@ static func of(run: Run) -> Dictionary:
 	var b: Beam = run.beam
 	var e: int = b.energy
 	var peak: int = maxi(b.peak, e)
-	return describe(route_of(run.relics), e, peak, traits_of(b), legend_of(peak, run.relics + run.devices))
+	return describe(b.route, e, peak, traits_of(b), legend_of(peak, run.relics + run.devices))
 
 static func describe(route: String, e: int, peak: int, traits: Array, leg: Dictionary) -> Dictionary:
 	var pt := tier_of(peak)

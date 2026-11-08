@@ -30,6 +30,7 @@ var red_used := false
 var cat_used := false       # 实验室的猫
 var imp_mult := 1.0         # 《这个结果不可能》×5
 var sch_pending := false    # 薛定谔：等玩家选“结束 / 再加速一次”
+var route := "std"          # 束流形态路线（注入时定）
 var peak := 1               # 束流形态：这一束到过的最高能级（掉档不退化）
 var saved := false          # 被饰品救回来过（劫后余生）
 var synced := false         # 进过完全同步

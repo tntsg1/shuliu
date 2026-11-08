@@ -14,6 +14,8 @@ var dmg := 0.0
 var ink := Color.BLACK
 var col := Color.WHITE
 var tilt := 0.0
+var fade := 1.0          # 整体淡化（传说底下保留原路线时用）
+var sq := Vector2.ONE    # 压扁（二向箔）
 
 const YARN := Color("#d9822b")
 const YARN_D := Color("#a85a1c")
@@ -34,13 +36,19 @@ func draw(canvas: CanvasItem, origin: Vector2, scale: float, state: Dictionary) 
 	var leg: String = state.get("legend", "")
 	if state.get("card", false):
 		_card_core()
+	fade = 1.0
+	sq = Vector2.ONE
 	if leg != "":
-		_legend(leg)
+		# 传说是在原路线上发生的变异：底下保留这一束原本长成的样子（纸张黑洞和猫形黑洞近看不一样）
+		if leg == "foil":
+			_foil()
+		else:
+			fade = 0.5
+			_route(2)
+			fade = 1.0
+			_legend(leg)
 	else:
-		match state.get("route", "std"):
-			"paper": _paper(state.tier)
-			"mascot": _mascot(state.tier)
-			_: _std(state.tier)
+		_route(state.tier)
 	var om: float = state.get("omen", 0.0)
 	if om > 0.01 and leg == "":
 		_omen(om)
@@ -51,7 +59,14 @@ func draw(canvas: CanvasItem, origin: Vector2, scale: float, state: Dictionary) 
 			"crowned": _crowned()
 
 # —— 坐标：局部 → 画布（受损时歪斜 + 抖动）——
+func _route(tier: int) -> void:
+	match st.get("route", "std"):
+		"paper": _paper(tier)
+		"mascot": _mascot(tier)
+		_: _std(tier)
+
 func P(q: Vector2) -> Vector2:
+	q *= sq
 	if dmg > 0.0:
 		q = q.rotated(tilt) + Vector2(sin(q.y * 0.06 + t * 9.0) * 5.0, cos(q.x * 0.05 + t * 7.0) * 3.0) * dmg
 	return o + q * s
@@ -66,6 +81,7 @@ func line(pts: PackedVector2Array, c: Color, w: float, outline := true) -> void:
 	if pts.size() < 2:
 		return
 	var pp := _poly(pts)
+	c.a *= fade
 	if outline:
 		ci.draw_polyline(pp, Color(ink, c.a), (w + 2.2) * s, true)
 	ci.draw_polyline(pp, c, w * s, true)
@@ -74,6 +90,7 @@ func fill(pts: PackedVector2Array, c: Color, ow := 1.6) -> void:
 	var pp := _poly(pts)
 	if Geometry2D.triangulate_polygon(pp).is_empty():
 		return
+	c.a *= fade
 	ci.draw_colored_polygon(pp, c)
 	if ow > 0.0:
 		var cl := pp.duplicate()
@@ -81,9 +98,10 @@ func fill(pts: PackedVector2Array, c: Color, ow := 1.6) -> void:
 		ci.draw_polyline(cl, Color(ink, minf(1.0, c.a * 2.0)), ow * s, true)
 
 func dot(q: Vector2, r: float, c: Color, ow := 1.0) -> void:
+	c.a *= fade
 	ci.draw_circle(P(q), r * s, c)
 	if ow > 0.0:
-		ci.draw_arc(P(q), r * s, 0, TAU, 16, ink, ow * s, true)
+		ci.draw_arc(P(q), r * s, 0, TAU, 16, Color(ink, fade), ow * s, true)
 
 func ellipse(c: Vector2, rx: float, ry: float, rot: float, n := 48, a0 := 0.0, a1 := TAU) -> PackedVector2Array:
 	var pts := PackedVector2Array()
@@ -439,8 +457,15 @@ func _foil() -> void:
 	var sheet := PackedVector2Array([Vector2(-190, -16 + wv), Vector2(190, -26 - wv), Vector2(190, 14 - wv), Vector2(-190, 26 + wv)])
 	fill(PackedVector2Array([sheet[0] + Vector2(6, 8), sheet[1] + Vector2(6, 8), sheet[2] + Vector2(6, 8), sheet[3] + Vector2(6, 8)]), Color(0, 0, 0, 0.15), 0.0)
 	fill(sheet, Pal.c("paper"), 1.8)
-	for i in 4:
-		line(ellipse(Vector2(0, 0), 60.0 + i * 30.0, 4.0 + i, -0.03, 40), Color(col, 0.75), 1.2, false)
+	# 原路线被拍扁印在纸上
+	sq = Vector2(0.78, 0.11)
+	fade = 0.9
+	_route(2)
+	if st.get("route", "std") == "std":
+		for i in 4:
+			line(ellipse(Vector2(0, 0), 60.0 + i * 30.0, 30.0 + i * 8.0, -0.03, 40), Color(col, 0.75), 1.2, false)
+	sq = Vector2.ONE
+	fade = 1.0
 	dot(Vector2.ZERO, 6.0, col, 1.0)
 	Ink.text(ci, "（二维）", P(Vector2(150, 44)), int(14 * s), Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 

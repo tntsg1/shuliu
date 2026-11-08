@@ -363,6 +363,13 @@ func _initialize() -> void:
 	b4m.relics.append("meal_card")
 	var m0b := b4m.money
 	check(b4m.on_shop_open() == 2 and b4m.money == m0b + 2, "饭卡 +$2")
+	check(b4m.on_shop_open() == 0 and b4m.money == m0b + 2, "饭卡：反复开关商店不再给钱")
+	b4m.start_experiment(); b4m.extract()
+	check(b4m.on_shop_open() == 2, "饭卡：实验结束后再给一次")
+	var rlk := Run.new(76)
+	rlk.start_experiment()
+	rlk.relics.append("lucky_cat")
+	check(rlk.beam.route == "std" and Forms.of(rlk).route == "std", "路线注入时定，中途买饰品不换")
 	var b4p := Run.new(75)
 	b4p.relics.append("phd_cert")
 	b4p.start_experiment(); b4p.experiments_left = 1

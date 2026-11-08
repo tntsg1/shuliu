@@ -44,6 +44,7 @@ func setup(relics: Array, peak: int, e: int, traits := {}) -> void:
 		main._new_beam()
 	main.form.reset()
 	var b: Beam = run.beam
+	b.route = Forms.route_of(relics)
 	b.energy = peak
 	b.peak = peak
 	b.saved = traits.get("saved", false)
@@ -74,15 +75,15 @@ func _go() -> void:
 	await grab("受损：到过 E14 掉回 E11")
 	await setup(["lucky_cat"], 15, 15, {"saved": true, "synced": true, "crowned": true})
 	await grab("三个称号叠加")
-	await setup([], 14, 14)
-	await grab("预兆：E14 接近黑洞")
+	await setup(["lucky_cat"], 16, 16)
+	await grab("吉祥物路线的黑洞")
 	await setup(["note100"], 16, 16, {"saved": true})
 	await grab(main.form.info.name)
 	await setup([], 20, 20)
 	await grab(main.form.info.name)
 	await setup(["lab8_key"], 20, 20)
 	await grab(main.form.info.name)
-	await setup([], 25, 25)
+	await setup(["lucky_cat", "plant"], 25, 25)
 	await grab(main.form.info.name)
 	_sheet("form_sheet", 4)
 	# 成果卡：纸张路线 E14 引出、被救过

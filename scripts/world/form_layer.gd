@@ -42,7 +42,7 @@ func _process(dt: float) -> void:
 		if main.mode == main.M.CONSOLE:
 			traits = Forms.traits_of(b)
 		var items: Array = main.run.relics + main.run.devices
-		info = Forms.describe(Forms.route_of(main.run.relics), e, peak, traits, Forms.legend_of(peak, items))
+		info = Forms.describe(b.route, e, peak, traits, Forms.legend_of(peak, items))
 		info["omen"] = Forms.omen(e, peak, items)
 		var key: String = info.id
 		if key != stage_key:

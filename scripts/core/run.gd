@@ -68,8 +68,11 @@ func lock_need() -> int:
 	return Odds.LOCK_NEED - (1 if has("coffee_cup") else 0) - (2 if plan == "lock_rush" else 0)
 
 ## 打开采购终端（饭卡）
+var meal_ready := true     # 饭卡：每次实验结束后（和开局）第一次打开才给，防止反复开关刷钱
+
 func on_shop_open() -> int:
-	if has("meal_card"):
+	if has("meal_card") and meal_ready:
+		meal_ready = false
 		money += 2
 		return 2
 	return 0
@@ -103,6 +106,7 @@ func can_start() -> bool:
 func start_experiment() -> void:
 	assert(can_start())
 	beam = Beam.new()
+	beam.route = Forms.route_of(relics)     # 束流形态路线在注入时定下，中途买卖不换路线
 	experiment_no += 1
 	if has("wipes"):
 		beam.wipes = true
@@ -555,6 +559,7 @@ func _finish(v: int) -> Dictionary:
 	if beam != null and beam.wipes:
 		relics.erase("wipes")
 	beam = null
+	meal_ready = true
 	total += v
 	experiments_left -= 1
 	var income := int(floor(2.0 + 1.6 * sqrt(float(v))))

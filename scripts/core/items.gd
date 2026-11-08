@@ -145,7 +145,7 @@ const ALL := {
 		"desc": "能级 ≥ 10 时，完美同步概率 +6 个百分点。",
 		"lore": "真的过期了吗？"},
 	"meal_card": {"kind": "relic", "name": "食堂的饭卡", "rarity": COMMON, "price": 12,
-		"desc": "每次打开采购终端获得 $2。",
+		"desc": "每次实验结束后，第一次打开采购终端获得 $2。",
 		"lore": "绝对的圣遗物！余额永远是 3.5 元。"},
 	"red_flag": {"kind": "relic", "name": "安全生产流动红旗", "rarity": RARE, "price": 34,
 		"desc": "本阶段还没发生过束流丢失时，引出价值 ×1.4。",
