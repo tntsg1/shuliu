@@ -12,6 +12,7 @@ run/max_fps=0
 [autoload]
 
 Pal="*res://scripts/pal.gd"
+Sfx="*res://scripts/sfx.gd"
 
 [display]
 

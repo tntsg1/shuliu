@@ -23,6 +23,12 @@ var t_appear := 0.0
 var _va := 0.0
 var shake := 0.0
 var lit := 0            # 已点亮的磁体灯数
+var punch := 0.0
+var _vp := 0.0
+var flash := 0.0
+var waves: Array = []   # {t, col, w}
+var sparks: Array = []  # {p, v, life, col}
+var cracks := 0.0       # 0..1 裂纹显现
 var flick := 0.0
 
 func _ready() -> void:
@@ -61,6 +67,7 @@ func set_state(energy: int, loss_p: float, locked: bool) -> void:
 	t_lock = 1.0 if locked else 0.0
 
 func inject() -> void:
+	cracks = 0.0
 	dissolving = false
 	dissolve = 0.0
 	appear = 0.0
@@ -68,14 +75,25 @@ func inject() -> void:
 	value = 0.0
 	mat.set_shader_parameter("seed", randf() * 10.0)
 
-func kick(strength := 1.0) -> void:
+func kick(strength := 1.0, col := Color.WHITE) -> void:
 	pulse = minf(1.0, pulse + 0.85 * strength)
 	shake = maxf(shake, 0.6 * strength)
+	_vp += 2.2 * strength           # 舱体被“顶”一下再弹回
+	flash = minf(1.0, flash + 0.35 * strength)
+	waves.append({"t": 0.0, "col": col, "w": 2.0 + strength * 2.0})
+	var n := int(6 + strength * 8)
+	for i in n:
+		var a := randf() * TAU
+		var p := Vector2(cos(a) * Geo.CH_SIZE.x * 0.46, sin(a) * Geo.CH_SIZE.y * 0.46)
+		sparks.append({"p": p, "v": Vector2.from_angle(a) * randf_range(180, 420) * (0.6 + strength * 0.4), "life": randf_range(0.25, 0.5), "col": col})
 
 func lose() -> void:
 	dissolving = true
 	dissolve = 0.0
 	shake = 1.6
+	cracks = 0.001
+	flash = 1.0
+	kick(2.2, Pal.c("red"))
 
 func empty() -> void:
 	t_appear = 0.0
@@ -86,6 +104,19 @@ func _process(dt: float) -> void:
 	r = Ink.spring(lockf, _vl, t_lock, 10.0, dt); lockf = r[0]; _vl = r[1]
 	r = Ink.spring(appear, _va, t_appear, 7.5, dt); appear = r[0]; _va = r[1]
 	pulse = maxf(0.0, pulse - dt * 3.2)
+	var pr := Ink.spring(punch, _vp, 0.0, 16.0, dt); punch = pr[0]; _vp = pr[1]
+	scale = Vector2.ONE * (1.0 + punch * 0.035)
+	flash = maxf(0.0, flash - dt * 4.5)
+	if cracks > 0.0:
+		cracks = minf(1.0, cracks + dt * 5.0)
+	for w in waves:
+		w.t += dt
+	waves = waves.filter(func(w): return w.t < 0.55)
+	for s in sparks:
+		s.p += s.v * dt
+		s.v *= 1.0 - 3.5 * dt
+		s.life -= dt
+	sparks = sparks.filter(func(s): return s.life > 0.0)
 	shake = maxf(0.0, shake - dt * 4.0)
 	if dissolving:
 		dissolve = minf(1.0, dissolve + dt * 1.1)
@@ -99,6 +130,8 @@ func _process(dt: float) -> void:
 	mat.set_shader_parameter("lockf", lockf)
 	mat.set_shader_parameter("pulse", pulse)
 	mat.set_shader_parameter("dissolve", dissolve)
+	mat.set_shader_parameter("flash", flash)
+	mat.set_shader_parameter("flash_col", Pal.c("paper") if not dissolving else Pal.c("red"))
 	mat.set_shader_parameter("appear", clampf(appear, 0.0, 1.2))
 	var want := int(round(value * 6.0 * clampf(appear, 0.0, 1.0)))
 	if lockf > 0.5:

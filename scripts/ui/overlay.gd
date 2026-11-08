@@ -24,6 +24,11 @@ var _vst := 0.0
 var strip_t := 1.0
 var toast := ""
 var toast_t := 0.0
+var pops: Array = []      # 飞字 {s, col, big, t}
+var red := 0.0            # 红色边缘闪
+var lockfx := 0.0
+var danger := 0.0
+var last_tick := 0
 
 func _ready() -> void:
 	set_anchors_preset(PRESET_FULL_RECT)
@@ -53,6 +58,15 @@ func show_bloom(v: int) -> void:
 func hide_bloom() -> void:
 	bloom_v = -1.0
 
+func pop(s: String, col: Color, big: bool) -> void:
+	pops.append({"s": s, "col": col, "big": big, "t": 0.0, "x": randf_range(-40, 40)})
+
+func flash_red(a: float) -> void:
+	red = maxf(red, a)
+
+func flash_lock() -> void:
+	lockfx = 1.0
+
 func say(s: String) -> void:
 	toast = s
 	toast_t = 2.2
@@ -69,13 +83,27 @@ func _process(dt: float) -> void:
 		bloom_v += dt
 		r = Ink.spring(bloom_disp, _vb, float(bloom_target), 4.2, dt); bloom_disp = r[0]; _vb = r[1]
 	toast_t = maxf(0.0, toast_t - dt)
+	red = maxf(0.0, red - dt * 2.2)
+	lockfx = maxf(0.0, lockfx - dt * 1.2)
+	for p in pops:
+		p.t += dt
+	pops = pops.filter(func(p): return p.t < 0.9)
+	# 开花计数：滚动时咔哒作响
+	if bloom_v >= 0.0:
+		var step := maxi(1, bloom_target / 24)
+		var n := int(bloom_disp) / step
+		if n != last_tick:
+			last_tick = n
+			Sfx.play("tick", -8.0, 1.0 + bloom_disp / maxf(1.0, bloom_target) * 0.5, 0.03, 0.03)
 	queue_redraw()
 
 func _draw() -> void:
 	if main == null or main.run == null:
 		return
 	var vp := get_viewport_rect().size
+	_edges(vp)
 	_strip(vp)
+	_pops(vp)
 	if bloom_v >= 0.0:
 		_bloom(vp)
 	if st_t >= 0.0:
@@ -170,3 +198,36 @@ func _card(vp: Vector2) -> void:
 	draw_line(o + Vector2(40, h - 62), o + Vector2(w - 40, h - 62), Color(el, 0.4), 1.0)
 	Ink.text(self, card.get("keys", ""), o + Vector2(64, h - 30), 18, Pal.c("text"))
 	draw_set_transform(Vector2.ZERO)
+
+## 屏幕边缘：危险时红色呼吸 + 心跳闪；锁相时紫色一闪（平涂渐变，无辉光）
+func _edges(vp: Vector2) -> void:
+	var a := clampf(danger * 0.22 + red * 0.35, 0.0, 0.6)
+	if a > 0.01:
+		_edge_band(vp, Pal.c("red"), a)
+	if lockfx > 0.01:
+		_edge_band(vp, Pal.c("lock"), lockfx * 0.5)
+
+func _edge_band(vp: Vector2, col: Color, a: float) -> void:
+	var w := 140.0
+	for i in 10:
+		var k := 1.0 - i / 10.0
+		var c := Color(col, a * k * k * 0.35)
+		var o := i * w / 10.0
+		draw_rect(Rect2(o, o, vp.x - o * 2, w / 10.0), c)
+		draw_rect(Rect2(o, vp.y - o - w / 10.0, vp.x - o * 2, w / 10.0), c)
+		draw_rect(Rect2(o, o, w / 10.0, vp.y - o * 2), c)
+		draw_rect(Rect2(vp.x - o - w / 10.0, o, w / 10.0, vp.y - o * 2), c)
+
+## 飞字：从观测舱上方弹出、上浮、淡出
+func _pops(vp: Vector2) -> void:
+	for p in pops:
+		var t: float = p.t
+		var k := minf(1.0, t / 0.16)
+		var sc := lerpf(0.4, 1.0, Ink.ease_out_back(k))
+		var a := clampf((0.9 - t) / 0.35, 0.0, 1.0)
+		var fs := 96 if p.big else 72
+		var pos := Vector2(vp.x * 0.5 + 360 + p.x * 0.5, 330 - t * 90.0)
+		draw_set_transform(pos, -0.05, Vector2(sc, sc))
+		Ink.text(self, p.s, Vector2(3, 4), fs, Color(0, 0, 0, 0.2 * a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		Ink.text(self, p.s, Vector2.ZERO, fs, Color(p.col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		draw_set_transform(Vector2.ZERO)

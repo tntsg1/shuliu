@@ -7,7 +7,9 @@ uniform float danger = 0.05;    // 危险通道 0..1：偏心、抖动、束晕�
 uniform float lockf = 0.0;      // 锁相 0..1
 uniform float pulse = 0.0;      // 每次加速的冲击 1→0
 uniform float dissolve = 0.0;   // 丢失消散 0..1
-uniform float appear = 1.0;     // 注入出现 0..1
+uniform float appear = 1.0;
+uniform float flash = 0.0;       // 冲击闪白 1→0
+uniform vec4 flash_col : source_color = vec4(1.0);     // 注入出现 0..1
 uniform float seed = 1.0;
 uniform vec4 ink : source_color;
 uniform vec4 inner0 : source_color;
@@ -155,5 +157,6 @@ void fragment() {
 	col *= 1.0 - smoothstep(-16.0, 0.0, sd) * 0.10;
 	float hl = (1.0 - smoothstep(0.0, 6.0, abs(px.y + size.y * 0.36))) * smoothstep(-size.x * 0.42, -size.x * 0.2, px.x) * (1.0 - smoothstep(size.x * 0.1, size.x * 0.3, px.x));
 	col = mix(col, vec3(1.0), hl * 0.18);
+	col = mix(col, flash_col.rgb, flash * (0.55 + 0.45 * (1.0 - rr)));
 	COLOR = vec4(col, mask);
 }

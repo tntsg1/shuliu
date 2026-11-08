@@ -39,6 +39,11 @@ var last_result := {}
 var bloom_value := 0
 var bloom_energy := 1
 var test_mode := false
+var stop_until := 0.0     # 顿帧结束的真实时间（秒）
+var slow_until := 0.0
+var slow_scale := 1.0
+var beat_t := 0.0
+var count_tick := 0
 
 func _ready() -> void:
 	_inputs()
@@ -194,6 +199,8 @@ func enter_console() -> void:
 	timer = 0.0
 
 func _console_ready() -> void:
+	Sfx.play("paper", -6.0)
+	Sfx.play("btn2", -8.0, 0.8)
 	player.t_console = 1.0
 	cam_target = Vector2(Geo.CHAMBER.x, 630)
 	zoom_target = 1.45
@@ -206,6 +213,8 @@ func _console_ready() -> void:
 
 func _new_beam() -> void:
 	overlay.hide_card()
+	Sfx.play("arc", -14.0, 1.4)
+	Sfx.play("btn2", -6.0)
 	run.start_experiment()
 	chamber.inject()
 	panel.reset_beam()
@@ -220,27 +229,32 @@ func accelerate() -> void:
 		return
 	cooldown = 0.15
 	panel.press()
+	player.press()
 	ringmap.lap()
 	var r := run.accelerate()
 	var k: int = r.outcome
 	if r.lost:
 		_lose(r)
 		return
-	chamber.kick(1.6 if k == Odds.PERFECT else (1.0 if k == Odds.SUCCESS else 0.5))
-	shake = maxf(shake, 0.25 if k != Odds.PERFECT else 0.6)
-	var txt: String = Odds.NAMES[k]
-	if r.lock_started:
-		txt = "锁相！"
-		shake = 0.8
-	overlay.stamp(txt, Pal.c("lock") if r.lock_started else Pal.outcome(k))
+	_impact(r)
 	_sync()
 
 func _lose(r: Dictionary) -> void:
 	mode = M.LOSING
 	timer = 0.0
 	chamber.lose()
-	shake = 1.4
+	shake = 1.5
 	panel.press()
+	player.press()
+	Sfx.play("btn", -4.0)
+	Sfx.play("glass", 0.0, 0.9)
+	Sfx.play("discharge", -1.0)
+	Sfx.play("boom", -1.0, 0.8)
+	hitstop(0.20)
+	slowmo(0.55, 0.35)
+	cam_vel += Vector2(0, -380)
+	cam_zv += 0.5
+	overlay.flash_red(1.0)
 	overlay.stamp("束流丢失", Pal.c("red"), true)
 	last_result = {"lost": true, "energy": r.from, "p": r.odds[Odds.LOSS], "fin": r}
 	panel.val_target = 0
@@ -253,6 +267,9 @@ func extract() -> void:
 	mode = M.SHOT
 	timer = 0.0
 	panel.pull()
+	Sfx.play("lever", -2.0)
+	Sfx.play("whoosh", -6.0, 1.15)
+	hitstop(0.06)
 	panel.enabled = false
 	panel.hint = ""
 	bloom_energy = run.beam.energy
@@ -268,6 +285,10 @@ func _on_shot_arrived() -> void:
 	mode = M.BLOOM
 	timer = 0.0
 	detector.bloom(bloom_energy, detector.get_meta("kind", "precise"))
+	Sfx.play("metal", -3.0, 0.9 + bloom_energy * 0.02)
+	Sfx.play("ring", -9.0)
+	shake = 0.5
+	hitstop(0.07)
 	cam_target = Geo.SCREEN.get_center() + Vector2(0, 60)
 	zoom_target = 3.0
 	cam_omega = 5.0
@@ -292,6 +313,9 @@ func _show_result() -> void:
 	for s in fin.get("passed", []):
 		lines.append("第 %d 阶段考核通过！" % (s + 1))
 		clip_l.stamp("阶段 %d 通过" % (s + 1))
+		Sfx.play("btn", 0.0, 0.6)
+		Sfx.play("metal", -6.0, 1.2)
+	Sfx.play("paper", -8.0)
 	panel.reset_beam()
 	panel.val_target = 0
 	chamber.set_state(1, 0.0, false)
@@ -349,6 +373,26 @@ func _sync() -> void:
 
 # —— 每帧 ——
 func _process(dt: float) -> void:
+	var now := Time.get_ticks_usec() / 1e6
+	if now >= stop_until:
+		Engine.time_scale = slow_scale if now < slow_until else 1.0
+	var b: Beam = run.beam
+	var dang := 0.0
+	if b != null and mode == M.CONSOLE:
+		dang = 0.0 if b.locked() else b.odds()[Odds.LOSS]
+		Sfx.set_hum(true, b.energy, clampf(dang / 0.35, 0.0, 1.0), b.locked())
+		# 危险心跳：丢失概率越高越快、越重
+		if dang >= 0.12:
+			beat_t -= dt
+			if beat_t <= 0.0:
+				var d := clampf((dang - 0.12) / 0.3, 0.0, 1.0)
+				beat_t = lerpf(1.05, 0.42, d)
+				Sfx.play("hit_low", -22.0 + d * 10.0, 0.5, 0.02)
+				chamber.pulse = minf(1.0, chamber.pulse + 0.25 + d * 0.3)
+				overlay.flash_red(0.25 + d * 0.5)
+	else:
+		Sfx.set_hum(mode == M.CONSOLE or mode == M.LOSING, 1, 0.0, false)
+	overlay.danger = clampf((dang - 0.1) / 0.3, 0.0, 1.0)
 	cooldown = maxf(0.0, cooldown - dt)
 	e_guard = maxf(0.0, e_guard - dt)
 	timer += dt
@@ -384,3 +428,64 @@ func _process(dt: float) -> void:
 	var sh := Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake * shake * 9.0
 	cam.position = cam_pos + sh
 	cam.zoom = Vector2(cam_zoom, cam_zoom)
+
+# —— 打击感 ——
+## 顿帧：真实时间 dur 秒内几乎冻结（只冻画面，不吞输入）
+func hitstop(dur: float) -> void:
+	stop_until = Time.get_ticks_usec() / 1e6 + dur
+	Engine.time_scale = 0.03
+
+func slowmo(dur: float, sc: float) -> void:
+	slow_until = Time.get_ticks_usec() / 1e6 + dur
+	slow_scale = sc
+
+func _impact(r: Dictionary) -> void:
+	var k: int = r.outcome
+	var e: int = r.to
+	var col := Pal.outcome(k)
+	Sfx.play("btn", -3.0, 1.0, 0.04)
+	match k:
+		Odds.PERFECT:
+			Sfx.play("perfect", -2.0, 1.0 + e * 0.015)
+			Sfx.play("hit", -4.0, 1.25 + e * 0.03)
+			hitstop(0.11)
+			chamber.kick(1.9, col)
+			cam_vel += Vector2(randf_range(-80, 80), -300)
+			cam_zv += 0.55
+			shake = maxf(shake, 0.7)
+			overlay.pop("+2", col, true)
+		Odds.SUCCESS:
+			# 能级越高，撞击声越尖越响 → 越来越紧绷
+			Sfx.play("hit", -7.0 + minf(e, 12) * 0.35, 0.82 + e * 0.035)
+			hitstop(0.045 + e * 0.003)
+			chamber.kick(1.0 + e * 0.04, col)
+			cam_vel += Vector2(randf_range(-40, 40), -160 - e * 8)
+			cam_zv += 0.22 + e * 0.012
+			shake = maxf(shake, 0.3)
+			overlay.pop("+1", col, false)
+		Odds.STABLE:
+			Sfx.play("hit_low", -14.0, 1.2)
+			chamber.kick(0.35, col)
+			cam_vel += Vector2(0, -50)
+			overlay.pop("±0", col, false)
+		Odds.DETUNE:
+			Sfx.play("crackle", -4.0, 1.0)
+			Sfx.play("hit_low", -8.0, 0.75)
+			hitstop(0.05)
+			chamber.kick(0.8, col)
+			cam_vel += Vector2(randf_range(-160, 160), 60)
+			shake = maxf(shake, 0.55)
+			overlay.pop("−1", col, false)
+	var txt: String = Odds.NAMES[k]
+	if r.lock_started:
+		txt = "锁相！"
+		Sfx.play("arc", -2.0, 1.1)
+		Sfx.play("ring", -5.0, 1.2)
+		Sfx.play("perfect", -6.0, 0.7)
+		hitstop(0.14)
+		slowmo(0.45, 0.3)
+		shake = 0.9
+		overlay.flash_lock()
+	elif r.lock_ended:
+		Sfx.play("ring", -10.0, 0.7)
+	overlay.stamp(txt, Pal.c("lock") if r.lock_started else col)

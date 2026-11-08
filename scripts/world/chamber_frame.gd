@@ -51,4 +51,34 @@ func _draw() -> void:
 			draw_rect(Rect2(x - 7, y + 4, 14, 12), col)
 			if on:
 				draw_rect(Rect2(x - 5, y + 5, 4, 3), Color(1, 1, 1, 0.45))
+	# 冲击波：从舱心扩散的墨线环
+	for w in chamber.waves:
+		var k: float = w.t / 0.55
+		var e := Ink.ease_out_cubic(k)
+		var rx := lerpf(h.x * 0.3, h.x * 1.35, e)
+		var ry := lerpf(h.y * 0.3, h.y * 1.35, e)
+		var pts := PackedVector2Array()
+		for i in 49:
+			var a := TAU * i / 48.0
+			pts.append(Vector2(cos(a) * rx, sin(a) * ry))
+		draw_polyline(pts, Color(w.col, 1.0 - k), w.w * (1.0 - k) + 0.6, true)
+	# 飞溅墨线
+	for s in chamber.sparks:
+		var a: float = clampf(s.life / 0.3, 0.0, 1.0)
+		draw_line(s.p, s.p - s.v * 0.035, Color(s.col, a), 2.2, true)
+	# 丢失：玻璃裂纹
+	if chamber.cracks > 0.0:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 77
+		for b in 7:
+			var p0 := Vector2(rng.randf_range(-h.x * 0.6, h.x * 0.6), rng.randf_range(-h.y * 0.5, h.y * 0.5))
+			var pts := PackedVector2Array([p0])
+			var ang := rng.randf() * TAU
+			var steps := int(8 * chamber.cracks)
+			for i in steps:
+				ang += rng.randf_range(-0.7, 0.7)
+				pts.append(pts[-1] + Vector2.from_angle(ang) * rng.randf_range(14, 34))
+			if pts.size() > 1:
+				draw_polyline(pts, Color(el, 0.85), 1.6, true)
+				draw_polyline(pts, Color(1, 1, 1, 0.5), 0.6, true)
 	Ink.sticker(self, "OBS-01 观测舱", Vector2(-h.x + 70, -h.y - 48), -0.02, 11)
