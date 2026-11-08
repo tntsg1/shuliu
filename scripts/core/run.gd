@@ -42,7 +42,7 @@ var stage_ext_used := false      # 灭火器：本阶段已经用过
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
 # —— 开发者模式（~ 键）——
-var dev_force := -1           # 下一次加速强制出这个结果（一次性）
+var dev_force := -1           # 开发者模式：每次加速都强制出这个结果（点“自动”恢复）
 var dev_roll := -1            # 抽卡：-1 正常 / 0 必不中 / 1 必中
 var dev_god := false          # 无敌：束流丢失改为保持稳定
 
@@ -162,8 +162,7 @@ func accelerate() -> Dictionary:
 	var g := guaranteed()
 	var k := Odds.roll_at_least_success(p, rng) if g else Odds.roll(p, rng)
 	if dev_force >= 0:
-		k = dev_force
-		dev_force = -1
+		k = dev_force            # 开发者模式：一直生效，直到点“自动”
 	var raw := k                  # 饰品改写之前的原始结果：界面先揭晓它，再让饰品跳出来改
 	var trig: Array = []
 	var from := b.energy

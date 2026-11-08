@@ -128,7 +128,7 @@ func _do(act: String, arg) -> void:
 			_say("商店重新进货")
 		"force":
 			run.dev_force = arg
-			_say("下一次加速：" + ("自动" if arg < 0 else Odds.NAMES[arg]))
+			_say("每次加速：" + ("自动" if arg < 0 else Odds.NAMES[arg]))
 		"roll":
 			run.dev_roll = arg
 		"speed":
@@ -220,7 +220,7 @@ func _draw() -> void:
 	# —— 下一次结果 ——
 	draw_line(Vector2(x, y), Vector2(pr.end.x - 24, y), Color(el, 0.4), 1.0)
 	y += 22.0
-	Ink.text(self, "下一次加速强制出（用一次就恢复自动）", Vector2(x, y), 15, Pal.c("text2"))
+	Ink.text(self, "每次加速强制出（一直生效，点“自动”恢复）", Vector2(x, y), 15, Pal.c("text2"))
 	y += 12.0
 	var fw := (W - 48.0 - 3 * 8.0) / 4.0
 	_btn(Rect2(x, y, fw, 34), "自动", "force", -1, run.dev_force < 0)
