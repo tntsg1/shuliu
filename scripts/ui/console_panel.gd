@@ -69,6 +69,9 @@ func set_beam(energy: int, value: int, odds: PackedFloat64Array, ch: int, lk: in
 func reset_beam() -> void:
 	e_target = 1
 	val_target = Odds.value_at(1)
+	var p := Odds.table(1)
+	for k in 5:
+		seg_t[k] = p[k]
 	charge = 0
 	lock_left = 0
 	locked = false

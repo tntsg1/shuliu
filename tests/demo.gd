@@ -26,6 +26,8 @@ func _good_seed() -> int:
 			r.accelerate()
 		if r.beam == null or not r.beam.lock_used or r.beam.energy < 11: continue
 		r.extract()
+		if not r.can_submit(): continue
+		r.submit()
 		if r.won() or r.stage != 1: continue
 		# 实验 3：贪心，在 E9 以上丢失
 		r.start_experiment()
@@ -94,6 +96,8 @@ func _go() -> void:
 	await w(0.9)
 	await key("interact")
 	await w(4.6)
+	await key("submit")      # 够线了，主动提交
+	await w(2.6)
 	await key("accelerate")
 	await w(1.0)
 	# 实验 3：贪心到丢失

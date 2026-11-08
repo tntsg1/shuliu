@@ -125,7 +125,7 @@ func _inputs() -> void:
 	var map := {
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"interact": [KEY_E], "accelerate": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER],
-		"back": [KEY_ESCAPE], "theme": [KEY_F2], "restart": [KEY_R],
+		"back": [KEY_ESCAPE], "submit": [KEY_F], "theme": [KEY_F2], "restart": [KEY_R],
 	}
 	for a in map:
 		if not InputMap.has_action(a):
@@ -183,7 +183,12 @@ func _unhandled_input(ev: InputEvent) -> void:
 				if timer > 0.5:
 					_finish_bloom()
 		M.RESULT:
-			if ev.is_action("interact") or ev.is_action("accelerate"):
+			if run.must_submit():
+				if ev.is_action("submit") or ev.is_action("accelerate") or ev.is_action("interact"):
+					submit()
+			elif ev.is_action("submit"):
+				submit()
+			elif ev.is_action("interact") or ev.is_action("accelerate"):
 				if run.can_start():
 					_new_beam()
 			elif ev.is_action("back"):
@@ -347,34 +352,59 @@ func _finish_bloom() -> void:
 
 func _show_result() -> void:
 	var fin: Dictionary = last_result.fin
-	var lines: Array = []
-	for s in fin.get("passed", []):
-		lines.append("第 %d 阶段考核通过！" % (s + 1))
-		clip_l.stamp("阶段 %d 通过" % (s + 1))
-		Sfx.play("btn", 0.0, 0.6)
-		Sfx.play("metal", -6.0, 1.2)
 	Sfx.play("paper", -8.0)
 	panel.reset_beam()
 	panel.val_target = 0
 	chamber.set_state(1, 0.0, false)
-	if run.won():
-		mode = M.END
-		overlay.show_card({"title": "科研资助续期！", "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
-			"sub": "三个阶段全部通过 · 共 %d 次实验" % run.experiment_no, "lines": lines + ["实验室保住了。至少保住到下一个财年。"], "keys": "R  重新开始"})
-		return
-	if run.lost():
-		mode = M.END
-		overlay.show_card({"title": "科研资助终止", "title_col": Pal.c("red"), "value": fmt(run.total) + " / " + fmt(run.line()),
-			"sub": "第 %d 阶段的实验次数用完了" % (run.stage + 1), "lines": lines + ["“经费的事，明年再说吧。” —— 校长"], "keys": "R  重新开始"})
-		return
 	mode = M.RESULT
-	var keys := "E / 空格  注入新束流        Esc  离开控制台"
+	var lines: Array = []
+	var keys := _result_keys()
+	if run.must_submit():
+		lines.append("本阶段实验次数用完了，必须提交考核。")
+	elif run.can_submit():
+		lines.append("累计已够本阶段考核线——可以现在提交，也可以接着做实验多攒分。")
 	if last_result.lost:
 		overlay.show_card({"title": "实验 #%d · 束流丢失" % run.experiment_no, "title_col": Pal.c("red"), "value": "0 RP",
-			"sub": "在 E%d 丢失（当时丢失概率 %.1f%%）" % [last_result.energy, last_result.p * 100.0], "lines": lines, "keys": keys})
+			"sub": "在 E%d 丢失（当时丢失概率 %.1f%%）· 累计 %s / %s" % [last_result.energy, last_result.p * 100.0, fmt(run.total), fmt(run.line())], "lines": lines, "keys": keys})
 	else:
 		overlay.show_card({"title": "实验 #%d · 引出成功" % run.experiment_no, "value": "+" + fmt(fin.gained) + " RP",
 			"sub": "E%d 引出 · 累计 %s / %s" % [last_result.energy, fmt(run.total), fmt(run.line())], "lines": lines, "keys": keys})
+
+func _result_keys() -> String:
+	if run.must_submit():
+		return "F / 空格  提交考核"
+	if run.can_submit():
+		return "E / 空格  继续实验      F  提交考核      Esc  离开"
+	return "E / 空格  注入新束流        Esc  离开控制台"
+
+## 提交考核：够线进入下一阶段，不够则资助终止
+func submit() -> void:
+	if not (run.can_submit() or run.must_submit()):
+		return
+	var res := run.submit()
+	if res.passed:
+		clip_l.stamp("阶段 %d 通过" % (res.stage + 1))
+		Sfx.play("btn", 0.0, 0.6)
+		Sfx.play("metal", -5.0, 1.2)
+		Sfx.play("ring", -10.0, 1.1)
+		shake = 0.5
+		hitstop(0.08)
+		if run.won():
+			mode = M.END
+			overlay.show_card({"title": "科研资助续期！", "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
+				"sub": "三个阶段全部通过 · 共 %d 次实验" % run.experiment_no, "lines": ["实验室保住了。至少保住到下一个财年。"], "keys": "R  重新开始"})
+			return
+		mode = M.RESULT
+		var lines: Array = ["实验次数重置为 %d 次。" % Run.PER_STAGE]
+		if run.can_submit():
+			lines.append("攒下的分已经够下一阶段了，想交也可以直接交。")
+		overlay.show_card({"title": "第 %d 阶段考核通过" % (res.stage + 1), "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
+			"sub": "进入第 %d 阶段 · 考核线 %s" % [run.stage + 1, fmt(run.line())], "lines": lines, "keys": _result_keys()})
+	else:
+		mode = M.END
+		Sfx.play("boom", -3.0, 0.7)
+		overlay.show_card({"title": "科研资助终止", "title_col": Pal.c("red"), "value": fmt(run.total) + " / " + fmt(run.line()),
+			"sub": "第 %d 阶段考核未达标" % (run.stage + 1), "lines": ["“经费的事，明年再说吧。” —— 校长"], "keys": "R  重新开始"})
 
 func leave_console() -> void:
 	mode = M.WALK
@@ -406,7 +436,7 @@ func _sync() -> void:
 	panel.enabled = true
 	chamber.set_state(b.energy, p[Odds.LOSS], b.locked())
 	if run.total + b.value() >= run.line():
-		panel.hint = "现在引出就能过关……还要再按吗？"
+		panel.hint = "现在引出，累计就够线了……还要再按吗？"
 	elif p[Odds.LOSS] >= 0.2:
 		panel.hint = "丢失概率已经很高了。"
 	else:

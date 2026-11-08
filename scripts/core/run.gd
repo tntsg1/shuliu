@@ -1,6 +1,8 @@
 class_name Run
 extends RefCounted
-## 一局：累计总分制考核（design/DECISIONS.md Q15）
+## 一局：累计总分制考核（DECISIONS Q15）
+## 提交规则（用户 2026-11-07）：达标不自动过关。实验次数未用完时，累计分够线可以“爱交不交”；
+## 次数用完强制提交——够线过关，不够失败。
 
 const LINES := [580, 1410, 2370]
 const PER_STAGE := 3
@@ -13,6 +15,7 @@ var total := 0
 var beam: Beam = null
 var log: Array = []       # 每条 {outcome, from, to, exp}
 var experiment_no := 0
+var failed := false
 ## 显示概率 vs 实际频率：期望次数（概率累加）与实际次数
 var expected := PackedFloat64Array([0, 0, 0, 0, 0])
 var actual := PackedInt32Array([0, 0, 0, 0, 0])
@@ -30,13 +33,21 @@ func won() -> bool:
 	return stage >= LINES.size()
 
 func lost() -> bool:
-	return not won() and experiments_left <= 0 and beam == null
+	return failed
 
 func line() -> int:
 	return LINES[mini(stage, LINES.size() - 1)]
 
+## 现在可以主动提交（够线且本阶段还有实验次数）
+func can_submit() -> bool:
+	return beam == null and not won() and not failed and total >= line()
+
+## 必须提交（次数用完）
+func must_submit() -> bool:
+	return beam == null and not won() and not failed and experiments_left <= 0
+
 func can_start() -> bool:
-	return beam == null and not won() and experiments_left > 0
+	return beam == null and not won() and not failed and experiments_left > 0
 
 func start_experiment() -> void:
 	assert(can_start())
@@ -61,14 +72,20 @@ func extract() -> Dictionary:
 	best_value = maxi(best_value, v)
 	return _finish(v)
 
-## 结束本次实验；可能连过多个阶段（大爆分垫后续阶段）
 func _finish(v: int) -> Dictionary:
 	beam = null
 	total += v
 	experiments_left -= 1
-	var passed: Array = []
-	while not won() and total >= LINES[stage]:
-		passed.append(stage)
+	return {"gained": v, "can_submit": can_submit(), "must_submit": must_submit()}
+
+## 提交考核：够线进入下一阶段（实验次数重置），不够则失败
+func submit() -> Dictionary:
+	assert(beam == null and not won() and not failed)
+	var ln := line()
+	if total >= ln:
+		var s := stage
 		stage += 1
 		experiments_left = PER_STAGE
-	return {"gained": v, "passed": passed, "won": won(), "lost": lost()}
+		return {"passed": true, "stage": s, "won": won()}
+	failed = true
+	return {"passed": false, "stage": stage, "won": false}

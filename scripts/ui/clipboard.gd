@@ -125,8 +125,12 @@ func _left(pr: Rect2) -> void:
 		if i < run.experiments_left:
 			draw_circle(c, 9.0, Pal.c("ramp2"))
 		draw_arc(c, 9.0, 0, TAU, 20, ink, 1.6, true)
-	Ink.text(self, "大爆分可以直接垫过后面的阶段。", pr.position + Vector2(52, 420), 17, Pal.c("blue"), Pal.hand)
-	Ink.text(self, "—— 系主任", pr.position + Vector2(220, 448), 15, Pal.c("text2"), Pal.hand)
+	if run.total >= run.line() and not run.won():
+		Ink.text(self, "已够线：可随时提交（F）", pr.position + Vector2(52, 410), 18, Pal.c("green"), Pal.bold)
+		Ink.text(self, "次数用完会强制提交。", pr.position + Vector2(52, 438), 16, Pal.c("text2"), Pal.hand)
+	else:
+		Ink.text(self, "次数用完会强制提交考核。", pr.position + Vector2(52, 410), 17, Pal.c("blue"), Pal.hand)
+		Ink.text(self, "多攒的分会带到下一阶段。", pr.position + Vector2(52, 438), 17, Pal.c("blue"), Pal.hand)
 
 func _right(pr: Rect2) -> void:
 	var run: Run = main.run
