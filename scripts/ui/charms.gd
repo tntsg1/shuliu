@@ -52,7 +52,7 @@ func roll_wait() -> float:
 	var w := 0.0
 	for f in fires:
 		if f.R > 0.0:
-			w = maxf(w, f.S + 0.35 - f.t)
+			w = maxf(w, f.S + 0.6 - f.t)
 	return w
 
 func item_at(p: Vector2) -> String:

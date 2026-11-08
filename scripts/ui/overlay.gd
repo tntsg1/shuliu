@@ -44,7 +44,16 @@ func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
 	Pal.changed.connect(queue_redraw)
 
-func stamp(s: String, col: Color, big := false) -> void:
+var strike_next := false   # 下一次盖章前，把当前章划掉（饰品改写结果）
+var prev := {}             # 被划掉的旧章 {text, col, rot, t}
+
+var st_hold := false        # 原始结果的章：一直留着，等饰品改写时被划掉
+
+func stamp(s: String, col: Color, big := false, hold := false) -> void:
+	if strike_next and st_t >= 0.0 and st_text != "":
+		prev = {"text": st_text, "col": st_col, "rot": st_rot, "t": 0.0}
+	strike_next = false
+	st_hold = hold
 	st_text = s
 	st_col = col
 	st_t = 0.0
@@ -90,9 +99,13 @@ func say(s: String) -> void:
 
 func _process(dt: float) -> void:
 	t += dt
+	if not prev.is_empty():
+		prev.t += dt
+		if prev.t > 1.1:
+			prev = {}
 	if st_t >= 0.0:
 		st_t += dt
-		if not st_big and st_t > 0.9:
+		if not st_big and not st_hold and st_t > 0.9:
 			st_t = -1.0
 	var r := Ink.spring(card_v, _vc, card_t, 9.0, dt); card_v = r[0]; _vc = r[1]
 	r = Ink.spring(strip_v, _vst, strip_t, 8.0, dt); strip_v = r[0]; _vst = r[1]
@@ -134,6 +147,8 @@ func _draw() -> void:
 	_tip(vp)
 	if bloom_v >= 0.0:
 		_bloom(vp)
+	if not prev.is_empty():
+		_prev_stamp(vp)
 	if st_t >= 0.0:
 		_stamp(vp)
 	if card_v > 0.01:
@@ -196,7 +211,7 @@ func _strip(vp: Vector2) -> void:
 func _stamp(vp: Vector2) -> void:
 	var k := minf(1.0, st_t / 0.14)
 	var sc := lerpf(1.9, 1.0, Ink.ease_out_back(k))
-	var a := 1.0 if st_big else clampf((0.9 - st_t) / 0.3, 0.0, 1.0)
+	var a := 1.0 if (st_big or st_hold) else clampf((0.9 - st_t) / 0.3, 0.0, 1.0)
 	var c := Vector2(vp.x * 0.5, 210 if not st_big else 330)
 	var fs := 34 if not st_big else 72
 	draw_set_transform(c, st_rot, Vector2(sc, sc))
@@ -213,6 +228,25 @@ func _stamp(vp: Vector2) -> void:
 	for i in 26:
 		var p := Vector2(rng.randf_range(-w * 0.5, w * 0.5), rng.randf_range(-h * 0.5, h * 0.5))
 		draw_circle(p, rng.randf_range(0.8, 2.4), Color(Pal.c("paper"), a * 0.7))
+	draw_set_transform(Vector2.ZERO)
+
+## 被饰品改写的旧章：往上让开、变小，一道红笔划掉，然后淡出
+func _prev_stamp(vp: Vector2) -> void:
+	var k: float = prev.t
+	var a := clampf((1.1 - k) / 0.4, 0.0, 1.0)
+	var mv := Ink.ease_out_cubic(minf(1.0, k / 0.25))
+	var c := Vector2(vp.x * 0.5 - 150.0 * mv, 210.0 - 40.0 * mv)
+	var sc := lerpf(1.0, 0.72, mv)
+	var fs := 34
+	draw_set_transform(c, prev.rot - 0.1 * mv, Vector2(sc, sc))
+	var w := Pal.bold.get_string_size(prev.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 48
+	var h := fs + 34.0
+	var col := Color(prev.col, a * 0.6)
+	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.c("paper"), a * 0.5))
+	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), col, false, 3.0)
+	Ink.text(self, prev.text, Vector2(0, fs * 0.36), fs, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	var sk := clampf(k / 0.18, 0.0, 1.0)
+	draw_line(Vector2(-w * 0.55, 6), Vector2(-w * 0.55 + w * 1.1 * sk, -6), Color(Pal.c("red"), a), 5.0, true)
 	draw_set_transform(Vector2.ZERO)
 
 func _bloom(vp: Vector2) -> void:

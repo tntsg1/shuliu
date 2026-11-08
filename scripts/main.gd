@@ -17,6 +17,7 @@ var prompt: Node2D
 var cam: Camera2D
 var panel: Control
 var charms: Control
+var dev: Control
 var clip_l: Control
 var clip_r: Control
 var overlay: Control
@@ -52,6 +53,7 @@ var test_mode := false
 var stop_until := 0.0     # 顿帧结束的真实时间（秒）
 var slow_until := 0.0
 var slow_scale := 1.0
+var dev_speed := 1.0         # 开发者模式：整体加速
 var beat_t := 0.0
 var count_tick := 0
 var pending := {}          # 已抽定、等待揭晓的结果
@@ -112,6 +114,11 @@ func _ready() -> void:
 	add_child(il)
 	intro = _ctrl("res://scripts/ui/intro.gd", il)
 	intro.finished.connect(_on_intro_done)
+	var dl := CanvasLayer.new()
+	dl.layer = 40
+	add_child(dl)
+	dev = _ctrl("res://scripts/ui/dev.gd", dl)
+	dev.set("main", self)
 	var gl := CanvasLayer.new()
 	gl.layer = 50
 	add_child(gl)
@@ -181,7 +188,12 @@ func fmt(v: int) -> String:
 
 # —— 输入 ——
 func _unhandled_input(ev: InputEvent) -> void:
+	if ev is InputEventKey and ev.pressed and not ev.echo and ev.physical_keycode == KEY_QUOTELEFT:
+		dev.toggle()
+		return
 	if ev is InputEventMouse:
+		if dev.mouse(ev):
+			return
 		_mouse(ev)
 		return
 	if ev.is_echo() or not ev.is_pressed():
@@ -286,10 +298,12 @@ func accelerate() -> void:
 	var r := run.accelerate()        # 结果在按下瞬间按真实概率抽定；下面只是揭晓
 	pending = r
 	# 指针落点：结果所在色段内的随机位置
+	# 指针停在“原始结果”上：饰品改写的，先让玩家看到原来抽中了什么
+	var shown_k: int = r.get("raw", r.outcome)
 	var acc := 0.0
-	for k in r.outcome:
+	for k in shown_k:
 		acc += p[k]
-	var target := acc + p[r.outcome] * randf_range(0.18, 0.82)
+	var target := acc + p[shown_k] * randf_range(0.18, 0.82)
 	var T := 0.45 if was_locked else 0.95 + clampf(danger / 0.35, 0.0, 1.0) * 0.65
 	var laps := 1 if was_locked else 2 + int(danger * 4.0)
 	panel.spin(target, T, laps)
@@ -311,18 +325,48 @@ func _reveal() -> void:
 	if charge_snd and charge_snd.playing:
 		charge_snd.stop()
 	ringmap.lap()
+	var raw: int = r.get("raw", r.outcome)
+	if raw != r.outcome:
+		# 先揭晓原始结果（盖章 + 对应的音效与震动），停一拍，再让饰品跳出来改写
+		mode = M.SPIN
+		_pre_reveal(raw)
+		await get_tree().create_timer(0.6 / dev_speed, true, false, true).timeout
 	_triggers(r)
-	# 有“抽卡”的饰品：先让它在屏幕中央转完、揭晓中没中，再揭晓这次加速的结果
+	# 有“抽卡”的饰品：先让它在屏幕中央转完、揭晓中没中；改写类饰品要等它飞出来亮完相
 	var wait: float = charms.roll_wait()
+	if raw != r.outcome:
+		wait = maxf(wait, 0.75)
 	if wait > 0.0:
 		mode = M.SPIN
-		await get_tree().create_timer(wait, true, false, true).timeout
+		await get_tree().create_timer(wait / dev_speed, true, false, true).timeout
 	mode = M.CONSOLE
+	if raw != r.outcome:
+		overlay.strike_next = true
 	if r.lost:
 		_lose(r)
 		return
 	_impact(r)
 	_sync()
+
+## 原始结果的揭晓：只盖章、出声、轻震，不执行（之后可能被饰品改写）
+func _pre_reveal(k: int) -> void:
+	var col := Pal.outcome(k)
+	match k:
+		Odds.LOSS:
+			Sfx.play("glass", -6.0, 1.0)
+			Sfx.play("hit_low", -4.0, 0.7)
+			overlay.flash_red(0.9)
+			chamber.kick(1.2, col)
+			shake = maxf(shake, 0.8)
+			hitstop(0.08)
+		Odds.DETUNE:
+			Sfx.play("crackle", -4.0, 1.0)
+			chamber.kick(0.7, col)
+			shake = maxf(shake, 0.4)
+		_:
+			Sfx.play("hit_low", -10.0, 1.1)
+			chamber.kick(0.4, col)
+	overlay.stamp(Odds.NAMES[k], col, false, true)
 
 func _lose(r: Dictionary) -> void:
 	mode = M.LOSING
@@ -491,7 +535,7 @@ func _process(dt: float) -> void:
 	_hover()
 	var now := Time.get_ticks_usec() / 1e6
 	if now >= stop_until:
-		Engine.time_scale = slow_scale if now < slow_until else 1.0
+		Engine.time_scale = (slow_scale if now < slow_until else 1.0) * dev_speed
 	var dang := 0.0
 	if mode == M.CONSOLE or mode == M.SPIN:
 		dang = shown_dang
@@ -554,7 +598,7 @@ func _process(dt: float) -> void:
 ## 顿帧：真实时间 dur 秒内几乎冻结（只冻画面，不吞输入）
 func hitstop(dur: float) -> void:
 	stop_until = Time.get_ticks_usec() / 1e6 + dur
-	Engine.time_scale = 0.03
+	Engine.time_scale = 0.03 * dev_speed
 
 func slowmo(dur: float, sc: float) -> void:
 	slow_until = Time.get_ticks_usec() / 1e6 + dur

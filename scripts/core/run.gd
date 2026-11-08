@@ -37,6 +37,10 @@ var stage_lost_data_used := false
 # —— 商店 ——
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
+# —— 开发者模式（~ 键）——
+var dev_force := -1           # 下一次加速强制出这个结果（一次性）
+var dev_roll := -1            # 抽卡：-1 正常 / 0 必不中 / 1 必中
+var dev_god := false          # 无敌：束流丢失改为保持稳定
 
 func _init(s := 0) -> void:
 	seed_value = s if s != 0 else int(Time.get_unix_time_from_system() * 1000.0) % 2147483647
@@ -140,6 +144,10 @@ func accelerate() -> Dictionary:
 	var p := odds()
 	var g := guaranteed()
 	var k := Odds.roll_at_least_success(p, rng) if g else Odds.roll(p, rng)
+	if dev_force >= 0:
+		k = dev_force
+		dev_force = -1
+	var raw := k                  # 饰品改写之前的原始结果：界面先揭晓它，再让饰品跳出来改
 	var trig: Array = []
 	var from := b.energy
 	if b.guaranteed_next:
@@ -167,12 +175,12 @@ func accelerate() -> Dictionary:
 		trig.append(["badge", "工牌刷开了"])
 	# 带概率的饰品：触发记录里附上 {p, hit}，界面用它播“抽卡”
 	if k == Odds.DETUNE and has("wrong_answer"):
-		var hit := rng.randf() < 0.2
+		var hit := _hit(0.2)
 		trig.append(["wrong_answer", "错得很对：失谐 → 完美同步" if hit else "这次是真的错了", {"p": 0.2, "hit": hit}])
 		if hit:
 			k = Odds.PERFECT
 	if k == Odds.STABLE and has("bandaid") and b.locked():
-		var hit2 := rng.randf() < 0.4
+		var hit2 := _hit(0.4)
 		trig.append(["bandaid", "稳定 → 加速成功" if hit2 else "没粘住", {"p": 0.4, "hit": hit2}])
 		if hit2:
 			k = Odds.SUCCESS
@@ -181,16 +189,18 @@ func accelerate() -> Dictionary:
 	# 破碎抵挡
 	if k == Odds.LOSS and has("coin") and not b.coin_used:
 		b.coin_used = true
-		if rng.randf() < 0.5:
+		if _hit(0.5):
 			k = Odds.STABLE
 			trig.append(["coin", "正面！挡住了", {"p": 0.5, "hit": true}])
 		else:
 			trig.append(["coin", "反面……", {"p": 0.5, "hit": false}])
+	if k == Odds.LOSS and dev_god:
+		k = Odds.STABLE
 	for kk in Odds.N:
 		expected[kk] += p[kk]
 	actual[k] += 1
 	b.presses += 1
-	var res := {"outcome": k, "from": from, "odds": p, "lock_started": false, "lock_ended": false,
+	var res := {"outcome": k, "raw": raw, "from": from, "odds": p, "lock_started": false, "lock_ended": false,
 		"lost": false, "salvaged": 0, "money": 0, "triggers": trig}
 	# 束流丢失（可能被稿纸抢救）
 	if k == Odds.LOSS:
@@ -229,7 +239,7 @@ func accelerate() -> Dictionary:
 		b.streak += 1
 		if has("chair"):
 			b.chair += 0.2
-		if has("lucky_cat") and rng.randf() < 0.08:
+		if has("lucky_cat") and _hit(0.08):
 			var gain := 6 if b.cat_last else 3
 			money += gain
 			res.money += gain
@@ -259,7 +269,7 @@ func accelerate() -> Dictionary:
 		trig.append(["koi", "好运 ×%d" % b.koi])
 	var lock_n := Odds.LOCK_PRESSES + (2 if has("fast_clock") else 0)
 	if was_locked:
-		if has("thermos") and rng.randf() < 0.25:
+		if has("thermos") and _hit(0.25):
 			trig.append(["thermos", "锁相没减少", {"p": 0.25, "hit": true}])
 		else:
 			if has("thermos"):
@@ -304,6 +314,11 @@ func accelerate() -> Dictionary:
 	best_potential = maxi(best_potential, potential())
 	_log(k, from, b.energy)
 	return res
+
+## 饰品概率判定：照常消耗一次随机数（保证结果序列不变），开发者模式可强制中/不中
+func _hit(p: float) -> bool:
+	var h := rng.randf() < p
+	return h if dev_roll < 0 else dev_roll == 1
 
 func _log(k: int, from: int, to: int) -> void:
 	log.push_front({"outcome": k, "from": from, "to": to, "exp": experiment_no})
