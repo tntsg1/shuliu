@@ -311,8 +311,13 @@ func _reveal() -> void:
 	if charge_snd and charge_snd.playing:
 		charge_snd.stop()
 	ringmap.lap()
-	mode = M.CONSOLE
 	_triggers(r)
+	# 有“抽卡”的饰品：先让它在屏幕中央转完、揭晓中没中，再揭晓这次加速的结果
+	var wait: float = charms.roll_wait()
+	if wait > 0.0:
+		mode = M.SPIN
+		await get_tree().create_timer(wait, true, false, true).timeout
+	mode = M.CONSOLE
 	if r.lost:
 		_lose(r)
 		return
@@ -523,7 +528,7 @@ func _process(dt: float) -> void:
 			if absf(player.position.x - Geo.CONSOLE_STAND) < 3.0 or timer > 1.6:
 				_console_ready()
 		M.SPIN:
-			var pg: float = panel.progress()
+			var pg: float = panel.progress() if panel.spinning else 0.0
 			chamber.collide = clampf((pg - 0.62) / 0.38, 0.0, 1.0) if pg > 0.62 else -1.0
 			if panel.spin_done:
 				panel.spin_done = false
@@ -647,7 +652,7 @@ func _triggers(r: Dictionary) -> void:
 	for tr in r.get("triggers", []):
 		gear.ping(tr[0])
 		if charms.vis > 0.5:
-			charms.fire(tr[0], tr[1])
+			charms.fire(tr[0], tr[1], tr[2] if tr.size() > 2 else {})
 		else:
 			overlay.trig(tr[0], Items.ALL[tr[0]].name + " · " + tr[1])
 		Sfx.play("tick", -6.0, 1.6)

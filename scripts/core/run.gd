@@ -165,12 +165,17 @@ func accelerate() -> Dictionary:
 		stage_badge_used = true
 		k = Odds.STABLE
 		trig.append(["badge", "工牌刷开了"])
-	if k == Odds.DETUNE and has("wrong_answer") and rng.randf() < 0.2:
-		k = Odds.PERFECT
-		trig.append(["wrong_answer", "错得很对"])
-	if k == Odds.STABLE and has("bandaid") and b.locked() and rng.randf() < 0.4:
-		k = Odds.SUCCESS
-		trig.append(["bandaid", "稳定 → 成功"])
+	# 带概率的饰品：触发记录里附上 {p, hit}，界面用它播“抽卡”
+	if k == Odds.DETUNE and has("wrong_answer"):
+		var hit := rng.randf() < 0.2
+		trig.append(["wrong_answer", "错得很对：失谐 → 完美同步" if hit else "这次是真的错了", {"p": 0.2, "hit": hit}])
+		if hit:
+			k = Odds.PERFECT
+	if k == Odds.STABLE and has("bandaid") and b.locked():
+		var hit2 := rng.randf() < 0.4
+		trig.append(["bandaid", "稳定 → 加速成功" if hit2 else "没粘住", {"p": 0.4, "hit": hit2}])
+		if hit2:
+			k = Odds.SUCCESS
 	if k == Odds.DETUNE:
 		b.had_detune = true
 	# 破碎抵挡
@@ -178,9 +183,9 @@ func accelerate() -> Dictionary:
 		b.coin_used = true
 		if rng.randf() < 0.5:
 			k = Odds.STABLE
-			trig.append(["coin", "正面！挡住了"])
+			trig.append(["coin", "正面！挡住了", {"p": 0.5, "hit": true}])
 		else:
-			trig.append(["coin", "反面……"])
+			trig.append(["coin", "反面……", {"p": 0.5, "hit": false}])
 	for kk in Odds.N:
 		expected[kk] += p[kk]
 	actual[k] += 1
@@ -229,7 +234,7 @@ func accelerate() -> Dictionary:
 			money += gain
 			res.money += gain
 			b.cat_last = true
-			trig.append(["lucky_cat", "+$%d" % gain])
+			trig.append(["lucky_cat", "+$%d" % gain, {"p": 0.08, "hit": true}])
 		else:
 			b.cat_last = false
 	else:
@@ -253,7 +258,7 @@ func accelerate() -> Dictionary:
 	var lock_n := Odds.LOCK_PRESSES + (2 if has("fast_clock") else 0)
 	if was_locked:
 		if has("thermos") and rng.randf() < 0.25:
-			trig.append(["thermos", "锁相没减少"])
+			trig.append(["thermos", "锁相没减少", {"p": 0.25, "hit": true}])
 		else:
 			b.lock_left -= 1
 		res.lock_ended = b.lock_left == 0
