@@ -11,6 +11,7 @@ var hover_id := ""
 var fires: Array = []    # 正在表演的触发
 var pos := {}            # id -> 挂板上的屏幕位置（每帧更新）
 var vis := 0.0
+var fired := 0            # 本局触发过几次（新手便条用）
 
 const TOK := 48.0
 const GAP := 62.0
@@ -28,6 +29,7 @@ func _items() -> Array:
 
 ## 触发：同一次加速里多件同时生效时依次错开出场
 func fire(id: String, text: String) -> void:
+	fired += 1
 	var busy := 0
 	for f in fires:
 		if f.t < 1.4:
@@ -41,6 +43,9 @@ func item_at(p: Vector2) -> String:
 		if p.distance_to(pos[id] + Vector2(0, 26)) < TOK * 0.6:
 			return id
 	return ""
+
+func board_rect() -> Rect2:
+	return _board_rect()
 
 func _board_rect() -> Rect2:
 	var vp := get_viewport_rect().size

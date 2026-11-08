@@ -86,6 +86,36 @@ func _ready() -> void:
 			"show": func(): return (main.mode == main.M.RESULT or main.mode == main.M.WALK) and main.run.experiment_no >= 1 and shown.has("submit"),
 			"done": func(): return main.mode == main.M.SHOP or main.run.experiment_no >= 2 or step_t > 12.0,
 			"at": null, "note": func(): return Vector2(1520, 300)},
+		# —— 第一局后半段：饰品与超级同步 ——
+		{"id": "sell", "text": "想换掉旧东西？
+按住它不放，
+红圈合拢就半价卖掉。
+（松手就取消）",
+			"show": func(): return main.mode == main.M.SHOP and main.run.experiment_no >= 2 and not main.shop.inv_rects.is_empty(),
+			"done": func(): return main.mode != main.M.SHOP or step_t > 8.0,
+			"at": func(): return main.shop.inv_rects[0].rect.get_center() if not main.shop.inv_rects.is_empty() else Vector2(1000, 700),
+			"note": func(): return Vector2(1480, 840)},
+		{"id": "board", "text": "右下这块挂板上，
+是你买的设备和饰品。
+哪件生效，它就会飞出来亮相。
+鼠标停上去能看说明。",
+			"show": func(): return main.mode == main.M.CONSOLE and main.run.experiment_no >= 2 and main.charms.vis > 0.9 and not (main.run.devices + main.run.relics).is_empty(),
+			"done": func(): return main.mode != main.M.CONSOLE or step_t > 8.0 or main.charms.fired > 0,
+			"at": func(): return main.charms.board_rect().position + Vector2(main.charms.board_rect().size.x * 0.5, 0),
+			"note": func(): return main.charms.board_rect().position + Vector2(-140, -170)},
+		{"id": "fired", "text": "看，饰品生效了！
+纸条上写着它做了什么。
+构筑就靠这些凑出来。",
+			"show": func(): return main.charms.fired > 0 and (main.mode == main.M.CONSOLE or main.mode == main.M.SPIN),
+			"done": func(): return step_t > 6.0 or main.mode == main.M.RESULT,
+			"at": null, "note": func(): return Vector2(560, 300)},
+		{"id": "super", "text": "锁相时，纸带最左边
+多出一段金色：超级同步！
+能级一下 +3。
+能级越高，它越容易出。",
+			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam != null and main.run.beam.locked() and main.run.experiment_no >= 2,
+			"done": func(): return main.run.beam == null or not main.run.beam.locked() or step_t > 9.0,
+			"at": func(): return _panel(Vector2(600, 110)), "note": func(): return _panel(Vector2(420, -190))},
 	]
 	if not _cfg_done():
 		start(false)

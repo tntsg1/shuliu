@@ -307,18 +307,13 @@ func _tape(r: Rect2) -> void:
 	var lab: Array = []
 	for k in ks:
 		lab.append(centers[k])
+	# 先从左往右保证间距和左边界，再从右往左压回右边界（不会再被推出纸带）
+	lab[0] = maxf(lab[0], r.position.x + 44.0)
 	for i in range(1, n):
 		lab[i] = maxf(lab[i], lab[i - 1] + 96.0)
-	var over: float = lab[n - 1] - (r.end.x - 40.0)
-	if over > 0.0:
-		for i in n:
-			lab[i] -= over
-		for i in range(n - 2, -1, -1):
-			lab[i] = minf(lab[i], lab[i + 1] - 96.0)
-	var under: float = r.position.x + 44.0 - lab[0]
-	if under > 0.0:
-		for i in n:
-			lab[i] += under
+	lab[n - 1] = minf(lab[n - 1], r.end.x - 44.0)
+	for i in range(n - 2, -1, -1):
+		lab[i] = minf(lab[i], lab[i + 1] - 96.0)
 	for i in n:
 		var k: int = ks[i]
 		var pct := seg[k] * 100.0
