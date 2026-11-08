@@ -1,0 +1,107 @@
+extends Node2D
+## 饰品标签“污染”：观测舱里按持有物品的标签留下痕迹（DECISIONS 视觉硬规则）。
+## 只改画面、不进数值；不碰价值通道（亮度/束团/层数）和危险通道（偏心/抖动/红橙/裂纹），
+## 所以这里的东西不随能级、丢失概率变化，只随“持有几件该标签物品”变浓。
+## 1 件淡、2 件明显、3 件以上满。
+
+var main: Node
+var chamber: Node2D
+var t := 0.0
+var lv := {}          # 标签 -> 当前浓度（弹簧平滑，买卖时慢慢浮现/褪去）
+var _lvv := {}
+var scraps: Array = []
+
+const LEVELS := [0.0, 0.45, 0.75, 1.0]
+
+func _ready() -> void:
+	for i in 14:
+		scraps.append({"ph": randf() * TAU, "sp": randf_range(0.35, 0.6) * (1.0 if i % 3 else -1.0),
+			"r": randf_range(0.55, 0.95), "w": randf_range(13, 21), "h": randf_range(9, 15),
+			"tone": [Color("#fbf7ee"), Color("#f4e6a6"), Color("#e2ebf2"), Color("#fbf7ee")][i % 4],
+			"spin": randf_range(-3, 3), "rest": Vector2(randf_range(-200, 200), randf_range(100, 128)),
+			"rest_rot": randf_range(-0.6, 0.6), "lines": 1 + randi() % 3})
+
+func level(tag: String) -> float:
+	return lv.get(tag, 0.0)
+
+func _process(dt: float) -> void:
+	t += dt
+	if main == null or main.run == null:
+		return
+	var cnt := {}
+	for id in main.run.devices + main.run.relics:
+		var tg: String = Items.tag_of(id)
+		if tg != "":
+			cnt[tg] = cnt.get(tg, 0) + 1
+	for tg in Items.TAGS:
+		var target: float = LEVELS[mini(cnt.get(tg, 0), 3)]
+		var r := Ink.spring(lv.get(tg, 0.0), _lvv.get(tg, 0.0), target, 3.0, dt)
+		lv[tg] = r[0]
+		_lvv[tg] = r[1]
+	queue_redraw()
+
+func _draw() -> void:
+	if chamber == null:
+		return
+	var h: Vector2 = Geo.CH_SIZE * 0.5
+	var p := level("纸张")
+	if p > 0.01:
+		_paper(h, p)
+
+## 纸张：便签贴在舱玻璃角上；纸屑跟着束流绕圈，舱空时落在舱底
+func _paper(h: Vector2, p: float) -> void:
+	var ink := Pal.equip_line()
+	var paper := Pal.c("paper")
+	var live: float = clampf(chamber.appear, 0.0, 1.0)
+	# 纸屑
+	var n := int(round(4.0 + 10.0 * p))
+	for i in mini(n, scraps.size()):
+		var s: Dictionary = scraps[i]
+		var al := clampf(p * 1.6, 0.0, 1.0) * (0.75 + 0.25 * (1.0 - live))
+		# 先画两道拖影（只有束流在转时才有），再画本体
+		for g in [2, 1, 0]:
+			if g > 0 and live < 0.2:
+				continue
+			var a: float = s.ph + (t - g * 0.05) * s.sp
+			var orbit := Vector2(cos(a) * h.x * 0.78 * s.r, sin(a) * h.y * 0.62 * s.r)
+			var pos: Vector2 = s.rest.lerp(orbit, live)
+			var rot: float = lerpf(s.rest_rot, a * 1.7 + (t - g * 0.05) * s.spin, live)
+			# 纸片在气流里翻面：横向缩放
+			var flip := lerpf(1.0, absf(cos((t - g * 0.05) * s.spin * 0.8 + i)), live) * 0.8 + 0.2
+			var ga: float = al * (1.0 if g == 0 else 0.22 / float(g))
+			draw_set_transform(pos, rot, Vector2(flip, 1.0))
+			var r := Rect2(-s.w * 0.5, -s.h * 0.5, s.w, s.h)
+			if g == 0:
+				draw_rect(Rect2(r.position + Vector2(1.5, 2), r.size), Color(0, 0, 0, 0.1 * ga))
+			draw_rect(r, Color(s.tone, ga))
+			if g == 0:
+				draw_rect(r, Color(ink, ga * 0.75), false, 1.1)
+				for k in s.lines:
+					var yy: float = -s.h * 0.28 + k * 3.4
+					draw_line(Vector2(-s.w * 0.36, yy), Vector2(s.w * (0.3 - 0.12 * k), yy), Color(ink, ga * 0.5), 1.0)
+	draw_set_transform(Vector2.ZERO)
+	# 便签：贴在玻璃内侧的角落，按浓度 1–3 张
+	var notes := [
+		{"p": Vector2(-h.x + 110, -h.y + 34), "r": -0.12, "c": Color("#f2d65a"), "k": 0.0},
+		{"p": Vector2(h.x - 120, h.y - 40), "r": 0.1, "c": Color("#f0b8a8"), "k": 0.5},
+		{"p": Vector2(h.x - 170, -h.y + 40), "r": 0.08, "c": Color("#bfe0c4"), "k": 0.8},
+	]
+	for i in notes.size():
+		var nt: Dictionary = notes[i]
+		var a := clampf((p - nt.k) / 0.2, 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		# 边角被舱里的气流吹得轻轻掀动
+		var lift := (0.5 + 0.5 * sin(t * 2.3 + i * 1.7)) * live
+		draw_set_transform(nt.p, nt.r, Vector2.ONE * (0.6 + 0.4 * a))
+		var r := Rect2(-17, -17, 34, 34)
+		draw_rect(Rect2(r.position + Vector2(2, 3), r.size), Color(0, 0, 0, 0.12 * a))
+		draw_rect(r, Color(nt.c, 0.92 * a))
+		draw_rect(Rect2(-17, -17, 34, 6), Color(nt.c.darkened(0.1), 0.92 * a))
+		var fold := 7.0 + 4.0 * lift
+		draw_colored_polygon(PackedVector2Array([Vector2(17 - fold, 17), Vector2(17, 17 - fold), Vector2(17 - fold * 0.9, 17 - fold * 0.9)]), Color(nt.c.darkened(0.25), a))
+		draw_rect(r, Color(ink, 0.6 * a), false, 1.0)
+		for k in 3:
+			var y := -6.0 + k * 7.0
+			draw_line(Vector2(-11, y), Vector2(7 - k * 4, y + sin(k + i) * 1.5), Color(ink, 0.55 * a), 1.2, true)
+	draw_set_transform(Vector2.ZERO)

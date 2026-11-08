@@ -140,6 +140,69 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_line(Vector2.ZERO, Vector2.from_angle(-PI / 2 + 0.6) * 12, ink, 2.6)
 			ci.draw_line(Vector2.ZERO, Vector2.from_angle(-PI / 2 + TAU * 5 / 60.0) * 18, Pal.c("red"), 1.8)
 			Ink.text(ci, "+5", Vector2(14, 28), 12, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		# —— M3 第 1 批：纸张 ——
+		"lost_data":
+			# 一张软盘 + 红色问号
+			_box(ci, Rect2(-22, -22, 44, 44), Color("#3a4a5c"), ink)
+			_box(ci, Rect2(-12, -22, 24, 14), Color("#c9ccd0"), ink)
+			ci.draw_rect(Rect2(4, -19, 5, 9), Color("#3a4a5c"))
+			_box(ci, Rect2(-16, 2, 32, 18), paper, ink)
+			Ink.text(ci, "?", Vector2(0, 18), 16, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"calib_log":
+			# 发黄的记录卡 + 绿色对勾 + 旧日期
+			ci.draw_set_transform(c, rot - 0.06, Vector2(s, s))
+			_box(ci, Rect2(-22, -26, 44, 52), Color("#ead9a8"), ink)
+			ci.draw_rect(Rect2(-22, -26, 44, 9), Color("#d8c48a"))
+			for i in 3:
+				ci.draw_line(Vector2(-16, -8 + i * 8), Vector2(16, -8 + i * 8), Color(ink, 0.4), 1.2)
+			ci.draw_polyline(PackedVector2Array([Vector2(-10, 12), Vector2(-3, 19), Vector2(13, 3)]), Pal.c("green"), 3.0, true)
+			Ink.text(ci, "1994", Vector2(10, -19), 8, Color(ink, 0.7), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+		"duty_roster":
+			# 排班表：网格，周末两列全是红圈
+			_box(ci, Rect2(-26, -22, 52, 44), paper, ink)
+			ci.draw_rect(Rect2(-26, -22, 52, 8), Pal.c("blue"))
+			for x in range(-26, 27, 8):
+				ci.draw_line(Vector2(x, -14), Vector2(x, 22), Color(ink, 0.35), 1.0)
+			for y in range(-14, 23, 9):
+				ci.draw_line(Vector2(-26, y), Vector2(26, y), Color(ink, 0.35), 1.0)
+			for y in [-10, -1, 8, 17]:
+				ci.draw_arc(Vector2(14, y), 3.2, 0, TAU, 12, Pal.c("red"), 1.6, true)
+				ci.draw_arc(Vector2(22, y), 3.2, 0, TAU, 12, Pal.c("red"), 1.6, true)
+		"third_draft":
+			# 三张叠稿，最上面写着 v3（下面隐约 v1）
+			_box(ci, Rect2(-14, -26, 36, 46), paper, ink)
+			_box(ci, Rect2(-18, -22, 36, 46), paper, ink)
+			_box(ci, Rect2(-22, -18, 36, 46), paper, ink)
+			for i in 3:
+				ci.draw_line(Vector2(-16, -2 + i * 7), Vector2(8, -2 + i * 7), Color(ink, 0.45), 1.3)
+			Ink.text(ci, "v3", Vector2(-4, -6), 13, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			ci.draw_line(Vector2(-18, 24), Vector2(10, 24), Pal.c("red"), 1.4)
+		"reimburse":
+			# 报销单 + 红色“退回”章
+			_box(ci, Rect2(-20, -26, 40, 52), paper, ink)
+			Ink.text(ci, "报销", Vector2(0, -12), 10, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			for i in 3:
+				ci.draw_line(Vector2(-14, -4 + i * 7), Vector2(14, -4 + i * 7), Color(ink, 0.4), 1.2)
+			ci.draw_set_transform(c, rot + 0.35, Vector2(s, s))
+			ci.draw_rect(Rect2(-15, 6, 30, 14), Color(Pal.c("red"), 0.15))
+			ci.draw_rect(Rect2(-15, 6, 30, 14), Pal.c("red"), false, 2.0)
+			Ink.text(ci, "退回", Vector2(0, 17), 10, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"applications":
+			# 一沓申报书，最上面一张盖着“新”
+			for i in 5:
+				_box(ci, Rect2(-24 + i * 1.5, 8 - i * 6, 46, 14), paper, ink)
+			_box(ci, Rect2(-18, -26, 38, 26), paper, ink)
+			Ink.text(ci, "申报书", Vector2(1, -15), 9, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			ci.draw_line(Vector2(-12, -8), Vector2(14, -8), Color(ink, 0.4), 1.2)
+		"nobel_list":
+			# 名单：一行被红笔划掉，旁边一颗金色小奖章
+			_box(ci, Rect2(-22, -26, 40, 52), paper, ink)
+			for i in 5:
+				ci.draw_line(Vector2(-16, -16 + i * 8), Vector2(10, -16 + i * 8), Color(ink, 0.45), 1.3)
+			ci.draw_line(Vector2(-18, -8), Vector2(14, -8), Pal.c("red"), 2.6)
+			ci.draw_circle(Vector2(16, 16), 9.0, Pal.c("gold"))
+			ci.draw_arc(Vector2(16, 16), 9.0, 0, TAU, 24, ink, 1.6, true)
+			_star(ci, Vector2(16, 16), 4.5, ink)
 		_:
 			_box(ci, Rect2(-20, -20, 40, 40), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 8), 20, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

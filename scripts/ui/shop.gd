@@ -425,13 +425,20 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	if d.lore != "":
 		draw_multiline_string(Pal.hand, o2 + Vector2(16, cr.size.y - 92), "“" + d.lore + "”", HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32, 15, 3, Pal.c("blue"))
 	# 价签
-	var can: bool = main.run.money >= d.price
+	var price: int = o.get("price", d.price)
+	var can: bool = main.run.money >= price
 	var tag := Rect2(o2 + Vector2(cr.size.x - 104, cr.size.y - 46), Vector2(92, 34))
 	draw_rect(tag, Pal.c("gold") if can else Pal.c("paper2"))
 	draw_rect(tag, el, false, 1.4)
-	Ink.text(self, "$%d" % d.price, tag.get_center() + Vector2(0, 8), 20, ink if can else Pal.c("red"), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+	Ink.text(self, "$%d" % price, tag.get_center() + Vector2(0, 8), 20, ink if can else Pal.c("red"), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+	if price < d.price:
+		# 打折：原价划掉 + 红色“半价”小章
+		var op := tag.position + Vector2(-58, 24)
+		Ink.text(self, "$%d" % d.price, op, 15, Pal.c("text2"), Pal.mono)
+		draw_line(op + Vector2(-2, -6), op + Vector2(36, -6), Pal.c("red"), 2.0)
+		Ink.text(self, "半价", tag.position + Vector2(-8, -8), 14, Pal.c("red"), Pal.bold)
 	if hot and not o.sold:
-		var can2: bool = main.run.money >= d.price
+		var can2: bool = main.run.money >= price
 		Ink.text(self, ("点击购买" if can2 else "经费不够"), o2 + Vector2(16, cr.size.y - 22), 15, Pal.c("red") if not can2 else Pal.c("green"), Pal.bold)
 	# 已购印章
 	if o.sold:

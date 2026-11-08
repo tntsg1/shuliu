@@ -66,7 +66,47 @@ const ALL := {
 	"fast_clock": {"kind": "relic", "name": "永远快五分钟的钟", "rarity": RARE, "price": 34,
 		"desc": "所有锁相窗口额外 +2 次安全加速，但每次实验的第一次加速额外增加 5 个百分点的束流丢失概率。",
 		"lore": "没人敢把时间调回来。"},
+	# —— M3 第 1 批：纸张 ——
+	"lost_data": {"kind": "relic", "name": "那次忘记保存的数据", "rarity": RARE, "price": 36,
+		"desc": "在本局最高潜在成果时发生束流丢失，下一次实验引出时额外加上失去价值的 15%。每阶段最多一次。",
+		"lore": "那个文件明明就在桌面上。"},
+	"calib_log": {"kind": "relic", "name": "最后一次设备校准记录", "rarity": LEGEND, "price": 58,
+		"desc": "每次实验首次进入锁相时，升级为完全同步：这段锁相里不会出现保持稳定和射频失谐，每次至少 +1 能级。",
+		"lore": "记录上写着：状态完美。日期是十二年前。"},
+	"duty_roster": {"kind": "relic", "name": "周末值班表", "rarity": COMMON, "price": 12,
+		"desc": "每次实验第一次加速，加速成功概率 +15 个百分点。",
+		"lore": "你的名字出现在每一个周末。"},
+	"third_draft": {"kind": "relic", "name": "第三版修改稿", "rarity": UNCOMMON, "price": 22,
+		"desc": "每次保持稳定，本次实验科研倍率 +0.1，最多 +1.0。",
+		"lore": "和第一版一字不差。"},
+	"reimburse": {"kind": "relic", "name": "被退回的报销单", "rarity": UNCOMMON, "price": 22,
+		"desc": "每次束流丢失获得 $8。",
+		"lore": "缺一张发票，已经缺了两年。"},
+	"applications": {"kind": "relic", "name": "填不完的申报书", "rarity": UNCOMMON, "price": 22,
+		"desc": "商店每次进货或刷新后，第一件商品半价。",
+		"lore": "填完一份，又来一份。"},
+	"nobel_list": {"kind": "relic", "name": "去年的诺奖预测名单", "rarity": LEGEND, "price": 52,
+		"desc": "能级 ≥ 12 时，超级同步概率翻倍，每次成功加速获得 $4。",
+		"lore": "名单上有你导师。被划掉了。"},
 }
+
+## 污染标签（只改画面，不进数值；DECISIONS 视觉硬规则）
+const TAGS := ["纸张", "咖啡", "文具", "钟表", "证章", "照片", "金属", "电子", "书籍", "吉祥物"]
+const TAG := {
+	"magnet_sc": "金属", "quad_array": "金属", "injector_hi": "电子", "collimator": "金属", "rf_backup": "电子", "diagnostic": "电子",
+	"dean_paper": "纸张", "eraser": "文具", "coin": "金属", "badge": "证章", "note100": "纸张", "wrong_answer": "纸张",
+	"koi": "照片", "ultimatum": "纸张", "lucky_cat": "吉祥物", "rejected": "书籍", "dean_pen": "文具", "chair": "金属",
+	"budget": "纸张", "coffee": "咖啡", "fast_clock": "钟表",
+	"lost_data": "纸张", "calib_log": "纸张", "duty_roster": "纸张", "third_draft": "纸张", "reimburse": "纸张",
+	"applications": "纸张", "nobel_list": "纸张",
+}
+## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
+const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
+	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
+	"duty_roster", "third_draft", "reimburse"]
+
+static func tag_of(id: String) -> String:
+	return TAG.get(id, "")
 
 ## 槽位（GDD 9.4）：按阶段扩张
 static func device_slots(stage: int) -> int:

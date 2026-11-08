@@ -31,6 +31,9 @@ var paper_used := false       # 校长稿纸：每局一次
 var stage_badge_used := false
 var stage_pen_used := false
 var rejected_stacks := 0
+var best_potential := 0       # 本局到过的最高潜在成果（忘记保存的数据）
+var lost_bonus := 0           # 下一次引出额外加上的科研点
+var stage_lost_data_used := false
 # —— 商店 ——
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
@@ -84,13 +87,23 @@ func odds() -> PackedFloat64Array:
 	if has("koi") and b.koi > 0: d[Odds.LOSS] -= 0.02 * b.koi
 	if has("ultimatum") and b.presses >= 3: d[Odds.LOSS] += 0.10
 	if has("fast_clock") and b.presses == 0: d[Odds.LOSS] += 0.05
+	if has("duty_roster") and b.presses == 0: d[Odds.SUCCESS] += 0.15
 	var q := Odds.apply_mods(p, d)
 	if b.locked():
 		q[Odds.LOSS] = 0.0
 		var s := 0.0
 		for k in Odds.N: s += q[k]
 		for k in Odds.N: q[k] /= s
+		if b.full_sync:
+			# 完全同步：保持稳定、射频失谐都不出现，按比例分给其余结果
+			q[Odds.STABLE] = 0.0
+			q[Odds.DETUNE] = 0.0
+			var s2 := 0.0
+			for k in Odds.N: s2 += q[k]
+			for k in Odds.N: q[k] /= s2
 		Odds.add_super(q, b.energy)
+		if has("nobel_list") and b.energy >= 12:
+			Odds.add_super(q, b.energy)
 	return q
 
 ## 本次是否必定至少普通成功
@@ -105,6 +118,7 @@ func multiplier() -> float:
 	if has("injector_hi"): m *= 1.5
 	if has("collimator"): m *= 0.9
 	if beam != null and has("chair"): m *= 1.0 + beam.chair
+	if beam != null and has("third_draft"): m *= 1.0 + beam.draft
 	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
 	if has("budget"): m *= 1.0 + minf(0.5, floor(money / 10.0) * 0.05)
 	return m
@@ -166,6 +180,16 @@ func accelerate() -> Dictionary:
 			keep = int(floor(potential() * 0.8))
 			trig.append(["dean_paper", "稿纸抢救 80%"])
 		res.salvaged = keep
+		if has("reimburse"):
+			money += 8
+			res.money += 8
+			trig.append(["reimburse", "报销 +$8"])
+		if has("lost_data") and not stage_lost_data_used:
+			var pot := potential()
+			if pot >= best_potential and pot > 0:
+				stage_lost_data_used = true
+				lost_bonus = int(floor(pot * 0.15))
+				trig.append(["lost_data", "下次引出 +%d" % lost_bonus])
 		_log(k, from, from)
 		b.alive = false
 		res.merge(_finish(keep))
@@ -197,6 +221,13 @@ func accelerate() -> Dictionary:
 			b.chair = 0.0
 			trig.append(["chair", "椅子被抢了"])
 		b.cat_last = false
+	if k == Odds.STABLE and has("third_draft") and b.draft < 1.0:
+		b.draft = minf(1.0, b.draft + 0.1)
+		trig.append(["third_draft", "倍率 +%.1f" % b.draft])
+	if good and has("nobel_list") and b.energy >= 12:
+		money += 4
+		res.money += 4
+		trig.append(["nobel_list", "+$4"])
 	if k == Odds.DETUNE and has("rejected"):
 		rejected_stacks = mini(5, rejected_stacks + 1)
 	if (k == Odds.PERFECT or k == Odds.SUPER) and has("koi") and b.koi < 5:
@@ -206,6 +237,8 @@ func accelerate() -> Dictionary:
 	if was_locked:
 		b.lock_left -= 1
 		res.lock_ended = b.lock_left == 0
+		if res.lock_ended:
+			b.full_sync = false
 	else:
 		if not b.lock_used:
 			b.charge = 0 if k == Odds.DETUNE else b.charge + Odds.CHARGE[k]
@@ -221,6 +254,11 @@ func accelerate() -> Dictionary:
 			trig.append(["coffee", "第七杯咖啡"])
 	if res.lock_started and has("fast_clock"):
 		trig.append(["fast_clock", "锁相 +2"])
+	if res.lock_started and has("calib_log") and not b.calib_used:
+		b.calib_used = true
+		b.full_sync = true
+		res["full_sync"] = true
+		trig.append(["calib_log", "完全同步"])
 	# 便利贴：成功率够高时预备下一次必定成功
 	if has("note100") and not b.guaranteed_next:
 		var q := odds()
@@ -229,6 +267,7 @@ func accelerate() -> Dictionary:
 			relics.erase("note100")
 			trig.append(["note100", "贴上了"])
 	res.to = b.energy
+	best_potential = maxi(best_potential, potential())
 	_log(k, from, b.energy)
 	return res
 
@@ -239,7 +278,8 @@ func _log(k: int, from: int, to: int) -> void:
 
 ## 引出：兑现当前价值（含全部倍率）
 func extract() -> Dictionary:
-	var v := potential()
+	var v := potential() + lost_bonus
+	lost_bonus = 0
 	if has("dean_pen"):
 		stage_pen_used = true
 	best_value = maxi(best_value, v)
@@ -263,6 +303,7 @@ func submit() -> Dictionary:
 		experiments_left = PER_STAGE
 		stage_badge_used = false
 		stage_pen_used = false
+		stage_lost_data_used = false
 		var bonus := 15 + 5 * s
 		money += bonus
 		return {"passed": true, "stage": s, "won": won(), "bonus": bonus}
@@ -298,7 +339,10 @@ func _fill_offers() -> void:
 		var id := _pick(kind, picked)
 		if id != "":
 			picked.append(id)
-			offers.append({"id": id, "sold": false})
+			var price: int = Items.ALL[id].price
+			if offers.is_empty() and has("applications"):
+				price = int(ceil(price * 0.5))
+			offers.append({"id": id, "sold": false, "price": price})
 
 func refresh() -> bool:
 	if money < refresh_cost:
@@ -317,11 +361,12 @@ func buy(i: int) -> String:
 	if o.sold:
 		return "已经卖掉了"
 	var def: Dictionary = Items.get_def(o.id)
-	if money < def.price:
+	var price: int = o.get("price", def.price)
+	if money < price:
 		return "经费不够"
 	if not slots_free(def.kind):
 		return ("设备" if def.kind == "device" else "饰品") + "槽已满，先卖掉一件"
-	money -= def.price
+	money -= price
 	o.sold = true
 	if def.kind == "device":
 		devices.append(o.id)

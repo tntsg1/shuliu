@@ -193,5 +193,82 @@ func _initialize() -> void:
 	for k in Odds.N: se += r3.expected[k]; sa += r3.actual[k]
 	check(absf(se - sa) < 1e-6, "期望次数总和=实际次数总和")
 
+	# —— M3 第 1 批：纸张 ——
+	var m3_rd := Run.new(41)
+	m3_rd.relics.append("duty_roster")
+	m3_rd.start_experiment(); m3_rd.beam.energy = 9
+	var m3_base9 := Odds.table(9)
+	check(m3_rd.odds()[Odds.SUCCESS] > m3_base9[Odds.SUCCESS] + 0.149, "值班表第一次 +15pp")
+	m3_rd.beam.presses = 1
+	check(absf(m3_rd.odds()[Odds.SUCCESS] - m3_base9[Odds.SUCCESS]) < 1e-9, "值班表只管第一次")
+	# 第三版修改稿：保持稳定 +0.1 倍率，最多 1.0
+	var m3_rt := Run.new(42)
+	m3_rt.relics.append("third_draft")
+	m3_rt.start_experiment()
+	for i in 400:
+		if m3_rt.beam == null:
+			m3_rt.beam = Beam.new()
+		m3_rt.beam.energy = 3
+		m3_rt.accelerate()
+		if m3_rt.beam != null:
+			check(m3_rt.beam.draft <= 1.0 + 1e-9, "修改稿上限 1.0")
+	# 报销单：丢失 +$8
+	var m3_rb := Run.new(43)
+	m3_rb.relics.append("reimburse")
+	var m3_lost_n := 0
+	for i in 300:
+		m3_rb.beam = Beam.new(); m3_rb.beam.energy = 16
+		var mb0 := m3_rb.money
+		var m3_r := m3_rb.accelerate()
+		if m3_r.lost:
+			m3_lost_n += 1
+			check(m3_rb.money - mb0 >= 8, "报销单丢失 +$8")
+	check(m3_lost_n > 0, "报销单测到了丢失")
+	# 申报书：第一件半价
+	var m3_ra := Run.new(44)
+	m3_ra.relics.append("applications")
+	m3_ra.roll_shop()
+	var m3_o0: Dictionary = m3_ra.offers[0]
+	check(m3_o0.price == int(ceil(Items.ALL[m3_o0.id].price * 0.5)), "申报书第一件半价")
+	check(m3_ra.offers[1].price == Items.ALL[m3_ra.offers[1].id].price, "申报书只管第一件")
+	# 校准记录：首次锁相升级为完全同步（无稳定/失谐）
+	var m3_rc := Run.new(45)
+	m3_rc.relics.append("calib_log")
+	m3_rc.start_experiment()
+	m3_rc.beam.energy = 6; m3_rc.beam.charge = 5
+	var m3_guard := 0
+	while m3_rc.beam != null and not m3_rc.beam.locked() and m3_guard < 200:
+		m3_rc.beam.energy = 6
+		m3_rc.accelerate()
+		m3_guard += 1
+	if m3_rc.beam != null and m3_rc.beam.locked():
+		check(m3_rc.beam.full_sync, "校准记录：完全同步")
+		var m3_q := m3_rc.odds()
+		check(m3_q[Odds.STABLE] == 0.0 and m3_q[Odds.DETUNE] == 0.0 and m3_q[Odds.LOSS] == 0.0, "完全同步只剩成功类")
+	# 诺奖名单：E12 锁相时超级同步翻倍
+	var m3_rn := Run.new(46)
+	m3_rn.start_experiment(); m3_rn.beam.energy = 13; m3_rn.beam.lock_left = 3
+	var m3_s1 := m3_rn.odds()[Odds.SUPER]
+	m3_rn.relics.append("nobel_list")
+	check(absf(m3_rn.odds()[Odds.SUPER] - m3_s1 * 2.0) < 1e-9, "诺奖名单超级同步翻倍")
+	# 忘记保存的数据：最高潜在成果时丢失 → 下次引出 +15%
+	var m3_rl := Run.new(47)
+	m3_rl.relics.append("lost_data")
+	var m3_bonus_seen := false
+	for i in 400:
+		m3_rl.beam = Beam.new(); m3_rl.beam.energy = 15
+		m3_rl.best_potential = 0
+		var m3_r := m3_rl.accelerate()
+		if m3_r.lost and m3_rl.lost_bonus > 0:
+			m3_bonus_seen = true
+			var m3_lb := m3_rl.lost_bonus
+			m3_rl.beam = Beam.new()
+			var m3_pot := m3_rl.potential()
+			var m3_t0 := m3_rl.total
+			m3_rl.extract()
+			check(m3_rl.total - m3_t0 == m3_pot + m3_lb, "忘记保存的数据：下次引出加上")
+			break
+	check(m3_bonus_seen, "忘记保存的数据触发")
+
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)

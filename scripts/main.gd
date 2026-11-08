@@ -8,6 +8,7 @@ var mode := M.WALK
 var world: Node2D
 var lab: Node2D
 var chamber: Node2D
+var pollution: Node2D
 var detector: Node2D
 var desk: Node2D
 var player: Node2D
@@ -69,6 +70,10 @@ func _ready() -> void:
 	ringmap.set("main", self)
 	detector = _node("res://scripts/world/detector.gd", world)
 	chamber = _node("res://scripts/world/chamber.gd", world)
+	pollution = _node("res://scripts/world/pollution.gd", chamber)
+	pollution.set("main", self)
+	pollution.set("chamber", chamber)
+	chamber.move_child(pollution, 1)      # 在束流之上、舱框之下
 	shot = _node("res://scripts/world/shot.gd", world)
 	gear = _node("res://scripts/world/gear.gd", world)
 	gear.set("main", self)
@@ -607,7 +612,7 @@ func _impact(r: Dictionary) -> void:
 			overlay.pop("−1", col, false)
 	var txt: String = Odds.NAMES[k]
 	if r.lock_started:
-		txt = "锁相！"
+		txt = "完全同步！" if r.get("full_sync", false) else "锁相！"
 		Sfx.play("arc", -2.0, 1.1)
 		Sfx.play("ring", -5.0, 1.2)
 		Sfx.play("perfect", -6.0, 0.7)
