@@ -19,8 +19,13 @@ var morph_label := ""
 var traits: Array = []
 var alpha := 0.0
 var info := {}          # 当前形态（给成果卡和测试看）
+var last_st := {}       # 最近一帧画的状态（碎裂时接着用）
+var shatter_t := -1.0   # 丢失碎裂（秒）
+var shards: Array = []  # 束芯碎片 {p, v, rot, w, pts, c}
+var cracks: Array = []  # 裂纹折线
 
 func reset() -> void:
+	shatter_t = -1.0
 	peak = 1
 	g = 1.0
 	_vg = 0.0
@@ -55,6 +60,16 @@ func _process(dt: float) -> void:
 		var rd := Ink.spring(dmg, _vdmg, 1.0 if info.damaged else 0.0, 5.0, dt); dmg = rd[0]; _vdmg = rd[1]
 	var ra := Ink.spring(grow, _vgrow, 1.0, 9.0, dt); grow = ra[0]; _vgrow = ra[1]
 	alpha = move_toward(alpha, tgt_a, dt * 4.0)
+	if shatter_t >= 0.0:
+		shatter_t += dt
+		for sh in (shards if shatter_t > 0.25 else []):
+			sh.v.y += 260.0 * dt
+			sh.v *= 1.0 - 0.8 * dt
+			sh.p += sh.v * dt
+			sh.rot += sh.w * dt
+		if shatter_t > 2.2:
+			shatter_t = -1.0
+			shards.clear()
 	if morph_t >= 0.0:
 		morph_t += dt
 		if morph_t > 1.6:
@@ -73,6 +88,9 @@ func _morph() -> void:
 		main.hitstop(0.05)
 
 func _draw() -> void:
+	if shatter_t >= 0.0:
+		_draw_shatter()
+		return
 	if info.is_empty() or alpha < 0.01 or main.run.beam == null:
 		return
 	var v: float = chamber.value
@@ -83,8 +101,10 @@ func _draw() -> void:
 	st["grow"] = grow
 	st["col"] = Pal.ramp(v)
 	st["core_r"] = (9.0 + v * 22.0) * clampf(chamber.appear, 0.0, 1.2)
-	modulate.a = alpha * (1.0 - chamber.dissolve)
+	st["pulse"] = chamber.pulse
+	modulate.a = alpha
 	art.draw(self, Vector2.ZERO, 1.0, st)
+	last_st = st
 	if morph_t >= 0.0:
 		_morph_fx()
 
@@ -108,3 +128,66 @@ func _morph_fx() -> void:
 	draw_rect(Rect2(-w * 0.5, -22, w, 40), Color(red, sa), false, 3.0)
 	Ink.text(self, morph_label, Vector2(0, 8), 26, Color(red, sa), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
+
+## 丢失：先让玩家看清“它碎了”——形态被裂纹劈开、歪斜抖散、慢慢褪掉；束芯崩成切面碎片往外飞再落下
+func shatter() -> void:
+	if last_st.is_empty():
+		return
+	shatter_t = 0.0
+	shards.clear()
+	cracks.clear()
+	var r: float = art.gem_radius(last_st.g, last_st.get("omen", 0.0))
+	var col: Color = last_st.col
+	var n := 10 + int(r / 4.0)
+	for i in n:
+		var a0 := i * TAU / n + randf_range(-0.1, 0.1)
+		var a1 := a0 + TAU / n
+		var pts := PackedVector2Array([Vector2.ZERO, Vector2(cos(a0), sin(a0)) * r, Vector2(cos(a1), sin(a1)) * r * randf_range(0.8, 1.1)])
+		var mid := (pts[1] + pts[2]) / 3.0
+		for k in 3:
+			pts[k] -= mid
+		var dir := mid.normalized()
+		shards.append({"p": mid, "v": dir * randf_range(160, 420) + Vector2(0, -randf_range(60, 200)), "rot": 0.0,
+			"w": randf_range(-9, 9), "pts": pts, "c": col.darkened(randf_range(0.0, 0.35)).lerp(Pal.c("paper"), randf_range(0.0, 0.4))})
+	for i in 7:
+		var a := i * TAU / 7.0 + randf_range(-0.3, 0.3)
+		var pts := PackedVector2Array([Vector2.ZERO])
+		var p := Vector2.ZERO
+		for k in 6:
+			p += Vector2.from_angle(a + randf_range(-0.5, 0.5)) * randf_range(28, 46)
+			pts.append(p * Vector2(1.0, 0.6))
+		cracks.append(pts)
+
+func _draw_shatter() -> void:
+	var k := shatter_t
+	# 1) 形态：先定格 0.25 秒让人看清，再被劈开、抖散、褪掉
+	var hold := clampf(k / 0.25, 0.0, 1.0)
+	var go := clampf((k - 0.25) / 1.3, 0.0, 1.0)
+	if go < 1.0:
+		var st := last_st.duplicate()
+		st["dmg"] = 0.6 + 2.4 * go
+		st["t"] = last_st.t + k * 0.2
+		st["traits"] = []
+		st["no_gem"] = true
+		modulate.a = 1.0 - go
+		art.draw(self, Vector2(0, 14.0 * go * go), 1.0 + 0.08 * go, st)
+		modulate.a = 1.0
+		# 2) 裂纹：从中心一笔笔劈出去
+		var ck := clampf(k / 0.22, 0.0, 1.0)
+		for c in cracks:
+			var m := int(c.size() * ck)
+			if m >= 2:
+				var sub: PackedVector2Array = c.slice(0, m)
+				draw_polyline(sub, Color(Pal.c("ink"), 1.0 - go), 3.0, true)
+				draw_polyline(sub, Color(Pal.c("paper"), 0.8 * (1.0 - go)), 1.0, true)
+	# 3) 束芯碎片：定格后才飞
+	var fly := hold >= 1.0
+	for sh in shards:
+		var p: Vector2 = sh.p
+		var a := 1.0 - clampf((k - 1.3) / 0.9, 0.0, 1.0)
+		var pts := PackedVector2Array()
+		for q in sh.pts:
+			pts.append(p + (q as Vector2).rotated(sh.rot if fly else 0.0))
+		draw_colored_polygon(pts, Color(sh.c, a))
+		pts.append(pts[0])
+		draw_polyline(pts, Color(Pal.c("ink"), a), 1.4, true)

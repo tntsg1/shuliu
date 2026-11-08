@@ -482,6 +482,7 @@ func _sch_end() -> void:
 	last_result = {"lost": true, "energy": int(shown_e), "p": 1.0, "fin": fin}
 	Sfx.play("paper", -4.0, 0.9)
 	chamber.lose()
+	form.shatter()
 	overlay.strike_next = true
 	overlay.stamp("保留 30%", Pal.c("lock"))
 	mode = M.LOSING
@@ -521,6 +522,7 @@ func _lose(r: Dictionary) -> void:
 	mode = M.LOSING
 	timer = 0.0
 	chamber.lose()
+	form.shatter()
 	shake = 1.5
 	panel.press()
 	player.press()

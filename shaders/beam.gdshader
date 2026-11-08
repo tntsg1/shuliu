@@ -62,7 +62,7 @@ void fragment() {
 		float hexd = 0.5 - max(dot(q, normalize(vec2(1.0, 1.7320508))), q.x);
 		float edge = 1.0 - smoothstep(0.0, 0.05, hexd);
 		float wave = 0.55 + 0.45 * sin(length(px) * 0.05 - t * 9.0);
-		bg = mix(bg, lock_col.rgb, edge * lockf * 0.45 * wave);
+		bg = mix(bg, lock_col.rgb, edge * lockf * 0.2 * wave);
 	}
 
 	vec3 col = bg;
@@ -102,7 +102,7 @@ void fragment() {
 		float th = atan(qn.y, qn.x);
 		d += jit * (noise(vec2(th * 3.0 + fi * 7.0, t * 2.3)) - 0.5) * 14.0;
 		vec3 rc = mix(bc, danger_col.rgb, clamp((danger - 0.45) * 1.6, 0.0, 1.0) * (fi + 1.0) / 6.0);
-		col = mix(col, rc, line_a(d, wl * 0.5) * 0.55 * A);
+		col = mix(col, rc, line_a(d, wl * 0.5) * 0.32 * A);
 
 		int kN = lockf > 0.5 ? 6 : 2 + int(value * 4.0);
 		float dir = mod(fi, 2.0) < 1.0 ? 1.0 : -1.0;
@@ -115,7 +115,7 @@ void fragment() {
 			float dth = mod(th - ph + 3.14159, 6.28318) - 3.14159;
 			float behind = -dth * dir;
 			float tr = step(0.0, behind) * (1.0 - smoothstep(0.0, trail, behind));
-			col = mix(col, rc, tr * on_ring * 0.75 * A);
+			col = mix(col, rc, tr * on_ring * 0.45 * A);
 			vec2 bp = rot(ang) * (vec2(cos(ph), sin(ph)) * vec2(rx, ry));
 			float bd = length(p - bp);
 			float br = (2.6 + value * 3.6) * (1.0 + pulse * 0.5);

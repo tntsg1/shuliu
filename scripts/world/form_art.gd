@@ -52,6 +52,8 @@ func draw(canvas: CanvasItem, origin: Vector2, scale: float, state: Dictionary) 
 	var om: float = state.get("omen", 0.0)
 	if om > 0.01 and leg == "":
 		_omen(om)
+	if not leg in ["blackhole", "bigbang", "foil"] and not state.get("no_gem", false):
+		st["core_r"] = gem(om)
 	for tr in state.get("traits", []):
 		match tr:
 			"saved": _saved()
@@ -125,9 +127,6 @@ func _card_core() -> void:
 	var v: float = clampf((g() - 1.0) / 12.0, 0.0, 1.0)
 	for i in 2 + int(v * 2.0):
 		line(ellipse(Vector2.ZERO, 70.0 + i * 26.0, 26.0 + i * 9.0, 0.5 + i * 0.9, 48), Color(col, 0.55), 1.4, false)
-	var cr := 9.0 + v * 16.0
-	dot(Vector2.ZERO, cr, col.lerp(Pal.c("paper"), 0.5), 1.6)
-	ci.draw_arc(P(Vector2.ZERO), cr * 0.5 * s, 0, TAU, 20, Color(ink, 0.5), 1.0 * s, true)
 
 # —— 标准：标准束团（着色器本身）→ 同步束 → 对撞之花 ——
 func _std(tier: int) -> void:
@@ -310,35 +309,62 @@ func _mascot(tier: int) -> void:
 			fill(ellipse(Vector2(sd * 26.0, -10.0), 6.0, 6.0 * blink, 0.0, 14), col.lerp(Pal.c("paper"), 0.3), 1.2)
 		yarn(_tail(Vector2(R * 0.8, R * 0.5), 60.0 + 70.0 * k), 3.0)
 		return
-	# 橘猫束流：一只团着的橘猫（半透明，看得见底下的轨迹），尾巴是束流
+	# 橘猫束流：不填色，整只猫由几条轨迹勾出来，粒子沿轮廓跑；尾巴就是束流本身
 	var sc := 1.0 + 0.15 * k
-	var body := ellipse(Vector2(28, 34) * sc, 140.0 * sc, 72.0 * sc, 0.0, 40)
-	fill(body, Color(YARN, 0.42), 2.2)
+	var oc := YARN.lerp(col, 0.25)
+	_traj(ellipse(Vector2(28, 34) * sc, 140.0 * sc, 72.0 * sc, 0.0, 64, -0.2, TAU - 0.95), oc, 6, 0.22)
 	for i in 3:
-		line(ellipse(Vector2(40 + i * 34, 34) * sc, 26.0 * sc, 60.0 * sc, 0.0, 16, -2.3, -1.2), Color(YARN_D, 0.7), 2.4, false)
+		_dash(ellipse(Vector2(40 + i * 34, 34) * sc, 26.0 * sc, 60.0 * sc, 0.0, 16, -2.3, -1.2), oc)
 	var hc := Vector2(-104, -12) * sc
 	var hr := 58.0 * sc
-	var ear := PackedVector2Array()
+	var head := PackedVector2Array()
+	for i in 61:
+		var an := -PI * 0.5 + i / 60.0 * TAU
+		var pp := Vector2(cos(an) * hr, sin(an) * hr * 0.84)
+		var bump := 0.0
+		for ea in [-2.25, -0.9]:
+			var d := absf(wrapf(an - ea, -PI, PI))
+			bump += maxf(0.0, 1.0 - d / 0.36) * 40.0 * sc
+		head.append(hc + pp + pp.normalized() * bump)
+	_traj(head, oc, 5, -0.3)
+	# 眯眼、鼻子、胡须（细轨迹）
 	for sd in [-1.0, 1.0]:
-		ear = PackedVector2Array([hc + Vector2(sd * 46 - 18, -30) * sc, hc + Vector2(sd * 40 - 2, -78) * sc, hc + Vector2(sd * 18 + 6, -44) * sc])
-		fill(ear, Color(YARN, 0.6), 2.0)
-	fill(ellipse(hc, hr, hr * 0.84, 0.0, 36), Color(YARN, 0.55), 2.2)
-	# 眯眼、鼻子、胡须
-	for sd in [-1.0, 1.0]:
-		line(ellipse(hc + Vector2(sd * 22, -6) * sc, 9.0 * sc, 6.0 * sc, 0.0, 10, 0.2, PI - 0.2), Color(ink, 0.9), 1.4, false)
+		line(ellipse(hc + Vector2(sd * 22, -6) * sc, 9.0 * sc, 6.0 * sc, 0.0, 10, 0.2, PI - 0.2), Color(ink, 0.85), 1.3, false)
 		for j in 2:
-			line(PackedVector2Array([hc + Vector2(sd * 30, 14 + j * 8) * sc, hc + Vector2(sd * 76, 8 + j * 14) * sc]), Color(ink, 0.6), 1.0, false)
-	dot(hc + Vector2(0, 8) * sc, 3.5 * sc, Pal.c("red").lightened(0.2), 1.0)
-	# 前爪
+			line(PackedVector2Array([hc + Vector2(sd * 30, 14 + j * 8) * sc, hc + Vector2(sd * 80, 8 + j * 14) * sc]), Color(col, 0.7), 1.0, false)
+	dot(hc + Vector2(0, 8) * sc, 3.2 * sc, Pal.c("red").lightened(0.2), 1.0)
 	for j in 2:
-		fill(ellipse(Vector2(-60 + j * 30, 96) * sc, 16.0 * sc, 9.0 * sc, 0.0, 16), Color(YARN, 0.75), 1.6)
-	# 尾巴 = 束流：一路粒子往尾尖跑
+		_traj(ellipse(Vector2(-60 + j * 30, 96) * sc, 16.0 * sc, 9.0 * sc, 0.0, 18, PI, TAU), oc, 1, 0.5)
+	# 尾巴 = 束流：粗一点，粒子一路往尾尖跑
 	var tail := _tail(Vector2(150, 40) * sc, 120.0 + 40.0 * k)
-	line(tail, Color(col, 0.95), 7.0 * sc)
-	for j in 5:
-		var u := fmod(t * 0.8 + j * 0.2, 1.0)
-		var idx := int(u * (tail.size() - 1))
-		dot(tail[idx], 3.6, col.lerp(Pal.c("paper"), 0.4))
+	line(tail, Color(col, 0.95), 5.0 * sc)
+	for j in 6:
+		var u := fmod(t * 0.8 + j / 6.0, 1.0)
+		dot(tail[int(u * (tail.size() - 1))], 3.6, col.lerp(Pal.c("paper"), 0.4))
+
+## 一条“轨迹”：双线（主线 + 外侧淡线）+ 沿线跑的束团
+func _traj(pts: PackedVector2Array, c: Color, n: int, speed: float) -> void:
+	var outer := PackedVector2Array()
+	var ctr := Vector2.ZERO
+	for q in pts:
+		ctr += q
+	ctr /= maxf(1.0, pts.size())
+	for q in pts:
+		outer.append(ctr + (q - ctr) * 1.05)
+	line(outer, Color(c, 0.35), 1.0, false)
+	line(pts, Color(c, 0.95), 2.2, false)
+	for j in n:
+		var u := fmod(t * speed + float(j) / maxf(1.0, n), 1.0)
+		if u < 0.0:
+			u += 1.0
+		var f := u * (pts.size() - 1)
+		var i0 := int(f)
+		var q: Vector2 = pts[i0].lerp(pts[mini(i0 + 1, pts.size() - 1)], f - i0)
+		dot(q, 3.4, col.lerp(Pal.c("paper"), 0.35), 1.0)
+
+func _dash(pts: PackedVector2Array, c: Color) -> void:
+	for i in range(0, pts.size() - 1, 2):
+		line(PackedVector2Array([pts[i], pts[i + 1]]), Color(c, 0.75), 1.6, false)
 
 func _tail(from: Vector2, length: float) -> PackedVector2Array:
 	var sw := sin(t * 2.4)
@@ -354,8 +380,8 @@ func _saved() -> void:
 	var cr: float = st.get("core_r", 20.0)
 	for sd in [-1.0, 1.0]:
 		var rot: float = sd * 0.62
-		var w := cr * 1.25
-		var h := cr * 0.42
+		var w := cr * 0.62
+		var h := cr * 0.2
 		var pts := PackedVector2Array([Vector2(-w, -h).rotated(rot), Vector2(w, -h).rotated(rot), Vector2(w, h).rotated(rot), Vector2(-w, h).rotated(rot)])
 		fill(pts, Color(TAN, 0.95), 1.4)
 		fill(PackedVector2Array([Vector2(-h, -h * 0.7).rotated(rot), Vector2(h, -h * 0.7).rotated(rot), Vector2(h, h * 0.7).rotated(rot), Vector2(-h, h * 0.7).rotated(rot)]), Color(TAN.darkened(0.15), 0.95), 0.0)
@@ -482,3 +508,68 @@ func _door() -> void:
 	dot(Vector2(-54 + 108 * (1.0 - open) - 12, 6), 4.0, Pal.c("gold"), 1.2)
 	fill(PackedVector2Array([Vector2(-30, -88), Vector2(-4, -88), Vector2(-4, -64), Vector2(-30, -64)]), Pal.c("paper"), 1.2)
 	Ink.text(ci, "8", P(Vector2(-17, -69)), int(20 * s), Pal.c("ink"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+
+# —— 束芯：一颗随能级长大的“晶体”（哑光切面，不发光）——
+# 每加速一次半径 +2；E7 起多一圈扁环、切面变多；E13 起外面再包一层切面壳 + 三颗碎晶绕着转。接近传说时往里缩。
+func gem_radius(gg: float, om := 0.0) -> float:
+	return minf(13.0 + 2.1 * (gg - 1.0), 52.0) * (1.0 - 0.35 * om)
+
+func gem(om := 0.0) -> float:
+	var gg := g()
+	var pulse: float = st.get("pulse", 0.0)
+	var r := gem_radius(gg, om) * (1.0 + 0.1 * pulse)
+	var tier := 2 if gg >= 13.0 else (1 if gg >= 7.0 else 0)
+	var rot := t * 0.22
+	var light := col.lerp(Pal.c("paper"), 0.55)
+	var mid := col
+	var dark := col.darkened(0.35)
+	# 扁环（后半圈）
+	if tier >= 1:
+		line(ellipse(Vector2.ZERO, r * 1.75, r * 0.42, -0.32, 32, PI, TAU), Color(dark, 0.9), 2.0)
+	# 外壳（成熟）
+	if tier == 2:
+		var n2 := 10
+		var shell := PackedVector2Array()
+		for i in n2:
+			var an := -rot * 0.6 + i * TAU / n2
+			shell.append(Vector2(cos(an), sin(an)) * r * 1.28)
+		fill(shell, Color(dark.lerp(Pal.c("paper"), 0.25), 0.9), 2.0)
+		for i in n2:
+			line(PackedVector2Array([shell[i], shell[i] * 0.78]), Color(ink, 0.5), 0.8, false)
+	# 切面：外圈 n 个顶点，内台面转半格，三角形明暗交替（左上亮、右下暗）
+	var n := 6 + 2 * tier
+	var outer := PackedVector2Array()
+	var inner := PackedVector2Array()
+	for i in n:
+		var an := rot + i * TAU / n
+		outer.append(Vector2(cos(an), sin(an)) * r * (1.0 + 0.05 * sin(i * 2.7)))
+		inner.append(Vector2(cos(an + PI / n), sin(an + PI / n)) * r * 0.5)
+	for i in n:
+		var j := (i + 1) % n
+		var mid_an := rot + (i + 0.5) * TAU / n
+		var lit := clampf(0.5 + 0.5 * cos(mid_an + 2.3), 0.0, 1.0)
+		var c1 := dark.lerp(light, lit)
+		fill(PackedVector2Array([inner[i], outer[i], outer[j]]), c1, 0.0)
+		fill(PackedVector2Array([inner[i], outer[j], inner[j]]), c1.lerp(mid, 0.4), 0.0)
+	fill(inner, light, 0.0)
+	var cl := outer.duplicate()
+	cl.append(outer[0])
+	line(cl, Color(ink, 1.0), 2.0, false)
+	for i in n:
+		line(PackedVector2Array([inner[i], outer[i]]), Color(ink, 0.45), 0.8, false)
+	var ci2 := inner.duplicate()
+	ci2.append(inner[0])
+	line(ci2, Color(ink, 0.6), 1.0, false)
+	# 哑光高光：两笔纸色短线
+	line(PackedVector2Array([Vector2(-r * 0.55, -r * 0.2), Vector2(-r * 0.3, -r * 0.5)]), Color(Pal.c("paper"), 0.9), 2.0, false)
+	# 扁环（前半圈）
+	if tier >= 1:
+		line(ellipse(Vector2.ZERO, r * 1.75, r * 0.42, -0.32, 32, 0.0, PI), Color(mid, 0.95), 2.4)
+	# 碎晶卫星
+	if tier == 2:
+		for i in 3:
+			var an := t * 0.9 + i * TAU / 3.0
+			var c := Vector2(cos(an) * r * 2.1, sin(an) * r * 0.7)
+			var sz := 5.0 + 2.0 * inner(2)
+			fill(PackedVector2Array([c + Vector2(0, -sz), c + Vector2(sz * 0.7, 0), c + Vector2(0, sz), c + Vector2(-sz * 0.7, 0)]), light, 1.2)
+	return r
