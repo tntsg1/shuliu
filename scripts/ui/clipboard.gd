@@ -121,7 +121,7 @@ func _left(pr: Rect2) -> void:
 	# 剩余实验
 	var q := pr.position + Vector2(52, 370)
 	Ink.text(self, "本阶段剩余实验", q, 16, Pal.c("text2"))
-	for i in Run.PER_STAGE:
+	for i in maxi(Run.PER_STAGE, run.experiments_left):
 		var c := q + Vector2(150 + i * 30, -6)
 		if i < run.experiments_left:
 			draw_circle(c, 9.0, Pal.c("ramp2"))
@@ -132,6 +132,16 @@ func _left(pr: Rect2) -> void:
 	else:
 		Ink.text(self, "次数用完会强制提交考核。", pr.position + Vector2(52, 410), 17, Pal.c("blue"), Pal.hand)
 		Ink.text(self, "多攒的分会带到下一阶段。", pr.position + Vector2(52, 438), 17, Pal.c("blue"), Pal.hand)
+	# 本阶段的科研计划书：一张小红签别在夹板角上
+	if run.plan != "":
+		var pd: Dictionary = Plans.LIST[run.plan]
+		var tag := Rect2(pr.position + Vector2(40, 452), Vector2(pr.size.x - 80, 66))
+		draw_rect(tag, Pal.c("paper"))
+		draw_rect(Rect2(tag.position, Vector2(6, tag.size.y)), Pal.c("red"))
+		draw_rect(tag, Color(ink, 0.5), false, 1.0)
+		Ink.text(self, "计划书：" + pd.name, tag.position + Vector2(14, 20), 15, Pal.c("red"), Pal.bold)
+		Ink.text(self, "▲ " + pd.good, tag.position + Vector2(14, 40), 12, Pal.c("green"), Pal.font)
+		Ink.text(self, "▼ " + pd.bad, tag.position + Vector2(14, 58), 12, Pal.c("red"), Pal.font)
 
 func _right(pr: Rect2) -> void:
 	var run: Run = main.run

@@ -135,6 +135,9 @@ func _do(act: String, arg) -> void:
 			main.dev_speed = arg
 		"god":
 			run.dev_god = not run.dev_god
+		"plans":
+			main.dev_plans()
+			open = false
 		"meme_all":
 			main.dev_meme_always = not main.dev_meme_always
 		"meme_next":
@@ -248,6 +251,10 @@ func _draw() -> void:
 	_btn(Rect2(x + 100, y - 18, 150, 32), "每次都出：开" if main.dev_meme_always else "每次都出：关", "meme_all", null, main.dev_meme_always)
 	var nm: String = Memes.LIST[main.dev_meme_force].name if main.dev_meme_force != "" else "（自动）"
 	_btn(Rect2(x + 258, y - 18, W - 48 - 258, 32), "下次指定：" + nm, "meme_next")
+	y += 40.0
+	Ink.text(self, "计划书", Vector2(x, y + 4), 15, Pal.c("text2"))
+	_btn(Rect2(x + 100, y - 18, 200, 32), "马上发三份来挑", "plans")
+	Ink.text(self, "当前：" + (Plans.LIST[run.plan].name if run.plan != "" else "无"), Vector2(x + 316, y + 4), 14, Pal.c("text2"))
 	# 提示
 	if msg_t > 0.0:
 		Ink.text(self, msg, Vector2(x, pr.end.y - 28), 16, Color(Pal.c("red"), clampf(msg_t / 0.3, 0.0, 1.0)), Pal.bold)

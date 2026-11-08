@@ -41,6 +41,10 @@ var stage_ext_used := false      # 灭火器：本阶段已经用过
 var stage_call_used := false     # 紧急电话
 var stage_protect_used := false  # 束流保护系统
 var stage_sch_used := false      # 薛定谔的实验报告
+# —— 科研计划书（第 2 阶段起每阶段三选一）——
+var plan := ""                   # 本阶段生效的计划书
+var plan_offers: Array = []      # 等玩家挑的三份（非空 = 还没挑）
+var stage_safety_used := false
 # —— 商店 ——
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
@@ -61,7 +65,7 @@ func seed_text() -> String:
 
 ## 攒满几格进入锁相（没洗的咖啡杯 -1）
 func lock_need() -> int:
-	return Odds.LOCK_NEED - (1 if has("coffee_cup") else 0)
+	return Odds.LOCK_NEED - (1 if has("coffee_cup") else 0) - (2 if plan == "lock_rush" else 0)
 
 ## 打开采购终端（饭卡）
 func on_shop_open() -> int:
@@ -80,7 +84,12 @@ func lost() -> bool:
 	return failed
 
 func line() -> int:
-	return LINES[mini(stage, LINES.size() - 1)]
+	var l: int = LINES[mini(stage, LINES.size() - 1)]
+	if plan == "collab":
+		l = int(ceil(l * 1.1))
+	elif plan == "downsizing":
+		l = int(ceil(l * 0.8))
+	return l
 
 func can_submit() -> bool:
 	return beam == null and not won() and not failed and total >= line()
@@ -111,6 +120,15 @@ func odds() -> PackedFloat64Array:
 	if has("koi") and b.koi > 0: d[Odds.LOSS] -= 0.02 * b.koi
 	if has("ultimatum") and b.presses >= 3: d[Odds.LOSS] += 0.10
 	if has("fast_clock") and b.presses == 0: d[Odds.LOSS] += 0.05
+	match plan:
+		"high_energy": d[Odds.LOSS] += 0.03
+		"energy_save": d[Odds.LOSS] -= 0.03
+		"safety": d[Odds.PERFECT] -= 0.03
+		"top_journal":
+			d[Odds.PERFECT] += 0.04
+			d[Odds.DETUNE] += 0.04
+		"open_day":
+			if b.presses == 0: d[Odds.LOSS] += 0.05
 	if has("duty_roster") and b.presses == 0: d[Odds.SUCCESS] += 0.15
 	if b.wipes: d[Odds.LOSS] -= 0.06
 	if has("dose_card") and b.energy >= 10: d[Odds.PERFECT] += 0.06
@@ -153,6 +171,8 @@ func multiplier() -> float:
 	if beam != null and has("marker") and not beam.had_detune: m *= 1.15
 	if has("red_flag") and not stage_had_loss: m *= 1.4
 	if has("extractor"): m *= 1.2
+	if plan == "high_energy" and beam != null and beam.energy >= 10: m *= 1.3
+	if plan == "energy_save": m *= 0.85
 	if beam != null and has("calorimeter") and beam.energy >= 8: m *= 1.6
 	if beam != null and has("daq"): m *= 1.0 + minf(0.6, beam.streak * 0.03)
 	if beam != null and has("last_slide") and experiments_left == 1: m *= 1.5
@@ -277,6 +297,10 @@ func accelerate() -> Dictionary:
 			paper_used = true
 			keep = int(floor(potential() * 0.8))
 			trig.append(["dean_paper", "稿纸抢救 80%"])
+		if keep == 0 and plan == "safety" and not stage_safety_used and not gamble:
+			stage_safety_used = true
+			keep = int(floor(potential() * 0.5))
+			res["plan_note"] = "安全整改：保留 50%"
 		if keep == 0 and has("protect_sys") and not stage_protect_used and not gamble:
 			stage_protect_used = true
 			keep = int(floor(potential() * 0.3))
@@ -359,7 +383,7 @@ func accelerate() -> Dictionary:
 	if (k == Odds.PERFECT or k == Odds.SUPER) and has("koi") and b.koi < 5:
 		b.koi += 1
 		trig.append(["koi", "好运 ×%d" % b.koi])
-	var lock_n := Odds.LOCK_PRESSES + (2 if has("fast_clock") else 0)
+	var lock_n := Odds.LOCK_PRESSES + (2 if has("fast_clock") else 0) - (1 if plan == "lock_rush" else 0)
 	if was_locked:
 		if has("thermos") and _hit(0.25):
 			trig.append(["thermos", "锁相没减少", {"p": 0.25, "hit": true}])
@@ -493,6 +517,8 @@ func _log(k: int, from: int, to: int) -> void:
 func extract() -> Dictionary:
 	var v := potential() + lost_bonus
 	lost_bonus = 0
+	if plan == "open_day":
+		money += 5
 	var trig: Array = []
 	if has("rec_letter") and not stage_letter_used:
 		var hit := _hit(0.25)
@@ -521,6 +547,8 @@ func _finish(v: int) -> Dictionary:
 	total += v
 	experiments_left -= 1
 	var income := int(floor(2.0 + 1.6 * sqrt(float(v))))
+	if plan == "night_shift":
+		income = int(floor(income * 0.5))
 	money += income
 	roll_shop()
 	return {"gained": v, "income": income, "can_submit": can_submit(), "must_submit": must_submit()}
@@ -539,12 +567,17 @@ func submit() -> Dictionary:
 		stage_call_used = false
 		stage_protect_used = false
 		stage_had_loss = false
+		stage_safety_used = false
 		var bonus := 15 + 5 * s
+		if plan == "audit":
+			bonus *= 3
 		if has("crooked_seal"):
 			bonus *= 2
 		if has("plant"):
 			bonus += 6
 		money += bonus
+		plan = ""
+		plan_offers = Plans.deal(shop_rng) if not won() else []
 		return {"passed": true, "stage": s, "won": won(), "bonus": bonus}
 	failed = true
 	return {"passed": false, "stage": stage, "won": false, "bonus": 0}
@@ -589,7 +622,7 @@ func _fill_offers() -> void:
 		var id := _pick(kind, picked)
 		if id != "":
 			picked.append(id)
-			var price: int = Items.ALL[id].price
+			var price := price_of(id)
 			if offers.is_empty() and has("applications"):
 				price = int(ceil(price * 0.5))
 			offers.append({"id": id, "sold": false, "price": price})
@@ -646,3 +679,36 @@ func sell(id: String) -> int:
 	uses.erase(id)
 	money += v
 	return v
+
+## 商品价格（设备更新计划：设备 7 折、饰品贵 20%）
+func price_of(id: String) -> int:
+	var pr: int = Items.ALL[id].price
+	if plan == "equip_renew":
+		pr = int(ceil(pr * (0.7 if Items.ALL[id].kind == "device" else 1.2)))
+	return pr
+
+## 选定计划书：立即生效的部分在这里结算
+func choose_plan(id: String) -> Dictionary:
+	plan = id
+	plan_offers = []
+	var out := {"money": 0}
+	match id:
+		"collab":
+			money += 25
+			out.money = 25
+		"steady":
+			money += 10
+			out.money = 10
+		"audit":
+			var lose := money / 2
+			money -= lose
+			out.money = -lose
+		"night_shift":
+			experiments_left += 1
+		"downsizing":
+			experiments_left = maxi(1, experiments_left - 1)
+		"equip_renew":
+			for o in offers:
+				if not o.sold and not o.get("free", false):
+					o.price = price_of(o.id)
+	return out

@@ -526,5 +526,39 @@ func _initialize() -> void:
 	b7p.total = b7p.line()
 	check(b7p.submit().bonus == 21, "盆栽 +$6")
 
+	# —— 科研计划书 ——
+	var pl := Run.new(111)
+	pl.total = pl.line()
+	pl.submit()
+	check(pl.plan_offers.size() == 3 and pl.plan == "", "过阶段发三份计划书")
+	var l0 := pl.line()
+	pl.choose_plan("collab")
+	check(pl.plan == "collab" and pl.line() == int(ceil(l0 * 1.1)) and pl.plan_offers.is_empty(), "横向合作：线 +10%")
+	var pl2 := Run.new(112)
+	pl2.money = 80
+	pl2.choose_plan("audit")
+	check(pl2.money == 40, "经费审计：失去一半")
+	pl2.total = pl2.line()
+	check(pl2.submit().bonus == 45, "经费审计：奖金 ×3")
+	var pl3 := Run.new(113)
+	pl3.choose_plan("lock_rush")
+	check(pl3.lock_need() == 4, "锁相攻关：4 格")
+	var pl4 := Run.new(114)
+	pl4.choose_plan("night_shift")
+	check(pl4.experiments_left == 4, "夜班：多 1 束")
+	var pl5 := Run.new(115)
+	pl5.choose_plan("equip_renew")
+	pl5.roll_shop()
+	for o in pl5.offers:
+		var base: int = Items.ALL[o.id].price
+		var want := int(ceil(base * (0.7 if Items.ALL[o.id].kind == "device" else 1.2)))
+		check(o.price == want or o.get("free", false) or o == pl5.offers[0], "设备更新计划：价格")
+	var pl6 := Run.new(116)
+	pl6.choose_plan("safety")
+	pl6.dev_force = Odds.LOSS
+	pl6.start_experiment(); pl6.beam.energy = 8
+	var pot_s := pl6.potential()
+	check(pl6.accelerate().salvaged == int(floor(pot_s * 0.5)), "安全整改：保留 50%")
+
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)

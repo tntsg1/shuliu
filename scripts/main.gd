@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN }
 
 var run: Run
 var mode := M.WALK
@@ -22,6 +22,7 @@ var panel: Control
 var charms: Control
 var dev: Control
 var cel: Control
+var plans: Control
 var clip_l: Control
 var clip_r: Control
 var overlay: Control
@@ -109,13 +110,15 @@ func _ready() -> void:
 	cel = _ctrl("res://scripts/ui/celebrate.gd", ui)
 	overlay = _ctrl("res://scripts/ui/overlay.gd", ui)
 	shop = _ctrl("res://scripts/ui/shop.gd", ui)
+	plans = _ctrl("res://scripts/ui/plans.gd", ui)
+	plans.chosen.connect(_on_plan_chosen)
 	shop.closed.connect(_on_shop_closed)
 	tutorial = Control.new()
 	tutorial.set_script(load("res://scripts/ui/tutorial.gd"))
 	tutorial.set("main", self)
 	if not play_tutorial:
 		tutorial.set("persist", false)
-	for c in [clip_l, clip_r, panel, charms, cel, overlay, shop]:
+	for c in [clip_l, clip_r, panel, charms, cel, overlay, shop, plans]:
 		c.set("main", self)
 	ui.add_child(tutorial)
 	if not play_tutorial:
@@ -223,6 +226,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 	match mode:
 		M.SHOP:
 			shop.handle(ev)
+		M.PLAN:
+			plans.handle(ev)
 		M.WALK:
 			if ev.is_action("interact"):
 				if _near_console():
@@ -708,6 +713,30 @@ func submit() -> void:
 		overlay.show_card({"title": "科研资助终止", "title_col": Pal.c("red"), "value": fmt(run.total) + " / " + fmt(run.line()),
 			"sub": "第 %d 阶段考核未达标" % (run.stage + 1), "lines": ["“经费的事，明年再说吧。” —— 校长"], "keys": "R  重新开始"})
 
+func _on_plan_chosen(id: String) -> void:
+	var r := run.choose_plan(id)
+	var d: Dictionary = Plans.LIST[id]
+	mode = M.WALK
+	player.input_enabled = true
+	var note := ""
+	if r.money > 0:
+		note = "，经费 +$%d" % r.money
+	elif r.money < 0:
+		note = "，经费 −$%d" % -r.money
+	overlay.say("本阶段计划书：" + d.name + note)
+	Sfx.play("paper", -6.0, 1.2)
+
+## 开发者模式：立刻发三份计划书来挑
+func dev_plans() -> void:
+	if mode != M.WALK and mode != M.CONSOLE:
+		return
+	if mode == M.CONSOLE:
+		leave_console()
+	run.plan_offers = Plans.deal(meme_rng)
+	mode = M.PLAN
+	player.input_enabled = false
+	plans.show_plans(run.plan_offers, run.stage + 1)
+
 ## 审核台：查看本阶段进度，够线（或束流用完）时提交
 func _review_can_submit() -> bool:
 	return run.beam == null and (run.can_submit() or run.must_submit())
@@ -735,10 +764,21 @@ func _review_card() -> void:
 		title_col = Pal.c("red")
 	else:
 		lines.append("还差 %s RP 才够线。本阶段还剩 %d 束。" % [fmt(run.line() - run.total), run.experiments_left])
+	if run.plan != "":
+		lines.append("本阶段计划书：" + Plans.LIST[run.plan].name)
 	overlay.show_card({"title": "第 %d 阶段考核" % (run.stage + 1), "title_col": title_col, "value": "%s / %s RP" % [fmt(run.total), fmt(run.line())],
 		"sub": "已做 %d 次实验 · 剩余束流 %d" % [run.experiment_no - (1 if run.beam != null else 0), run.experiments_left], "lines": lines, "keys": ""})
 
 func close_review() -> void:
+	# 刚过阶段：先挑本阶段的科研计划书
+	if review_passed and not run.plan_offers.is_empty():
+		overlay.hide_card()
+		cel.finish()
+		goal_card = Callable()
+		review_passed = false
+		mode = M.PLAN
+		plans.show_plans(run.plan_offers, run.stage + 1)
+		return
 	overlay.hide_card()
 	cel.finish()     # 庆祝收尾淡出
 	review_passed = false
@@ -1016,6 +1056,9 @@ func _mouse(ev: InputEventMouse) -> void:
 	mouse_sp = sp
 	if mode == M.SHOP:
 		shop.mouse(ev)
+		return
+	if mode == M.PLAN:
+		plans.mouse(ev)
 		return
 	if ev is InputEventMouseMotion:
 		if panel.dragging:
