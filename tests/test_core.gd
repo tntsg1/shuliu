@@ -339,7 +339,7 @@ func _initialize() -> void:
 		b3b.beam = Beam.new(); b3b.beam.energy = 4; b3b.beam.lock_left = 3; b3b.beam.lock_used = true
 		var r := b3b.accelerate()
 		for tg in r.triggers:
-			if tg[0] == "bandaid": conv += 1
+			if tg[0] == "bandaid" and tg[2].hit: conv += 1
 	check(conv > 10, "创可贴锁相时转化稳定（%d）" % conv)
 
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)

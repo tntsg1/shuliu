@@ -236,6 +236,8 @@ func accelerate() -> Dictionary:
 			b.cat_last = true
 			trig.append(["lucky_cat", "+$%d" % gain, {"p": 0.08, "hit": true}])
 		else:
+			if has("lucky_cat"):
+				trig.append(["lucky_cat", "没招来钱", {"p": 0.08, "hit": false}])
 			b.cat_last = false
 	else:
 		b.streak = 0
@@ -260,6 +262,8 @@ func accelerate() -> Dictionary:
 		if has("thermos") and rng.randf() < 0.25:
 			trig.append(["thermos", "锁相没减少", {"p": 0.25, "hit": true}])
 		else:
+			if has("thermos"):
+				trig.append(["thermos", "茶喝完了", {"p": 0.25, "hit": false}])
 			b.lock_left -= 1
 		res.lock_ended = b.lock_left == 0
 		if res.lock_ended:
