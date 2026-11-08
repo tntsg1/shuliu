@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN, TITLE }
 
 var run: Run
 var mode := M.WALK
@@ -10,6 +10,11 @@ var lab: Node2D
 var chamber: Node2D
 var pollution: Node2D
 var form: Node2D            # 束流形态层
+var title: Control          # 主页
+var demo_t := 0.0           # 主页演示束流
+var demo_wait := 0.0
+var demo_n := 0
+const DEMO_ROUTES := [[], ["note100", "third_draft"], ["lucky_cat", "plant"]]
 var bloom_form := {}        # 这一束引出时的形态（成果卡）
 var detector: Node2D
 var desk: Node2D
@@ -129,6 +134,13 @@ func _ready() -> void:
 	ui.add_child(tutorial)
 	if not play_tutorial:
 		tutorial.call_deferred("stop")
+	var tl := CanvasLayer.new()
+	tl.layer = 25
+	add_child(tl)
+	title = _ctrl("res://scripts/ui/title.gd", tl)
+	title.set("main", self)
+	title.start_game.connect(_on_title_start)
+	title.quit_game.connect(func(): get_tree().quit())
 	var il := CanvasLayer.new()
 	il.layer = 30
 	add_child(il)
@@ -153,11 +165,9 @@ func _ready() -> void:
 	Pal.changed.connect(_apply_theme)
 	_apply_theme()
 	chamber.empty()
+	Options.load_and_apply()
 	if play_intro:
-		intro.play()
-		player.input_enabled = false
-		cam_pos = Vector2(1000, 520)
-		cam_zoom = 1.6
+		_open_title()
 
 func _on_intro_done() -> void:
 	player.input_enabled = true
@@ -220,6 +230,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 		return
 	if intro.active:
 		intro.skip()
+		return
+	if mode == M.TITLE:
+		title.handle(ev)
 		return
 	if ev.is_action("help"):
 		tutorial.persist = false
@@ -872,6 +885,10 @@ func _process(dt: float) -> void:
 		gc.call()
 	timer += dt
 	match mode:
+		M.TITLE:
+			cam_target = Vector2(848, 520)
+			zoom_target = 1.35
+			_demo_tick(dt)
 		M.WALK:
 			cam_target = Vector2(960 + clampf((player.position.x - 960) * 0.05, -36, 36), 540)
 			zoom_target = 1.04
@@ -908,7 +925,7 @@ func _process(dt: float) -> void:
 	var z := Ink.spring(cam_zoom, cam_zv, zoom_target, cam_omega, dt)
 	cam_zoom = z[0]; cam_zv = z[1]
 	shake = maxf(0.0, shake - dt * 2.4)
-	var sh := Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake * shake * 9.0
+	var sh := Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake * shake * 9.0 * (1.0 if Options.shake else 0.0)
 	cam.position = cam_pos + sh
 	cam.zoom = Vector2(cam_zoom, cam_zoom)
 
@@ -1066,6 +1083,9 @@ func _card_action(a: String) -> void:
 func _mouse(ev: InputEventMouse) -> void:
 	var sp: Vector2 = ev.position
 	mouse_sp = sp
+	if mode == M.TITLE:
+		title.mouse(ev)
+		return
 	if mode == M.SHOP:
 		shop.mouse(ev)
 		return
@@ -1228,3 +1248,71 @@ func _hover() -> void:
 
 func _to_world(sp: Vector2) -> Vector2:
 	return get_viewport().get_canvas_transform().affine_inverse() * sp
+
+# —— 主页 ——
+func _open_title() -> void:
+	mode = M.TITLE
+	player.input_enabled = false
+	cam_pos = Vector2(848, 520)
+	cam_zoom = 1.35
+	title.lens_c = Vector2(1300, 540)
+	title.show_title()
+	overlay.strip_t = 0.0
+	demo_n = randi() % DEMO_ROUTES.size()
+	_demo_new()
+
+func _demo_new() -> void:
+	run = Run.new()
+	run.relics = DEMO_ROUTES[demo_n % DEMO_ROUTES.size()].duplicate()
+	demo_n += 1
+	run.start_experiment()
+	chamber.inject()
+	form.reset()
+	_sync()
+	panel.dec = {}
+	demo_t = -0.6
+
+## 演示束流：每 0.85 秒加速一次，偶尔完美同步跳两级；冲到 E15 左右碎掉，停一下换下一条路线
+func _demo_tick(dt: float) -> void:
+	if run.beam == null:
+		demo_wait -= dt
+		if demo_wait <= 0.0:
+			_demo_new()
+		return
+	demo_t += dt
+	if demo_t < 0.85:
+		return
+	demo_t = 0.0
+	var b: Beam = run.beam
+	if b.energy >= 14 + demo_n % 3:
+		chamber.lose()
+		form.shatter()
+		Sfx.play("hit_low", -14.0, 0.8)
+		run.beam = null
+		demo_wait = 2.6
+		title.demo_text = "E%02d · 束流丢失" % b.energy
+		return
+	var d := 2 if randf() < 0.18 else 1
+	b.energy += d
+	b.peak = maxi(b.peak, b.energy)
+	if b.energy >= 9 and randf() < 0.08:
+		b.crowned = true
+	_sync()
+	panel.dec = {}
+	chamber.kick(0.45 + 0.25 * d, Pal.ramp(clampf((b.energy - 1) / 12.0, 0.0, 1.0)))
+	Sfx.play("tick", -16.0, 0.8 + b.energy * 0.03)
+	title.demo_text = "E%02d · %s" % [b.energy, form.info.get("name", "")]
+
+func _on_title_start() -> void:
+	run = Run.new()
+	chamber.empty()
+	form.reset()
+	form.shatter_t = -1.0
+	mode = M.WALK
+	timer = 0.0
+	overlay.strip_t = 1.0
+	title.demo_text = ""
+	intro.play()
+	player.input_enabled = false
+	cam_pos = Vector2(1000, 520)
+	cam_zoom = 1.6
