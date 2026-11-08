@@ -15,6 +15,7 @@ var shot: Node2D
 var prompt: Node2D
 var cam: Camera2D
 var panel: Control
+var charms: Control
 var clip_l: Control
 var clip_r: Control
 var overlay: Control
@@ -87,6 +88,7 @@ func _ready() -> void:
 	clip_r = _ctrl("res://scripts/ui/clipboard.gd", ui)
 	clip_r.set("side", 1)
 	panel = _ctrl("res://scripts/ui/console_panel.gd", ui)
+	charms = _ctrl("res://scripts/ui/charms.gd", ui)
 	overlay = _ctrl("res://scripts/ui/overlay.gd", ui)
 	shop = _ctrl("res://scripts/ui/shop.gd", ui)
 	shop.closed.connect(_on_shop_closed)
@@ -95,7 +97,7 @@ func _ready() -> void:
 	tutorial.set("main", self)
 	if not play_tutorial:
 		tutorial.set("persist", false)
-	for c in [clip_l, clip_r, panel, overlay, shop]:
+	for c in [clip_l, clip_r, panel, charms, overlay, shop]:
 		c.set("main", self)
 	ui.add_child(tutorial)
 	if not play_tutorial:
@@ -621,7 +623,10 @@ func gear_bought() -> void:
 func _triggers(r: Dictionary) -> void:
 	for tr in r.get("triggers", []):
 		gear.ping(tr[0])
-		overlay.trig(tr[0], Items.ALL[tr[0]].name + " · " + tr[1])
+		if charms.vis > 0.5:
+			charms.fire(tr[0], tr[1])
+		else:
+			overlay.trig(tr[0], Items.ALL[tr[0]].name + " · " + tr[1])
 		Sfx.play("tick", -6.0, 1.6)
 	if r.get("money", 0) > 0:
 		Sfx.play("btn2", -8.0, 1.5)
@@ -742,7 +747,13 @@ func _hover() -> void:
 			overlay.hover_btn = overlay.hover_at(sp)
 			hand = overlay.hover_btn >= 0
 	if tip.is_empty() and mode != M.SHOP:
-		var id: String = gear.item_at(wp)
+		var id: String = charms.item_at(sp)
+		if id != "":
+			charms.hover_id = id
+			hand = true
+		else:
+			charms.hover_id = ""
+			id = gear.item_at(wp)
 		if id != "":
 			var d: Dictionary = Items.ALL[id]
 			tip = PackedStringArray([d.name + "（" + ("设备" if d.kind == "device" else "饰品") + " · " + Items.RARITY_NAME[d.rarity] + "）", d.desc])

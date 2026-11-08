@@ -67,7 +67,23 @@ func _go() -> void:
 	await w(0.5)
 	await snap("ux_03_shop_hover")
 	await click(cr.get_center())
-	await w(0.6)
+	await w(0.22)
+	await snap("ux_03b_fly_in")
+	await w(0.8)
+	if not main.shop.inv_rects.is_empty():
+		var ir: Rect2 = main.shop.inv_rects[0].rect
+		move(ir.get_center() + Vector2(14, 0))
+		await w(0.5)
+		await snap("ux_03c_inv_hover")
+		await click(ir.get_center(), true, false)
+		await w(0.32)
+		await snap("ux_03d_hold_sell")
+		var u0 := InputEventMouseButton.new()
+		u0.button_index = MOUSE_BUTTON_LEFT
+		u0.pressed = false
+		u0.position = ir.get_center()
+		Input.parse_input_event(u0)
+		await w(0.4)
 	await click(main.shop.close_rect.get_center())
 	await w(1.0)
 	# 点控制台

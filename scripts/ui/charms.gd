@@ -1,0 +1,287 @@
+extends Control
+## 实验中的“护身符挂板”：控制台升起时，右下角挂出本局全部设备和饰品（钉子 + 挂绳 + 纸牌，会晃）。
+## 某件生效时：它从钉子上弹下来 → 旋转飞到观测舱前放大 → 色块射线 + 墨圈 + 纸屑爆开，
+## 旁边展开一条写着效果的纸条 → 再飞回钉子上晃两下。哑光平涂，不发光。
+
+var main: Node
+var t := 0.0
+var swing := {}          # id -> [角度, 角速度]
+var hov := {}            # id -> [值, 速度]
+var hover_id := ""
+var fires: Array = []    # 正在表演的触发
+var pos := {}            # id -> 挂板上的屏幕位置（每帧更新）
+var vis := 0.0
+
+const TOK := 48.0
+const GAP := 62.0
+const BOARD_W := 400.0
+
+func _ready() -> void:
+	set_anchors_preset(PRESET_FULL_RECT)
+	mouse_filter = MOUSE_FILTER_IGNORE
+	Pal.changed.connect(queue_redraw)
+
+func _items() -> Array:
+	if main == null or main.run == null:
+		return []
+	return main.run.devices + main.run.relics
+
+## 触发：同一次加速里多件同时生效时依次错开出场
+func fire(id: String, text: String) -> void:
+	var busy := 0
+	for f in fires:
+		if f.t < 1.4:
+			busy += 1
+	fires.append({"id": id, "text": text, "t": -busy * 0.28, "slot": busy % 3, "parts": [], "burst": false, "landed": false})
+
+func item_at(p: Vector2) -> String:
+	if vis < 0.5:
+		return ""
+	for id in pos:
+		if p.distance_to(pos[id] + Vector2(0, 26)) < TOK * 0.6:
+			return id
+	return ""
+
+func _board_rect() -> Rect2:
+	var vp := get_viewport_rect().size
+	var panel_top: float = vp.y - 300.0 * main.panel.show_v + main.panel.jolt
+	var rows := 0
+	if not main.run.devices.is_empty(): rows += 1
+	if not main.run.relics.is_empty(): rows += 1
+	var h := 14.0 + rows * 64.0
+	return Rect2(vp.x - BOARD_W - 34.0, panel_top - h - 6.0, BOARD_W, h)
+
+func _process(dt: float) -> void:
+	t += dt
+	if main == null or main.run == null:
+		return
+	vis = clampf(main.panel.show_v, 0.0, 1.0)
+	var d := minf(dt, 1.0 / 30.0)
+	for id in _items():
+		if not swing.has(id):
+			swing[id] = [0.0, 0.0]
+		var s: Array = swing[id]
+		# 单摆：带阻尼，偶尔被空调风吹一下
+		s[1] += (-38.0 * s[0] - 2.2 * s[1]) * d
+		s[1] += sin(t * 0.7 + id.length()) * 0.06 * d * 60.0 * 0.02
+		s[0] += s[1] * d
+		if not hov.has(id):
+			hov[id] = [0.0, 0.0]
+		var h: Array = hov[id]
+		var tg := 1.0 if id == hover_id else 0.0
+		h[1] += (320.0 * (tg - h[0]) - 20.0 * h[1]) * d
+		h[0] += h[1] * d
+	for f in fires:
+		var before: float = f.t
+		f.t += dt
+		if before < 0.0 and f.t >= 0.0:
+			Sfx.play("lever", -12.0, 1.7)
+			Sfx.play("whoosh", -12.0, 1.4)
+		if not f.burst and f.t >= 0.5:
+			f.burst = true
+			_burst(f)
+			Sfx.play("ring", -6.0, 1.25)
+			Sfx.play("metal", -10.0, 1.1)
+			Sfx.play("paper", -10.0, 1.3)
+		if not f.landed and f.t >= 1.72:
+			f.landed = true
+			if swing.has(f.id):
+				swing[f.id][1] += 7.0
+			Sfx.play("tick", -8.0, 1.4)
+		for p in f.parts:
+			p.v.y += 900.0 * dt
+			p.v *= 1.0 - 1.6 * dt
+			p.p += p.v * dt
+			p.r += p.w * dt
+	fires = fires.filter(func(f): return f.t < 1.95)
+	queue_redraw()
+
+func _burst(f: Dictionary) -> void:
+	var cols := [Icons.rarity_col(Items.ALL[f.id].rarity), Pal.c("gold"), Pal.c("red"), Pal.c("paper"), Pal.c("blue")]
+	for i in 22:
+		var a := randf() * TAU
+		var sp := randf_range(260.0, 620.0)
+		f.parts.append({"p": Vector2.ZERO, "v": Vector2.from_angle(a) * sp + Vector2(0, -180), "r": randf() * TAU,
+			"w": randf_range(-14, 14), "s": Vector2(randf_range(5, 11), randf_range(3, 6)), "c": cols[i % cols.size()]})
+
+func _show_point(f: Dictionary) -> Vector2:
+	return Vector2(1215.0, 560.0 - f.slot * 175.0)
+
+func _draw() -> void:
+	if main == null or main.run == null or vis < 0.01:
+		pos.clear()
+		return
+	var items := _items()
+	if items.is_empty():
+		pos.clear()
+		return
+	var el := Pal.equip_line()
+	var br := _board_rect()
+	var a := clampf(vis * 1.4 - 0.2, 0.0, 1.0)
+	# 挂板：穿孔板 + 两颗螺丝
+	draw_rect(Rect2(br.position + Vector2(5, 7), br.size), Color(0, 0, 0, 0.12 * a))
+	draw_rect(br, Color(Pal.c("equip_dark").lerp(Pal.c("paper2"), 0.55), a))
+	for yy in range(int(br.position.y) + 12, int(br.end.y) - 6, 14):
+		for xx in range(int(br.position.x) + 12, int(br.end.x) - 6, 14):
+			draw_circle(Vector2(xx, yy), 1.4, Color(0, 0, 0, 0.12 * a))
+	draw_rect(br, Color(el, a), false, 1.6)
+	Ink.rivet(self, br.position + Vector2(8, 8), 2.4)
+	Ink.rivet(self, Vector2(br.end.x - 8, br.position.y + 8), 2.4)
+	pos.clear()
+	var row := 0
+	var hot_tok := []
+	for kind in ["device", "relic"]:
+		var list: Array = main.run.devices if kind == "device" else main.run.relics
+		if list.is_empty():
+			continue
+		var ry := br.position.y + 10.0 + row * 64.0
+		Ink.sticker(self, "设备" if kind == "device" else "护身符", Vector2(br.position.x + 30, ry + 26), -0.08, 11)
+		for j in list.size():
+			var id: String = list[j]
+			var hook := Vector2(br.position.x + 84.0 + j * GAP, ry + 4.0)
+			pos[id] = hook
+			if _flying(id):
+				draw_circle(hook, 3.0, Color(el, a))
+				continue
+			if id == hover_id:
+				hot_tok = [id, hook]
+			else:
+				_token(id, hook, a, el)
+		row += 1
+	if not hot_tok.is_empty():
+		_token(hot_tok[0], hot_tok[1], a, el)
+	for f in fires:
+		if f.t >= 0.0:
+			_fire(f, el)
+
+func _flying(id: String) -> bool:
+	for f in fires:
+		if f.id == id and f.t >= 0.12 and f.t < 1.72:
+			return true
+	return false
+
+func _pre(id: String) -> float:
+	for f in fires:
+		if f.id == id and f.t >= 0.0 and f.t < 0.12:
+			return f.t / 0.12
+	return 0.0
+
+## 挂在钉子上的纸牌
+func _token(id: String, hook: Vector2, a: float, el: Color) -> void:
+	var sw: float = swing[id][0] if swing.has(id) else 0.0
+	var h: float = hov[id][0] if hov.has(id) else 0.0
+	var pre := _pre(id)
+	var rot := sw + sin(pre * 40.0) * 0.12 * pre
+	var sc := 1.0 + 0.16 * h + 0.3 * pre
+	var d: Dictionary = Items.ALL[id]
+	var rc := Icons.rarity_col(d.rarity)
+	var ctr := hook + Vector2(0, 30).rotated(rot)
+	draw_line(hook, hook + Vector2(0, 8).rotated(rot), Color(el, a), 1.4, true)
+	draw_circle(hook, 3.0, Color(el, a))
+	draw_set_transform(ctr + Vector2(0, -4 * h), rot, Vector2(sc, sc))
+	var r := Rect2(-TOK * 0.5, -TOK * 0.5 + 4, TOK, TOK)
+	draw_rect(Rect2(r.position + Vector2(2, 3) + Vector2(2, 6) * h, r.size), Color(0, 0, 0, (0.12 + 0.1 * h) * a))
+	draw_rect(r, Color(Pal.c("paper"), a))
+	draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), Color(rc, a))
+	draw_rect(r, Color(rc.lerp(el, 0.4) if h > 0.3 else el, a), false, 1.3 + h)
+	draw_circle(Vector2(0, r.position.y + 5), 2.4, Color(el, a))
+	if pre > 0.0:
+		draw_rect(r, Color(1, 1, 1, 0.7 * (1.0 - absf(pre * 2.0 - 1.0))))
+	draw_set_transform(Vector2.ZERO)
+	Icons.draw(self, id, ctr + Vector2(0, 3 - 4 * h).rotated(rot), 40.0 * sc, rot)
+	if main.run.uses.has(id):
+		Ink.text(self, "×%d" % main.run.uses[id], ctr + Vector2(TOK * 0.5 + 2, TOK * 0.5 + 4) * sc, 12, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+
+## 一次触发的完整表演
+func _fire(f: Dictionary, el: Color) -> void:
+	var id: String = f.id
+	var tt: float = f.t
+	var hook: Vector2 = pos.get(id, Vector2(1700, 700))
+	var home := hook + Vector2(0, 30)
+	var sp := _show_point(f)
+	var d: Dictionary = Items.ALL[id]
+	var rc := Icons.rarity_col(d.rarity)
+	if tt < 0.12:
+		return
+	var p := sp
+	var size := 128.0
+	var rot := 0.0
+	if tt < 0.5:
+		# 飞出：弧线 + 转一圈 + 变大，带残影
+		var k := Ink.ease_in_out((tt - 0.12) / 0.38)
+		var mid := (home + sp) * 0.5 + Vector2(0, -220)
+		p = home.lerp(mid, k).lerp(mid.lerp(sp, k), k)
+		size = lerpf(TOK, 128.0, k)
+		rot = TAU * k
+		for g in 5:
+			var k2 := clampf(k - (g + 1) * 0.06, 0.0, 1.0)
+			var p2 := home.lerp(mid, k2).lerp(mid.lerp(sp, k2), k2)
+			draw_circle(p2, 12.0 - g * 2.0, Color(rc, 0.35 - g * 0.06))
+	elif tt < 1.38:
+		var k := (tt - 0.5)
+		var pop := 1.0 + 0.35 * exp(-k * 9.0) * cos(k * 30.0)
+		size = 128.0 * pop
+		p = sp + Vector2(0, sin(k * 6.0) * 4.0)
+		rot = sin(k * 5.0) * 0.06
+		# 射线：从中心转着张开，色块平涂
+		var ra := clampf(k / 0.12, 0.0, 1.0) * clampf((0.88 - k) / 0.3, 0.0, 1.0)
+		if ra > 0.0:
+			var L := 70.0 + 120.0 * Ink.ease_out_cubic(minf(1.0, k / 0.25))
+			for i in 12:
+				var ang := i * TAU / 12.0 + k * 0.9
+				var col: Color = rc if i % 2 == 0 else Pal.c("gold")
+				var pts := PackedVector2Array([p + Vector2.from_angle(ang - 0.07) * 58.0, p + Vector2.from_angle(ang) * (L + (i % 2) * 30.0), p + Vector2.from_angle(ang + 0.07) * 58.0])
+				draw_primitive(pts, PackedColorArray([Color(col, 0.75 * ra), Color(col, 0.75 * ra), Color(col, 0.75 * ra)]), PackedVector2Array())
+		# 墨圈（两道，前后错开）
+		for ri in 2:
+			var kk := clampf((k - ri * 0.1) / 0.45, 0.0, 1.0)
+			if kk > 0.0 and kk < 1.0:
+				draw_arc(p, 64.0 + 150.0 * Ink.ease_out_cubic(kk), 0, TAU, 64, Color(el if ri == 0 else rc, 0.8 * (1.0 - kk)), 5.0 * (1.0 - kk) + 1.0, true)
+		# 纸条：从图标左边“唰”地展开
+		_banner(f, p, k, rc, el)
+	else:
+		# 飞回钉子
+		var k := Ink.ease_in_out((tt - 1.38) / 0.34)
+		var mid := (home + sp) * 0.5 + Vector2(0, -120)
+		p = sp.lerp(mid, k).lerp(mid.lerp(home, k), k)
+		size = lerpf(128.0, TOK, k)
+		rot = -0.4 * sin(k * PI)
+	# 纸屑
+	for q in f.parts:
+		var qa := clampf((1.6 - tt) / 0.4, 0.0, 1.0)
+		draw_set_transform(sp + q.p, q.r, Vector2(1.0, absf(cos(q.r * 1.3)) * 0.8 + 0.2))
+		draw_rect(Rect2(-q.s * 0.5, q.s), Color(q.c, qa))
+		draw_set_transform(Vector2.ZERO)
+	# 纸牌本体
+	var s := size / TOK
+	draw_set_transform(p, rot, Vector2(s, s))
+	var r := Rect2(-TOK * 0.5, -TOK * 0.5, TOK, TOK)
+	draw_rect(Rect2(r.position + Vector2(3, 5), r.size), Color(0, 0, 0, 0.18))
+	draw_rect(r, Pal.c("paper"))
+	draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), rc)
+	draw_rect(r, el, false, 1.6 / s * 1.8)
+	draw_set_transform(Vector2.ZERO)
+	Icons.draw(self, id, p + Vector2(0, -2).rotated(rot) * s, size * 0.78, rot)
+
+func _banner(f: Dictionary, p: Vector2, k: float, rc: Color, el: Color) -> void:
+	var d: Dictionary = Items.ALL[f.id]
+	var title: String = d.name
+	var sub: String = f.text
+	var w := maxf(Pal.bold.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x, Pal.bold.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x) + 56.0
+	var open := Ink.ease_out_back(clampf((k - 0.05) / 0.22, 0.0, 1.0))
+	var close := clampf((k - 0.7) / 0.18, 0.0, 1.0)
+	var ww := w * open * (1.0 - Ink.ease_in_out(close))
+	if ww < 4.0:
+		return
+	var right := p.x - 70.0
+	var r := Rect2(right - ww, p.y - 40, ww, 80)
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(r.position + Vector2(5, 7), r.size), Color(0, 0, 0, 0.16))
+	draw_rect(r, Pal.c("paper"))
+	draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), rc)
+	draw_rect(r, el, false, 1.6)
+	# 文字只在纸条展开够宽时出现，从右往左“写”出来
+	if ww > w * 0.6:
+		var ta := clampf((ww - w * 0.6) / (w * 0.3), 0.0, 1.0)
+		Ink.text(self, title, Vector2(right - 22, p.y - 10), 20, Color(Pal.c("text2"), ta), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+		Ink.text(self, sub, Vector2(right - 22, p.y + 26), 26, Color(Pal.c("text"), ta), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)

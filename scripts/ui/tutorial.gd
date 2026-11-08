@@ -35,7 +35,7 @@ func _ready() -> void:
 			"done": func(): return main.mode == main.M.SHOP or main.mode == main.M.ENTER or main.run.experiment_no > 0,
 			"at": func(): return _w(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 190)), "note": func(): return _w(Vector2(Geo.TERMINAL_X + 120, Geo.FLOOR - 560))},
 		{"id": "shop_ui", "text": "点击商品卡直接买下。
-点击下面已有的东西，
+按住下面已有的东西，
 半价卖掉。
 右键或 × 离开。",
 			"show": func(): return main.mode == main.M.SHOP,

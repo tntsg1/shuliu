@@ -57,7 +57,14 @@ func _go() -> void:
 			await process_frame
 		await w(0.15)
 	if run.beam != null:
+		await snap("m2_05a_board")
 		main._triggers({"triggers": [["coin", "正面！挡住了"], ["eraser", "橡皮重抽"]]})
+		await w(0.3)
+		await snap("m2_05b_fly")
+		await w(0.32)
+		await snap("m2_05c_burst")
 		await w(0.35)
-		await snap("m2_05_console_triggers")
+		await snap("m2_05d_banner")
+		await w(1.2)
+		await snap("m2_05e_back")
 	quit(0)
