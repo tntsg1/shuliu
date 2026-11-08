@@ -220,7 +220,7 @@ func _draw() -> void:
 			var k := i / 20.0
 			pts.append(from.lerp(mid, k).lerp(mid.lerp(tip, k), k))
 		var col := Color(Pal.c("red"), a * appear)
-		draw_polyline(pts, col, 3.4, true)
+		Ink.pl(self, pts, col, 3.4)
 		var dir := (tip - pts[18]).normalized()
 		draw_line(tip, tip - dir.rotated(0.5) * 18.0, col, 3.4, true)
 		draw_line(tip, tip - dir.rotated(-0.5) * 18.0, col, 3.4, true)

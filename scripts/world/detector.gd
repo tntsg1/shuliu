@@ -82,11 +82,16 @@ func bloom(energy: int, kind: String, meme_id := "") -> void:
 	progress = 0.0
 	playing = true
 
+var _odd := false
+
 func _process(dt: float) -> void:
 	idle_t += dt
 	meme_t += dt
 	if meme != "" or not form.is_empty():
-		queue_redraw()
+		# 揭晓完以后屏上只剩很轻的晃动：墙上小屏按 30 Hz 刷新就够（省一半重建图的开销）
+		_odd = not _odd
+		if playing or _odd:
+			queue_redraw()
 	if playing:
 		progress = minf(1.0, progress + dt / 1.35)
 		queue_redraw()
@@ -125,20 +130,22 @@ func _draw() -> void:
 		if style == "dirty":
 			col = Pal.c("orange")
 		draw_line(c + Vector2.from_angle(ang) * r1, c + Vector2.from_angle(ang) * r2, Color(col, 0.3 if meme != "" else 0.85), R * 0.075)
-	# 径迹逐步生长
+	# 径迹逐步生长（几十条径迹攒成一次 draw_multiline_colors：逐条画折线 E14 时要 3 ms）
+	var segs := PackedVector2Array()
+	var cols := PackedColorArray()
 	for tr in tracks:
 		var pts: PackedVector2Array = tr.pts
 		var m := int(pts.size() * e)
-		if m < 2:
-			continue
-		var sub := PackedVector2Array()
-		for i in m:
-			sub.append(c + pts[i])
-		draw_polyline(sub, tr.col, tr.w, true)
+		for i in m - 1:
+			segs.append(c + pts[i])
+			segs.append(c + pts[i + 1])
+			cols.append(tr.col)
+	if not segs.is_empty():
+		draw_multiline_colors(segs, cols, 1.0, true)
 	for hp in hits:
 		if hp.length() < R * 0.8 * e:
 			draw_rect(Rect2(c + hp, Vector2(1, 1)), Color(Pal.c("red"), 0.6))
-	draw_circle(c, 3.0 + 3.0 * (1.0 - e), ink)
+	Ink.disc(self, c, 3.0 + 3.0 * (1.0 - e), ink)
 	if meme != "":
 		_meme_extras(s, c, R, ink)
 	Ink.text(self, "EVT %05d" % (int(idle_t * 7) % 99999), Vector2(s.end.x - 92, s.end.y - 6), 8, Color(ink, 0.6), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
@@ -307,7 +314,7 @@ func _meme_extras(s: Rect2, c: Vector2, R: float, ink: Color) -> void:
 		return
 	# 屏幕边框金色闪三下
 	if meme_t < 1.6 and int(meme_t * 6.0) % 2 == 0:
-		draw_rect(s.grow(-1.5), Pal.c("gold"), false, 2.0)
+		Ink.frame(self, s.grow(-1.5), Pal.c("gold"), 2.0)
 	# 左上角像终端一样打字：“奇葩事件 · ……”
 	var full: String = m.name
 	var n := clampi(int((meme_t - 1.0) * 10.0), 0, full.length())
@@ -347,15 +354,15 @@ func _form_view(s: Rect2, c: Vector2, R: float, ink: Color, e: float) -> void:
 		var y := s.position.y + i * s.size.y / 9.0
 		draw_line(Vector2(s.position.x, y), Vector2(s.end.x, y), Color(ink, 0.06), 0.5)
 	# 径迹打底（很淡）
+	var segs := PackedVector2Array()
 	for tr in tracks:
 		var pts: PackedVector2Array = tr.pts
 		var m := int(pts.size() * e)
-		if m < 2:
-			continue
-		var sub := PackedVector2Array()
-		for i in m:
-			sub.append(c + pts[i] * 1.25)
-		draw_polyline(sub, Color(col, 0.16), 0.5, true)
+		for i in m - 1:
+			segs.append(c + pts[i] * 1.25)
+			segs.append(c + pts[i + 1] * 1.25)
+	if not segs.is_empty():
+		draw_multiline(segs, Color(col, 0.16), 0.8, true)
 	# 刻度环：48 根细刻度，跟着能量分布起伏
 	for i in towers.size():
 		var ang := TAU * i / towers.size()

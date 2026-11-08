@@ -100,7 +100,7 @@ func _draw() -> void:
 		var h2 := hip + Vector2(1.0 if side == 0 else -2.0, 0)
 		var knee := _ik(h2, foot, 33.0, 32.0, 1.0)
 		var c := leg_col if side == 0 else leg_col.darkened(0.25)
-		draw_polyline(PackedVector2Array([h2, knee, foot]), c, 7.0, true)
+		Ink.pl(self, PackedVector2Array([h2, knee, foot]), c, 7.0)
 		# 鞋：脚尖朝前，抬脚时略翘
 		var toe := -0.25 * maxf(0.0, cos(ph)) * stride
 		draw_set_transform(Vector2(foot.x * face_s, foot.y), toe * face_s, Vector2(face_s, 1.0))
@@ -113,11 +113,11 @@ func _draw() -> void:
 	var body := PackedVector2Array([sh + Vector2(-16, 0), sh + Vector2(16, 0), Vector2(19 + lean * 0.5, -88 + bob), hem_r, hem_r.lerp(hem_l, 0.5) + Vector2(hem * 0.3, 2), hem_l, Vector2(-18 + lean * 0.5, -88 + bob)])
 	draw_colored_polygon(body, coat)
 	body.append(body[0])
-	draw_polyline(body, el, 1.8, true)
+	Ink.pl(self, body, el, 1.8)
 	draw_line(sh + Vector2(3, 6), Vector2(4 + hem * 0.4, -46 + bob), Color(el, 0.5), 1.0, true)
 	draw_line(sh + Vector2(-4, 2), sh + Vector2(3, 14), Color(el, 0.6), 1.0, true)
 	draw_line(sh + Vector2(10, 2), sh + Vector2(3, 14), Color(el, 0.6), 1.0, true)
-	draw_polyline(PackedVector2Array([sh + Vector2(6, 30), sh + Vector2(6, 39), sh + Vector2(15, 39), sh + Vector2(15, 30)]), Color(el, 0.6), 1.0, true)
+	Ink.pl(self, PackedVector2Array([sh + Vector2(6, 30), sh + Vector2(6, 39), sh + Vector2(15, 39), sh + Vector2(15, 30)]), Color(el, 0.6), 1.0)
 	draw_line(sh + Vector2(9, 26), sh + Vector2(9, 33), Pal.c("blue"), 2.0)
 	draw_rect(Rect2(sh + Vector2(-13, 24), Vector2(8, 10)), Pal.c("red"))
 	# 手臂：与同侧腿反向摆；肘部朝后；操作控制台时双手落在台面
@@ -130,13 +130,13 @@ func _draw() -> void:
 		var hand: Vector2 = hand_walk.lerp(desk, console_pose)
 		var elbow := _ik(sp, hand, 27.0, 26.0, -1.0)
 		var ac := coat if side == 0 else coat.darkened(0.08)
-		draw_polyline(PackedVector2Array([sp, elbow, hand]), el, 8.6, true)
-		draw_polyline(PackedVector2Array([sp, elbow, hand]), ac, 6.0, true)
-		draw_circle(hand, 3.4, Pal.c("skin"))
+		Ink.pl(self, PackedVector2Array([sp, elbow, hand]), el, 8.6)
+		Ink.pl(self, PackedVector2Array([sp, elbow, hand]), ac, 6.0)
+		Ink.disc(self, hand, 3.4, Pal.c("skin"))
 	# 头（随步伐轻微点头）
 	var hp := sh + Vector2(1 + lean * 0.4, -16)
 	draw_line(sh + Vector2(0, 1), hp + Vector2(0, 6), Pal.c("skin"), 6.0)
-	draw_circle(hp, 13.0, Pal.c("skin"))
+	Ink.disc(self, hp, 13.0, Pal.c("skin"))
 	draw_arc(hp, 13.0, 0, TAU, 32, el, 1.6, true)
 	var hair := PackedVector2Array()
 	for i in 17:
@@ -148,7 +148,7 @@ func _draw() -> void:
 	draw_arc(hp + Vector2(6, -1), 4.2, 0, TAU, 16, el, 1.2, true)
 	draw_line(hp + Vector2(1, -1), hp + Vector2(-6, -3), el, 1.0)
 	if blink <= 0.0:
-		draw_circle(hp + Vector2(7, -1), 1.3, el)
+		Ink.disc(self, hp + Vector2(7, -1), 1.3, el)
 	else:
 		draw_line(hp + Vector2(5, -1), hp + Vector2(9, -1), el, 1.2)
 	draw_line(hp + Vector2(5, 6), hp + Vector2(9, 5.5), Color(el, 0.6), 1.0)

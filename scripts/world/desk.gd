@@ -28,14 +28,14 @@ func _draw() -> void:
 		if i == 1:
 			on = main != null and main.has_beam()
 		var lp := Vector2(x + 20 + i * 18, y - 84 - i * 2.4)
-		draw_circle(lp, 5.0, cols[i] if on else Pal.c("equip_dark"))
+		Ink.disc(self, lp, 5.0, cols[i] if on else Pal.c("equip_dark"))
 		draw_arc(lp, 5.0, 0, TAU, 16, el, 1.0, true)
 	# 斜面小屏
 	draw_set_transform(Vector2(x + 96, y - 138), -0.13)
 	var bg := Pal.c("screen") if Pal.dark else Pal.c("paper")
 	draw_rect(Rect2(-46, -30, 92, 58), Pal.c("equip"))
 	draw_rect(Rect2(-40, -25, 80, 48), bg)
-	draw_rect(Rect2(-46, -30, 92, 58), el, false, 1.6)
+	Ink.frame(self, Rect2(-46, -30, 92, 58), el, 1.6)
 	var ink := Pal.c("paper") if Pal.dark else Pal.c("ink")
 	var lines := [Pal.c("ramp2"), Pal.c("ramp3"), Pal.c("gold"), Pal.c("ramp1"), Pal.c("red")]
 	for i in 5:

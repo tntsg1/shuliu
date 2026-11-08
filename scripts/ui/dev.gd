@@ -157,7 +157,7 @@ func _btn(r: Rect2, label: String, act: String, arg = null, on := false, col := 
 	draw_rect(r.grow(1.0 if hot else 0.0), bg)
 	if col.a > 0.0 and not on:
 		draw_rect(Rect2(r.position, Vector2(5, r.size.y)), col)
-	draw_rect(r, Pal.c("red") if hot else el, false, 2.0 if hot else 1.2)
+	Ink.frame(self, r, Pal.c("red") if hot else el, 2.0 if hot else 1.2)
 	Ink.text(self, label, r.get_center() + Vector2(0, 6), 15, Pal.c("paper") if on and col.a > 0.0 else Pal.c("text"), Pal.bold if on else Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _draw() -> void:
@@ -177,7 +177,7 @@ func _draw() -> void:
 	Ink.text(self, "~ 关闭", Vector2(pr.end.x - 24, y), 14, Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)
 	# 印章式的“DEV”角标
 	draw_set_transform(Vector2(x + 190, y - 9), -0.12)
-	draw_rect(Rect2(-30, -14, 60, 28), Pal.c("red"), false, 2.5)
+	Ink.frame(self, Rect2(-30, -14, 60, 28), Pal.c("red"), 2.5)
 	Ink.text(self, "DEV", Vector2(0, 7), 16, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 	y += 30.0
@@ -198,7 +198,7 @@ func _draw() -> void:
 		btns.append({"rect": r, "act": "item", "arg": id})
 		draw_rect(r, Pal.c("green").lerp(Pal.c("paper"), 0.55) if own else Pal.c("paper2"))
 		draw_rect(Rect2(r.position.x, r.end.y - 4, r.size.x, 4), Icons.rarity_col(Items.ALL[id].rarity))
-		draw_rect(r, Pal.c("red") if bi == hover else (Pal.c("green") if own else el), false, 2.0 if (bi == hover or own) else 1.0)
+		Ink.frame(self, r, Pal.c("red") if bi == hover else (Pal.c("green") if own else el), 2.0 if (bi == hover or own) else 1.0)
 		Icons.draw(self, id, r.get_center() + Vector2(0, -1), 38.0)
 	y += ceil(ids.size() / float(per)) * cell + 6.0
 	var name := ""

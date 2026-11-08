@@ -23,6 +23,22 @@ func _ready() -> void:
 	set_anchors_preset(PRESET_FULL_RECT)
 	mouse_filter = MOUSE_FILTER_IGNORE
 	Pal.changed.connect(queue_redraw)
+	board = Baked.make(self, _paint_board, true)
+
+var board: Baked          # 挂板（穿孔板几百个小孔）烤成一层，只在尺寸变了才重画
+
+func _paint_board(ci: CanvasItem) -> void:
+	var sz: Vector2 = board.key[0]
+	var br := Rect2(Vector2.ZERO, sz)
+	var el := Pal.equip_line()
+	ci.draw_rect(Rect2(br.position + Vector2(5, 7), br.size), Color(0, 0, 0, 0.12))
+	ci.draw_rect(br, Pal.c("equip_dark").lerp(Pal.c("paper2"), 0.55))
+	for yy in range(12, int(sz.y) - 6, 14):
+		for xx in range(12, int(sz.x) - 6, 14):
+			Ink.disc(ci, Vector2(xx, yy), 1.4, Color(0, 0, 0, 0.12))
+	Ink.frame(ci, br, el, 1.6)
+	Ink.rivet(ci, Vector2(8, 8), 2.4)
+	Ink.rivet(ci, Vector2(sz.x - 8, 8), 2.4)
 
 func _items() -> Array:
 	if main == null or main.run == null:
@@ -163,23 +179,21 @@ func _spin_at(f: Dictionary, k: float) -> float:
 func _draw() -> void:
 	if main == null or main.run == null or vis < 0.01:
 		pos.clear()
+		board.visible = false
 		return
 	var items := _items()
 	if items.is_empty():
 		pos.clear()
+		board.visible = false
 		return
 	var el := Pal.equip_line()
 	var br := _board_rect()
 	var a := clampf(vis * 1.4 - 0.2, 0.0, 1.0)
-	# 挂板：穿孔板 + 两颗螺丝
-	draw_rect(Rect2(br.position + Vector2(5, 7), br.size), Color(0, 0, 0, 0.12 * a))
-	draw_rect(br, Color(Pal.c("equip_dark").lerp(Pal.c("paper2"), 0.55), a))
-	for yy in range(int(br.position.y) + 12, int(br.end.y) - 6, 14):
-		for xx in range(int(br.position.x) + 12, int(br.end.x) - 6, 14):
-			draw_circle(Vector2(xx, yy), 1.4, Color(0, 0, 0, 0.12 * a))
-	draw_rect(br, Color(el, a), false, 1.6)
-	Ink.rivet(self, br.position + Vector2(8, 8), 2.4)
-	Ink.rivet(self, Vector2(br.end.x - 8, br.position.y + 8), 2.4)
+	# 挂板：烤好的一层，这里只摆位置和透明度
+	board.visible = true
+	board.position = br.position
+	board.modulate.a = a
+	board.set_key([br.size])
 	pos.clear()
 	var row := 0
 	var hot_tok := []
@@ -194,7 +208,7 @@ func _draw() -> void:
 			var hook := Vector2(br.position.x + 84.0 + j * GAP, ry + 4.0)
 			pos[id] = hook
 			if _flying(id):
-				draw_circle(hook, 3.0, Color(el, a))
+				Ink.disc(self, hook, 3.0, Color(el, a))
 				continue
 			if id == hover_id:
 				hot_tok = [id, hook]
@@ -230,14 +244,14 @@ func _token(id: String, hook: Vector2, a: float, el: Color) -> void:
 	var rc := Icons.rarity_col(d.rarity)
 	var ctr := hook + Vector2(0, 30).rotated(rot)
 	draw_line(hook, hook + Vector2(0, 8).rotated(rot), Color(el, a), 1.4, true)
-	draw_circle(hook, 3.0, Color(el, a))
+	Ink.disc(self, hook, 3.0, Color(el, a))
 	draw_set_transform(ctr + Vector2(0, -4 * h), rot, Vector2(sc, sc))
 	var r := Rect2(-TOK * 0.5, -TOK * 0.5 + 4, TOK, TOK)
 	draw_rect(Rect2(r.position + Vector2(2, 3) + Vector2(2, 6) * h, r.size), Color(0, 0, 0, (0.12 + 0.1 * h) * a))
 	draw_rect(r, Color(Pal.c("paper"), a))
 	draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), Color(rc, a))
-	draw_rect(r, Color(rc.lerp(el, 0.4) if h > 0.3 else el, a), false, 1.3 + h)
-	draw_circle(Vector2(0, r.position.y + 5), 2.4, Color(el, a))
+	Ink.frame(self, r, Color(rc.lerp(el, 0.4) if h > 0.3 else el, a), 1.3 + h)
+	Ink.disc(self, Vector2(0, r.position.y + 5), 2.4, Color(el, a))
 	if pre > 0.0:
 		draw_rect(r, Color(1, 1, 1, 0.7 * (1.0 - absf(pre * 2.0 - 1.0))))
 	draw_set_transform(Vector2.ZERO)
@@ -272,7 +286,7 @@ func _fire(f: Dictionary, el: Color) -> void:
 		for g in 5:
 			var k2 := clampf(k - (g + 1) * 0.06, 0.0, 1.0)
 			var p2 := home.lerp(mid, k2).lerp(mid.lerp(sp, k2), k2)
-			draw_circle(p2, 12.0 - g * 2.0, Color(rc, 0.35 - g * 0.06))
+			Ink.disc(self, p2, 12.0 - g * 2.0, Color(rc, 0.35 - g * 0.06))
 	elif tt < S:
 		# 抽卡：牌在屏幕中央轻轻呼吸，外圈转盘在转
 		var k: float = (tt - FLY_END) / f.R
@@ -331,7 +345,7 @@ func _fire(f: Dictionary, el: Color) -> void:
 	draw_rect(Rect2(r.position + Vector2(3, 5), r.size), Color(0, 0, 0, 0.18))
 	draw_rect(r, Pal.c("paper"))
 	draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), rc)
-	draw_rect(r, el, false, 1.6 / s * 1.8)
+	Ink.frame(self, r, el, 1.6 / s * 1.8)
 	draw_set_transform(Vector2.ZERO)
 	Icons.draw(self, id, p + Vector2(0, -2).rotated(rot) * s, size * 0.78, rot)
 	if gray > 0.0:
@@ -365,7 +379,7 @@ func _dial(f: Dictionary, c: Vector2, k: float, el: Color, a: float) -> void:
 	var nrm := dir.orthogonal()
 	var base := tip + dir * 26.0
 	draw_colored_polygon(PackedVector2Array([tip, base + nrm * 11.0, base - nrm * 11.0]), Color(Pal.c("gold"), a))
-	draw_polyline(PackedVector2Array([tip, base + nrm * 11.0, base - nrm * 11.0, tip]), Color(el, a), 2.0, true)
+	Ink.pl(self, PackedVector2Array([tip, base + nrm * 11.0, base - nrm * 11.0, tip]), Color(el, a), 2.0)
 	# 拖影
 	if k < 1.0:
 		for g in 4:
@@ -383,7 +397,7 @@ func _verdict(f: Dictionary, c: Vector2, k: float) -> void:
 	draw_set_transform(c + Vector2(0, -150), -0.06, Vector2(sc, sc))
 	var w := Ink.size(Pal.bold, txt, 40).x + 36.0
 	draw_rect(Rect2(-w * 0.5, -32, w, 58), Color(Pal.c("paper"), 0.85 * a))
-	draw_rect(Rect2(-w * 0.5, -32, w, 58), Color(col, a), false, 4.0)
+	Ink.frame(self, Rect2(-w * 0.5, -32, w, 58), Color(col, a), 4.0)
 	Ink.text(self, txt, Vector2(0, 12), 40, Color(col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 
@@ -405,7 +419,7 @@ func _banner(f: Dictionary, p: Vector2, k: float, rc: Color, el: Color) -> void:
 	draw_rect(Rect2(r.position + Vector2(5, 7), r.size), Color(0, 0, 0, 0.16))
 	draw_rect(r, Pal.c("paper"))
 	draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), rc)
-	draw_rect(r, el, false, 1.6)
+	Ink.frame(self, r, el, 1.6)
 	# 文字只在纸条展开够宽时出现，从右往左“写”出来
 	if ww > w * 0.6:
 		var ta := clampf((ww - w * 0.6) / (w * 0.3), 0.0, 1.0)

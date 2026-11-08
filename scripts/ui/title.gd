@@ -204,7 +204,7 @@ func _draw() -> void:
 		draw_colored_polygon(handle, Color(Pal.c("equip_dark"), ra))
 		var hc := handle.duplicate()
 		hc.append(handle[0])
-		draw_polyline(hc, Color(el, ra), 2.4, true)
+		Ink.pl(self, hc, Color(el, ra), 2.4)
 		draw_line(h0.lerp(h1, 0.55) + nrm * 24, h0.lerp(h1, 0.55) - nrm * 24, Color(el, 0.6 * ra), 1.6)
 		draw_arc(lens_c, lr + 12.0, 0, TAU, 96, Color(Pal.c("equip"), ra), 26.0, true)
 		draw_arc(lens_c, lr + 25.0, 0, TAU, 96, Color(el, ra), 2.4, true)
@@ -222,7 +222,7 @@ func _draw() -> void:
 			var tr := Rect2(tp, Vector2(tw, 34))
 			draw_rect(Rect2(tr.position + Vector2(4, 5), tr.size), Color(0, 0, 0, 0.2 * ra))
 			draw_rect(tr, Color(paper, ra))
-			draw_rect(tr, Color(el, ra), false, 1.6)
+			Ink.frame(self, tr, Color(el, ra), 1.6)
 			draw_rect(Rect2(tr.position, Vector2(6, tr.size.y)), Color(Pal.c("red"), ra))
 			Ink.text(self, demo_text, tr.position + Vector2(16, 23), 17, Color(ink, ra), Pal.mono)
 	# —— 左：封面纸 ——
@@ -237,7 +237,7 @@ func _draw() -> void:
 		draw_line(Vector2(px, gy), Vector2(px + 640, gy), Color("#d6cbb4", 0.5), 1.0)
 	var sc := sheet.duplicate()
 	sc.append(sheet[0])
-	draw_polyline(sc, el, 2.0, true)
+	Ink.pl(self, sc, el, 2.0)
 	var x0 := px + 96.0
 	# 抬头
 	Ink.text(self, "LAB-7 · 第七实验站 · 主环 26.7 km · OBS-01", Vector2(x0, 120), 15, Pal.c("text2"), Pal.mono)
@@ -278,8 +278,8 @@ func _draw() -> void:
 				vol_rect = Rect2(ix + 150, y - 6, 200, 8)
 				draw_rect(vol_rect, Color(el, 0.2 * a))
 				draw_rect(Rect2(vol_rect.position, Vector2(vol_rect.size.x * Options.volume / 100.0, vol_rect.size.y)), Color(Pal.c("green"), a))
-				draw_rect(vol_rect, Color(el, a), false, 1.2)
-				draw_circle(Vector2(vol_rect.position.x + vol_rect.size.x * Options.volume / 100.0, vol_rect.get_center().y), 9.0, Color(Pal.c("gold"), a))
+				Ink.frame(self, vol_rect, Color(el, a), 1.2)
+				Ink.disc(self, Vector2(vol_rect.position.x + vol_rect.size.x * Options.volume / 100.0, vol_rect.get_center().y), 9.0, Color(Pal.c("gold"), a))
 				draw_arc(Vector2(vol_rect.position.x + vol_rect.size.x * Options.volume / 100.0, vol_rect.get_center().y), 9.0, 0, TAU, 16, Color(el, a), 1.4, true)
 				Ink.text(self, it[2], Vector2(ix + 372, y + 4), 18, Color(Pal.c("text2"), a), Pal.mono)
 			else:

@@ -74,6 +74,32 @@ func _ready() -> void:
 	set_anchors_preset(PRESET_FULL_RECT)
 	mouse_filter = MOUSE_FILTER_IGNORE
 	Pal.changed.connect(queue_redraw)
+	chrome = Baked.make(self, _paint_chrome, true)
+
+var chrome: Baked     # 桌面板、三块面板、铆钉、固定标签：烤成一层，升降只改位置
+
+## 不变的部分（以 y0 = 0 画，节点放在 y0）
+func _paint_chrome(ci: CanvasItem) -> void:
+	var w: float = chrome.key[0]
+	var el := Pal.equip_line()
+	var top := PackedVector2Array([Vector2(0, 18), Vector2(w, 18), Vector2(w, H + 40), Vector2(0, H + 40)])
+	ci.draw_colored_polygon(top, Pal.c("equip"))
+	ci.draw_rect(Rect2(0, 10, w, 10), Pal.c("equip_dark"))
+	ci.draw_line(Vector2(0, 10), Vector2(w, 10), el, 2.0)
+	ci.draw_line(Vector2(0, 20), Vector2(w, 20), el, 1.2)
+	ci.draw_rect(Rect2(0, 20, w, 8), Color(0, 0, 0, 0.06))
+	for x in range(40, int(w), 220):
+		Ink.rivet(ci, Vector2(x, 15), 2.0)
+	for r in [Rect2(50, 46, 440, 220), Rect2(530, 46, 820, 220), Rect2(1390, 46, 480, 220)]:
+		ci.draw_rect(r, Pal.c("equip").lerp(Pal.c("paper"), 0.25))
+		Ink.frame(ci, r, el, 1.6)
+		Ink.frame(ci, Rect2(r.position + Vector2(4, 4), r.size - Vector2(8, 8)), Color(el, 0.25), 1.0)
+		for p in [r.position + Vector2(10, 10), Vector2(r.end.x - 10, r.position.y + 10), r.end - Vector2(10, 10), Vector2(r.position.x + 10, r.end.y - 10)]:
+			Ink.rivet(ci, p, 2.4)
+	Ink.text(ci, "能级", Vector2(76, 82), 17, Pal.c("text2"))
+	Ink.text(ci, "潜在成果", Vector2(250, 82), 17, Pal.c("text2"))
+	Ink.text(ci, "RP", Vector2(446, 170), 16, Pal.c("text2"), Pal.mono)
+	Ink.text(ci, "下一次加速", Vector2(556, 82), 17, Pal.c("text2"))
 
 func set_beam(energy: int, value: int, odds: PackedFloat64Array, ch: int, lk: int) -> void:
 	e_target = energy
@@ -186,6 +212,7 @@ func _process(dt: float) -> void:
 		queue_redraw()
 
 func _draw() -> void:
+	chrome.visible = show_v >= 0.002
 	if show_v < 0.002:
 		return
 	var vp := get_viewport_rect().size
@@ -193,23 +220,9 @@ func _draw() -> void:
 	var el := Pal.equip_line()
 	var paper := Pal.c("paper")
 	var ink := Pal.c("text")
-	# 桌面板：上沿斜切 + 金属包边
-	var top := PackedVector2Array([Vector2(0, y0 + 18), Vector2(vp.x, y0 + 18), Vector2(vp.x, vp.y + 10), Vector2(0, vp.y + 10)])
-	draw_colored_polygon(top, Pal.c("equip"))
-	draw_rect(Rect2(0, y0 + 10, vp.x, 10), Pal.c("equip_dark"))
-	draw_line(Vector2(0, y0 + 10), Vector2(vp.x, y0 + 10), el, 2.0)
-	draw_line(Vector2(0, y0 + 20), Vector2(vp.x, y0 + 20), el, 1.2)
-	draw_rect(Rect2(0, y0 + 20, vp.x, 8), Color(0, 0, 0, 0.06))
-	for x in range(40, int(vp.x), 220):
-		Ink.rivet(self, Vector2(x, y0 + 15), 2.0)
-	# 面板分区
-	_plate(Rect2(50, y0 + 46, 440, 220))
-	_plate(Rect2(530, y0 + 46, 820, 220))
-	_plate(Rect2(1390, y0 + 46, 480, 220))
-	# —— 左：能级与潜在成果 ——
-	Ink.text(self, "能级", Vector2(76, y0 + 82), 17, Pal.c("text2"))
+	chrome.position = Vector2(0, y0)
+	chrome.set_key([vp.x])
 	_drums(Vector2(76, y0 + 96), e_disp, 2, 46.0, 66.0, "E")
-	Ink.text(self, "潜在成果", Vector2(250, y0 + 82), 17, Pal.c("text2"))
 	# 潜在成果超过 5 位数：鼓轮换成“万 / 亿 / 万亿”为单位
 	var shown := val_disp
 	var unit := ""
@@ -226,10 +239,9 @@ func _draw() -> void:
 		shown = floor(shown)
 	_drums(Vector2(250, y0 + 96), shown, 5, 38.0, 66.0, "")
 	if flash_val > 0.0:
-		draw_rect(Rect2(244, y0 + 90, 196, 78), Color(Pal.c("gold"), 0.35 * flash_val), false, 4.0)
+		Ink.frame(self, Rect2(244, y0 + 90, 196, 78), Color(Pal.c("gold"), 0.35 * flash_val), 4.0)
 	if unit != "":
 		Ink.text(self, unit, Vector2(446, y0 + 132), 20, Pal.c("red"), Pal.bold)
-	Ink.text(self, "RP", Vector2(446, y0 + 170), 16, Pal.c("text2"), Pal.mono)
 	if not dec.is_empty():
 		_decision(Rect2(64, y0 + 180, 412, 76))
 	elif hint != "":
@@ -237,7 +249,6 @@ func _draw() -> void:
 		Ink.text(self, hint, Vector2.ZERO, 22, Pal.c("red"), Pal.hand, HORIZONTAL_ALIGNMENT_LEFT, -1)
 		draw_set_transform(Vector2.ZERO)
 	# —— 中：概率纸带 + 锁相灯 ——
-	Ink.text(self, "下一次加速", Vector2(556, y0 + 82), 17, Pal.c("text2"))
 	_tape(Rect2(556, y0 + 98, 768, 44))
 	_lamps(Vector2(556, y0 + 214))
 	# —— 右：按钮 + 拉杆 ——
@@ -249,8 +260,8 @@ func _draw() -> void:
 func _plate(r: Rect2) -> void:
 	var el := Pal.equip_line()
 	draw_rect(r, Pal.c("equip").lerp(Pal.c("paper"), 0.25))
-	draw_rect(r, el, false, 1.6)
-	draw_rect(Rect2(r.position + Vector2(4, 4), r.size - Vector2(8, 8)), Color(el, 0.25), false, 1.0)
+	Ink.frame(self, r, el, 1.6)
+	Ink.frame(self, Rect2(r.position + Vector2(4, 4), r.size - Vector2(8, 8)), Color(el, 0.25), 1.0)
 	for p in [r.position + Vector2(10, 10), Vector2(r.end.x - 10, r.position.y + 10), r.end - Vector2(10, 10), Vector2(r.position.x + 10, r.end.y - 10)]:
 		Ink.rivet(self, p, 2.4)
 
@@ -291,10 +302,10 @@ func _drums(p: Vector2, v: float, digits: int, w: float, h: float, prefix: Strin
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 10)), Color(0, 0, 0, 0.35))
 		draw_rect(Rect2(r.position + Vector2(0, r.size.y - 10), Vector2(r.size.x, 10)), Color(0, 0, 0, 0.35))
 		draw_line(Vector2(r.position.x, r.get_center().y), Vector2(r.end.x, r.get_center().y), Color(1, 1, 1, 0.04), 1.0)
-		draw_rect(r, el, false, 1.6)
+		Ink.frame(self, r, el, 1.6)
 		x += w
 	# 外框
-	draw_rect(Rect2(p.x - 6 + (w * 0.72 if prefix != "" else 0.0), p.y - 6, x - p.x + 8 - (w * 0.72 if prefix != "" else 0.0), h + 12), el, false, 2.0)
+	Ink.frame(self, Rect2(p.x - 6 + (w * 0.72 if prefix != "" else 0.0), p.y - 6, x - p.x + 8 - (w * 0.72 if prefix != "" else 0.0), h + 12), el, 2.0)
 
 ## 概率纸带：五段色块 + 排线纹理 + 下方印字
 func _tape(r: Rect2) -> void:
@@ -309,7 +320,7 @@ func _tape(r: Rect2) -> void:
 		var zz := PackedVector2Array()
 		for i in 13:
 			zz.append(Vector2(side + (4.0 if i % 2 == 0 else -4.0), pr.position.y + pr.size.y * i / 12.0))
-		draw_polyline(zz, Color(el, 0.4), 1.0, true)
+		Ink.pl(self, zz, Color(el, 0.4), 1.0)
 	tape_rect = r
 	seg_x.clear()
 	var x := r.position.x
@@ -325,7 +336,7 @@ func _tape(r: Rect2) -> void:
 			col = Pal.c("lock")
 		draw_rect(sr, col)
 		_hatch(sr, k)
-		draw_rect(sr, el, false, 1.2)
+		Ink.frame(self, sr, el, 1.2)
 		centers.append(sr.get_center().x)
 		seg_x.append(sr.end.x)
 		x += w
@@ -367,7 +378,7 @@ func _tape(r: Rect2) -> void:
 			for k in sg:
 				x0 += r.size.x * seg[k] / maxf(total, 1e-5)
 			var sw := r.size.x * seg[sg] / maxf(total, 1e-5)
-			draw_rect(Rect2(x0, r.position.y - 2, sw, r.size.y + 4), ink, false, 3.0)
+			Ink.frame(self, Rect2(x0, r.position.y - 2, sw, r.size.y + 4), ink, 3.0)
 			var ghosts := clampf(ptr_speed * 0.8, 0.0, 6.0)
 			for g in int(ghosts):
 				var gx := px - (g + 1) * 14.0
@@ -376,7 +387,7 @@ func _tape(r: Rect2) -> void:
 		var a := ptr_vis
 		draw_line(Vector2(px, r.position.y - 14), Vector2(px, r.end.y + 6), Color(ink, a), 2.6)
 		draw_colored_polygon(PackedVector2Array([Vector2(px - 12, r.position.y - 30), Vector2(px + 12, r.position.y - 30), Vector2(px, r.position.y - 10)]), Color(Pal.c("gold"), a))
-		draw_polyline(PackedVector2Array([Vector2(px - 12, r.position.y - 30), Vector2(px + 12, r.position.y - 30), Vector2(px, r.position.y - 10), Vector2(px - 12, r.position.y - 30)]), Color(ink, a), 2.0, true)
+		Ink.pl(self, PackedVector2Array([Vector2(px - 12, r.position.y - 30), Vector2(px + 12, r.position.y - 30), Vector2(px, r.position.y - 10), Vector2(px - 12, r.position.y - 30)]), Color(ink, a), 2.0)
 	# 丢失段：红色圈注（像拿红笔圈出来）
 	var lw := r.size.x * seg[Odds.LOSS] / maxf(total, 1e-5)
 	if seg[Odds.LOSS] >= 0.12:
@@ -385,7 +396,7 @@ func _tape(r: Rect2) -> void:
 		for i in 40:
 			var a := TAU * i / 38.0 - 0.3
 			pts.append(c + Vector2(cos(a) * (lw * 0.5 + 16 + sin(a * 3.0) * 2.0), sin(a) * (r.size.y * 0.5 + 10)))
-		draw_polyline(pts, Pal.c("red"), 2.2, true)
+		Ink.pl(self, pts, Pal.c("red"), 2.2)
 
 func _hatch(r: Rect2, k: int) -> void:
 	if r.size.x < 3:
@@ -430,13 +441,13 @@ func _lamps(p: Vector2) -> void:
 		for k in 7:
 			pts.append(c + Vector2.from_angle(PI / 3 * k + PI / 6) * 15.0 * s)
 		draw_colored_polygon(pts, (Pal.c("lock") if locked else Pal.c("ramp2")) if on else Pal.c("equip_dark"))
-		draw_polyline(pts, el, 1.6, true)
+		Ink.pl(self, pts, el, 1.6)
 		if on:
 			draw_line(c + Vector2(-6, -7) * s, c + Vector2(-1, -9) * s, Color(1, 1, 1, 0.5), 2.0)
 	if locked:
 		var tx := p + Vector2(420, -2)
 		draw_rect(Rect2(tx + Vector2(-6, -24), Vector2(232, 34)), Pal.c("lock"))
-		draw_rect(Rect2(tx + Vector2(-6, -24), Vector2(232, 34)), el, false, 1.6)
+		Ink.frame(self, Rect2(tx + Vector2(-6, -24), Vector2(232, 34)), el, 1.6)
 		Ink.text(self, "锁相 · 剩余 %d 次安全加速" % lock_left, tx, 17, Pal.c("paper"), Pal.bold)
 
 func _button(c: Vector2) -> void:
@@ -445,8 +456,8 @@ func _button(c: Vector2) -> void:
 	if hover_btn and enabled:
 		draw_arc(c, 86.0, 0, TAU, 64, Pal.c("red"), 3.0, true)
 	# 底座（俯视的金属环 + 侧面厚度）
-	draw_circle(c + Vector2(0, 10), 78.0, Pal.c("equip_dark").darkened(0.15))
-	draw_circle(c, 78.0, Pal.c("equip_dark"))
+	Ink.disc(self, c + Vector2(0, 10), 78.0, Pal.c("equip_dark").darkened(0.15))
+	Ink.disc(self, c, 78.0, Pal.c("equip_dark"))
 	draw_arc(c, 78.0, 0, TAU, 64, el, 2.0, true)
 	draw_arc(c, 66.0, 0, TAU, 64, Color(el, 0.4), 1.0, true)
 	for i in 8:
@@ -457,9 +468,9 @@ func _button(c: Vector2) -> void:
 	if locked and enabled:
 		cap = Pal.c("lock")
 	var rise := 14.0 * (1.0 - d)
-	draw_circle(c + Vector2(0, 6), 54.0, cap.darkened(0.35))
-	draw_circle(c - Vector2(0, rise - 6), 54.0, cap.darkened(0.2))
-	draw_circle(c - Vector2(0, rise), 54.0, cap)
+	Ink.disc(self, c + Vector2(0, 6), 54.0, cap.darkened(0.35))
+	Ink.disc(self, c - Vector2(0, rise - 6), 54.0, cap.darkened(0.2))
+	Ink.disc(self, c - Vector2(0, rise), 54.0, cap)
 	draw_arc(c - Vector2(0, rise), 54.0, 0, TAU, 64, el, 2.0, true)
 	draw_arc(c - Vector2(0, rise), 40.0, PI * 1.05, PI * 1.6, 24, Color(1, 1, 1, 0.45), 6.0, true)
 	Ink.text(self, "加速", c - Vector2(0, rise - 9), 28, Pal.c("paper"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
@@ -483,7 +494,7 @@ func _lever(base: Vector2) -> void:
 		Ink.text(self, "往下拖到底", base + Vector2(-150, -40), 15, Pal.c("red"), Pal.hand)
 	draw_line(base + Vector2(0, -2), knob, el, 8.0, true)
 	draw_line(base + Vector2(0, -2), knob, Pal.c("equip"), 5.0, true)
-	draw_circle(knob, 21.0, Pal.c("gold") if enabled else Pal.c("equip_dark"))
+	Ink.disc(self, knob, 21.0, Pal.c("gold") if enabled else Pal.c("equip_dark"))
 	draw_arc(knob, 21.0, 0, TAU, 32, el, 2.0, true)
 	draw_arc(knob, 13.0, PI * 1.1, PI * 1.6, 12, Color(1, 1, 1, 0.5), 4.0, true)
 	Ink.text(self, "引出", base + Vector2(56, -86), 26, Pal.c("text"), Pal.bold)
@@ -528,7 +539,7 @@ func _leave_tab(y0: float) -> void:
 	leave_rect = r if leave_v > 0.8 else Rect2()
 	draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.12))
 	draw_rect(r, Pal.c("gold") if hover_leave else Pal.c("paper"))
-	draw_rect(r, Pal.c("red") if hover_leave else el, false, 2.0 if hover_leave else 1.4)
+	Ink.frame(self, r, Pal.c("red") if hover_leave else el, 2.0 if hover_leave else 1.4)
 	Ink.text(self, leave_label, r.position + Vector2(16, 28), 18, Pal.c("text"), Pal.bold)
 	Ink.text(self, "Esc · 右键", r.position + Vector2(r.size.x - 14, 27), 13, Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)
 
@@ -548,22 +559,22 @@ func _red_box(y0: float) -> void:
 	while x < r.end.x:
 		draw_line(Vector2(maxf(x, r.position.x), r.position.y + (maxf(x, r.position.x) - x)), Vector2(minf(x + 14, r.end.x), r.position.y + minf(14.0, r.end.x - x)), Color("#2b2a28"), 4.0)
 		x += 16.0
-	draw_rect(r, el, false, 1.6)
+	Ink.frame(self, r, el, 1.6)
 	var c := Vector2(r.position.x + 40, r.get_center().y + 4)
 	var press := 4.0 if hover_red else 0.0
-	draw_circle(c + Vector2(0, 4), 18.0, Pal.c("red").darkened(0.35))
-	draw_circle(c + Vector2(0, press * 0.5), 18.0, Pal.c("red") if not red_used else Pal.c("red").lerp(Pal.c("equip_dark"), 0.6))
+	Ink.disc(self, c + Vector2(0, 4), 18.0, Pal.c("red").darkened(0.35))
+	Ink.disc(self, c + Vector2(0, press * 0.5), 18.0, Pal.c("red") if not red_used else Pal.c("red").lerp(Pal.c("equip_dark"), 0.6))
 	draw_arc(c + Vector2(0, press * 0.5), 18.0, 0, TAU, 32, el, 1.6, true)
 	# 透明翻盖：没按过时掀开，按过后盖上
 	if red_used:
 		draw_rect(Rect2(c - Vector2(24, 24), Vector2(48, 48)), Color(1, 1, 1, 0.35))
-		draw_rect(Rect2(c - Vector2(24, 24), Vector2(48, 48)), el, false, 1.4)
+		Ink.frame(self, Rect2(c - Vector2(24, 24), Vector2(48, 48)), el, 1.4)
 	else:
 		draw_colored_polygon(PackedVector2Array([c + Vector2(-24, -24), c + Vector2(24, -24), c + Vector2(20, -40), c + Vector2(-20, -40)]), Color(1, 1, 1, 0.35))
 	Ink.text(self, "绝对不能按", Vector2(r.position.x + 70, r.position.y + 26), 14, Color("#2b2a28"), Pal.bold)
 	Ink.text(self, "已按过" if red_used else "B 键", Vector2(r.position.x + 70, r.position.y + 46), 12, Color("#2b2a28"), Pal.mono)
 	if hover_red and not red_used:
-		draw_rect(r.grow(3), Pal.c("red"), false, 2.0)
+		Ink.frame(self, r.grow(3), Pal.c("red"), 2.0)
 
 ## 决策条（左面板下半）：现在引出累计多少 / 离考核线还差多少；下一次丢失风险；还剩什么保护或锁相
 func _decision(r: Rect2) -> void:
@@ -584,7 +595,7 @@ func _decision(r: Rect2) -> void:
 	var f1 := clampf(float(after) / maxf(1.0, ln), 0.0, 1.0)
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * f0, bar.size.y)), Pal.c("ink2"))
 	draw_rect(Rect2(bar.position + Vector2(bar.size.x * f0, 0), Vector2(bar.size.x * (f1 - f0), bar.size.y)), Pal.c("green") if ok else Pal.c("gold"))
-	draw_rect(bar, Pal.equip_line(), false, 1.0)
+	Ink.frame(self, bar, Pal.equip_line(), 1.0)
 	# 第二行：风险 + 保护 / 锁相
 	y += 44.0
 	if dec.lock_left > 0:

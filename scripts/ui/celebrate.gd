@@ -198,7 +198,7 @@ func _draw() -> void:
 		var br := Rect2(vp.x * 0.5 - bw * 0.5, 130.0, bw, 150.0)
 		draw_rect(Rect2(br.position + Vector2(10, 12), br.size), Color(0, 0, 0, 0.22 * fade))
 		draw_rect(br, Color(Pal.c("red"), fade))
-		draw_rect(br.grow(-9), Color(Pal.c("gold"), fade), false, 4.0)
+		Ink.frame(self, br.grow(-9), Color(Pal.c("gold"), fade), 4.0)
 		for sd in [-1.0, 1.0]:
 			var ex := br.position.x if sd < 0 else br.end.x
 			draw_colored_polygon(PackedVector2Array([Vector2(ex, br.position.y + 22), Vector2(ex + sd * 90.0 * bo, br.position.y + 36), Vector2(ex + sd * 52.0 * bo, br.get_center().y + 14), Vector2(ex + sd * 90.0 * bo, br.end.y + 8), Vector2(ex, br.end.y - 22)]), Color(Pal.c("red").darkened(0.28), fade))
@@ -222,7 +222,7 @@ func _draw() -> void:
 		var sub := "第 %d 阶段审核 · 评审委员会一致通过" % stage_no
 		var sw := Ink.size(Pal.bold, sub, 26).x + 60.0
 		draw_rect(Rect2(vp.x * 0.5 - sw * 0.5, 292.0, sw, 46.0), Color(Pal.c("paper"), 0.95 * sa))
-		draw_rect(Rect2(vp.x * 0.5 - sw * 0.5, 292.0, sw, 46.0), Color(el, 0.6 * sa), false, 1.4)
+		Ink.frame(self, Rect2(vp.x * 0.5 - sw * 0.5, 292.0, sw, 46.0), Color(el, 0.6 * sa), 1.4)
 		Ink.text(self, sub, Vector2(vp.x * 0.5, 324.0), 26, Color(Pal.c("red"), sa), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	var qa := clampf((t - 2.1) / 0.4, 0.0, 1.0) * fade
 	if qa > 0.0 and quip != "":
@@ -236,7 +236,7 @@ func _draw() -> void:
 	var ssc := lerpf(3.4, 1.0, Ink.ease_out_cubic(drop)) * lerpf(1.25, 0.55, mv)
 	var sa2 := drop * fade
 	draw_set_transform(sp, -0.18, Vector2(ssc, ssc))
-	draw_circle(Vector2.ZERO, 120.0, Color(Pal.c("paper"), 0.88 * sa2))
+	Ink.disc(self, Vector2.ZERO, 120.0, Color(Pal.c("paper"), 0.88 * sa2))
 	draw_arc(Vector2.ZERO, 120.0, 0.3, TAU - 0.1, 64, Color(Pal.c("red"), sa2), 10.0, true)
 	draw_arc(Vector2.ZERO, 100.0, 0, TAU, 64, Color(Pal.c("red"), sa2), 3.0, true)
 	var star := PackedVector2Array()
@@ -253,12 +253,12 @@ func _draw() -> void:
 	# 礼花：升空的火箭 + 炸开的火花（带短拖尾）
 	for r in rockets:
 		draw_line(r.p, r.p + Vector2(0, 26), Color(r.c, fade), 3.0)
-		draw_circle(r.p, 4.0, Color(r.c, fade))
+		Ink.disc(self, r.p, 4.0, Color(r.c, fade))
 	for s in sparks:
 		var a: float = (1.0 - s.age / s.life) * fade
 		if s.trail.size() > 1:
-			draw_polyline(PackedVector2Array(s.trail), Color(s.c, a * 0.7), 3.0, true)
-		draw_circle(s.p, 4.5 * (1.0 - 0.5 * s.age / s.life), Color(s.c, a))
+			Ink.pl(self, PackedVector2Array(s.trail), Color(s.c, a * 0.7), 3.0)
+		Ink.disc(self, s.p, 4.5 * (1.0 - 0.5 * s.age / s.life), Color(s.c, a))
 	# 同事们：从屏幕下沿冒出来，跳着欢呼、挥手
 	for p in people:
 		var pt: float = t - p.delay
@@ -274,7 +274,7 @@ func _draw() -> void:
 		draw_set_transform(h.p, h.r, Vector2.ONE)
 		if h.paper:
 			draw_rect(Rect2(-14, -18, 28, 36), Color(Pal.c("paper"), fade))
-			draw_rect(Rect2(-14, -18, 28, 36), Color(el, fade), false, 1.4)
+			Ink.frame(self, Rect2(-14, -18, 28, 36), Color(el, fade), 1.4)
 			for k in 3:
 				draw_line(Vector2(-9, -9 + k * 7), Vector2(9, -9 + k * 7), Color(el, 0.4 * fade), 1.0)
 		else:
@@ -287,8 +287,8 @@ func _draw() -> void:
 		var pts := PackedVector2Array()
 		for q in s.pts:
 			pts.append(q.p)
-		draw_polyline(pts, Color(s.c, fade), 6.0, true)
-		draw_polyline(pts, Color(s.c.lightened(0.25), fade), 2.0, true)
+		Ink.pl(self, pts, Color(s.c, fade), 6.0)
+		Ink.pl(self, pts, Color(s.c.lightened(0.25), fade), 2.0)
 	# 纸屑
 	for q in confetti:
 		draw_set_transform(q.p, q.r, Vector2(absf(cos(q.r * 1.7)) * 0.85 + 0.15, 1.0))
@@ -306,17 +306,17 @@ func _person(b: Vector2, p: Dictionary, pt: float) -> void:
 		var sh := Vector2(side * 22.0, -96.0)
 		var hand := sh + Vector2(side * (26.0 + 10.0 * wave), -58.0 - 8.0 * wave * side)
 		var elbow := sh + Vector2(side * 30.0, -24.0)
-		draw_polyline(PackedVector2Array([sh, elbow, hand]), el, 11.0, true)
-		draw_polyline(PackedVector2Array([sh, elbow, hand]), p.coat, 7.5, true)
-		draw_circle(hand, 6.0, Pal.c("skin"))
+		Ink.pl(self, PackedVector2Array([sh, elbow, hand]), el, 11.0)
+		Ink.pl(self, PackedVector2Array([sh, elbow, hand]), p.coat, 7.5)
+		Ink.disc(self, hand, 6.0, Pal.c("skin"))
 	# 白大褂
 	var body := PackedVector2Array([Vector2(-24, -104), Vector2(24, -104), Vector2(30, 40), Vector2(-30, 40)])
 	draw_colored_polygon(body, p.coat)
 	body.append(body[0])
-	draw_polyline(body, el, 2.2, true)
+	Ink.pl(self, body, el, 2.2)
 	draw_line(Vector2(0, -96), Vector2(0, 40), Color(el, 0.4), 1.2)
 	# 头
-	draw_circle(Vector2(0, -128), 22.0, Pal.c("skin"))
+	Ink.disc(self, Vector2(0, -128), 22.0, Pal.c("skin"))
 	draw_arc(Vector2(0, -128), 22.0, 0, TAU, 32, el, 2.0, true)
 	var hair := PackedVector2Array()
 	for i in 13:
@@ -324,6 +324,6 @@ func _person(b: Vector2, p: Dictionary, pt: float) -> void:
 	draw_colored_polygon(hair, p.hair)
 	# 张大嘴笑
 	draw_arc(Vector2(0, -122), 8.0, 0.2, PI - 0.2, 12, el, 2.2, true)
-	draw_circle(Vector2(-7, -132), 2.0, el)
-	draw_circle(Vector2(7, -132), 2.0, el)
+	Ink.disc(self, Vector2(-7, -132), 2.0, el)
+	Ink.disc(self, Vector2(7, -132), 2.0, el)
 	draw_set_transform(Vector2.ZERO)

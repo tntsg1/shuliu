@@ -348,8 +348,8 @@ func _draw() -> void:
 	var ink := Pal.c("text")
 	draw_rect(Rect2(pr.position + Vector2(10, 12), pr.size), Color(0, 0, 0, 0.2))
 	draw_rect(pr, Pal.c("paper"))
-	draw_rect(pr, el, false, 2.0)
-	draw_rect(pr.grow(-10), Color(el, 0.3), false, 1.0)
+	Ink.frame(self, pr, el, 2.0)
+	Ink.frame(self, pr.grow(-10), Color(el, 0.3), 1.0)
 	# 页眉
 	Ink.text(self, "采购目录", pr.position + Vector2(48, 62), 36, ink, Pal.bold)
 	Ink.text(self, "第七实验站 · 物资科 · 第 %03d 期" % (run.experiment_no + 1), pr.position + Vector2(232, 60), 16, Pal.c("text2"))
@@ -360,14 +360,14 @@ func _draw() -> void:
 	var rc := Rect2(pr.end.x - 520, pr.position.y + 32, 170, 40)
 	refresh_rect = rc
 	draw_rect(rc.grow(2) if hover_extra == "refresh" else rc, Pal.c("gold") if hover_extra == "refresh" else Pal.c("paper2"))
-	draw_rect(rc, el, false, 1.4)
+	Ink.frame(self, rc, el, 1.4)
 	Ink.text(self, "R  刷新  $%d" % run.refresh_cost, rc.position + Vector2(16, 28), 17, ink if run.money >= run.refresh_cost else Pal.c("text2"))
 	draw_line(pr.position + Vector2(40, 90), Vector2(pr.end.x - 40, pr.position.y + 90), Color(el, 0.5), 1.4)
 	# 关闭（×）
 	close_rect = Rect2(pr.end.x - 64, pr.position.y + 14, 48, 48)
 	var xc := close_rect.get_center()
 	if hover_extra == "close":
-		draw_circle(xc, 22.0, Color(Pal.c("red"), 0.15))
+		Ink.disc(self, xc, 22.0, Color(Pal.c("red"), 0.15))
 	draw_line(xc - Vector2(12, 12), xc + Vector2(12, 12), Pal.c("red") if hover_extra == "close" else ink, 3.0, true)
 	draw_line(xc + Vector2(-12, 12), xc + Vector2(12, -12), Pal.c("red") if hover_extra == "close" else ink, 3.0, true)
 	# 商品卡
@@ -405,7 +405,7 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	draw_rect(Rect2(o2 + Vector2(6, 8) + Vector2(4, 14) * ch, cr.size), Color(0, 0, 0, 0.08 + 0.1 * ch))
 	var bg := Pal.c("paper") if d.kind == "relic" else Pal.c("paper2")
 	draw_rect(Rect2(o2, cr.size), bg)
-	draw_rect(Rect2(o2, cr.size), Pal.c("red") if hot else el, false, 3.0 if hot else 1.6)
+	Ink.frame(self, Rect2(o2, cr.size), Pal.c("red") if hot else el, 3.0 if hot else 1.6)
 	if absf(sx) < 0.15:
 		draw_set_transform(Vector2.ZERO)
 		return
@@ -433,7 +433,7 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	var can: bool = main.run.money >= price
 	var tag := Rect2(o2 + Vector2(cr.size.x - 104, cr.size.y - 46), Vector2(92, 34))
 	draw_rect(tag, Pal.c("gold") if can else Pal.c("paper2"))
-	draw_rect(tag, el, false, 1.4)
+	Ink.frame(self, tag, el, 1.4)
 	Ink.text(self, "$%d" % price, tag.get_center() + Vector2(0, 8), 20, ink if can else Pal.c("red"), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 	if price < d.price:
 		# 打折：原价划掉 + 红色“半价”小章
@@ -450,7 +450,7 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 		var sc := lerpf(1.8, 1.0, Ink.ease_out_back(k))
 		draw_set_transform(c + Vector2(0, 30), -0.25, Vector2(sc * absf(sx), sc))
 		draw_rect(Rect2(-90, -30, 180, 60), Color(Pal.c("paper"), 0.6))
-		draw_rect(Rect2(-90, -30, 180, 60), Pal.c("red"), false, 4.0)
+		Ink.frame(self, Rect2(-90, -30, 180, 60), Pal.c("red"), 4.0)
 		Ink.text(self, "已购入", Vector2(0, 14), 34, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 
@@ -497,10 +497,10 @@ func _draw_inventory(pr: Rect2, el: Color, ink: Color) -> void:
 					draw_line(cc - Vector2(8, 0), cc + Vector2(8, 0), Color(el, 0.3), 2.0)
 					draw_line(cc - Vector2(0, 8), cc + Vector2(0, 8), Color(el, 0.3), 2.0)
 			else:
-				draw_rect(r, Color(el, 0.5), false, 1.4)
+				Ink.frame(self, r, Color(el, 0.5), 1.4)
 			if (want_kind == kind and full) or ff > 0.0:
 				var a := maxf(ff, (0.4 + 0.3 * sin(t * 8.0)) if want_kind == kind and full else 0.0)
-				draw_rect(r.grow(3), Color(Pal.c("red"), a), false, 2.4)
+				Ink.frame(self, r.grow(3), Color(Pal.c("red"), a), 2.4)
 		if want_kind == kind and full:
 			Ink.text(self, "槽位已满，先按住一件卖掉", Vector2(hx + 190, iy), 15, Pal.c("red"), Pal.bold)
 	# 物件（按 id 弹簧定位：卖掉一件，后面的滑过去补位）
@@ -544,8 +544,8 @@ func _draw_inventory(pr: Rect2, el: Color, ink: Color) -> void:
 				var k2 := clampf(k - (g + 1) * 0.05, 0.0, 1.0)
 				var e2 := Ink.ease_in_out(k2)
 				var p2: Vector2 = f.a.lerp(mid, e2).lerp(mid.lerp(f.b, e2), e2)
-				draw_circle(p2, 10.0 - g * 2.0, Color(rc, 0.25 - g * 0.05))
-			draw_circle(p + Vector2(10, 20 + 40 * (1.0 - e)), s * 0.35, Color(0, 0, 0, 0.1))
+				Ink.disc(self, p2, 10.0 - g * 2.0, Color(rc, 0.25 - g * 0.05))
+			Ink.disc(self, p + Vector2(10, 20 + 40 * (1.0 - e)), s * 0.35, Color(0, 0, 0, 0.1))
 			Icons.draw(self, f.id, p, s, sin(k * TAU) * 0.25)
 	# 硬币（翻转着飞向经费）
 	for c in coins:
@@ -557,7 +557,7 @@ func _draw_inventory(pr: Rect2, el: Color, ink: Color) -> void:
 		var p: Vector2 = c.a.lerp(mid, e).lerp(mid.lerp(c.b, e), e)
 		var sq := absf(cos(c.t * 14.0))
 		draw_set_transform(p, 0.0, Vector2(maxf(0.2, sq), 1.0))
-		draw_circle(Vector2.ZERO, 9.0, Pal.c("gold"))
+		Ink.disc(self, Vector2.ZERO, 9.0, Pal.c("gold"))
 		draw_arc(Vector2.ZERO, 9.0, 0, TAU, 20, Pal.equip_line(), 1.4, true)
 		draw_line(Vector2(0, -5), Vector2(0, 5), Color(Pal.equip_line(), 0.6), 1.4)
 		draw_set_transform(Vector2.ZERO)
@@ -586,13 +586,13 @@ func _tile(id: String, c: Vector2, el: Color) -> void:
 	var p := c + Vector2(sin(t * 60.0) * 2.5 * hp, lift)
 	# 底座阴影：物件抬得越高，影子越小越淡
 	draw_set_transform(c + Vector2(0, 40), 0.0, Vector2(1.0 - 0.25 * h, 0.22))
-	draw_circle(Vector2.ZERO, 34.0, Color(0, 0, 0, 0.18 - 0.07 * h))
+	Ink.disc(self, Vector2.ZERO, 34.0, Color(0, 0, 0, 0.18 - 0.07 * h))
 	draw_set_transform(p, rot, squash * sc)
 	var tr := Rect2(-41, -41, 82, 82)
 	draw_rect(Rect2(tr.position + Vector2(3, 4) + Vector2(3, 10) * h, tr.size), Color(0, 0, 0, 0.1 + 0.12 * h))
 	draw_rect(tr, Pal.c("paper"))
 	draw_rect(Rect2(tr.position.x, tr.end.y - 7, tr.size.x, 7), rcol)
-	draw_rect(tr, rcol.lerp(el, 0.4) if h > 0.3 else el, false, 1.6 + 1.2 * h)
+	Ink.frame(self, tr, rcol.lerp(el, 0.4) if h > 0.3 else el, 1.6 + 1.2 * h)
 	draw_set_transform(Vector2.ZERO)
 	Icons.draw(self, id, p + Vector2(0, -3).rotated(rot), 62.0 * sc * squash.y, rot)
 	if main.run.uses.has(id):
@@ -619,7 +619,7 @@ func _tip(id: String, c: Vector2, pr: Rect2, el: Color, ink: Color) -> void:
 	var anchor := Vector2(c.x + (50.0 if right_side else -50.0), c.y)
 	var edge := Vector2(x if right_side else x + w, clampf(c.y, top + 12, top + h - 12))
 	draw_line(anchor, edge, Color(el, 0.6 * tip_v), 1.4, true)
-	draw_circle(edge, 3.0, Color(el, tip_v))
+	Ink.disc(self, edge, 3.0, Color(el, tip_v))
 	var pivot := Vector2(x if right_side else x + w, top)
 	draw_set_transform(pivot, 0.0, Vector2(maxf(0.01, k), 1.0))
 	if not right_side:
@@ -628,7 +628,7 @@ func _tip(id: String, c: Vector2, pr: Rect2, el: Color, ink: Color) -> void:
 	draw_rect(Rect2(r.position + Vector2(5, 7), r.size), Color(0, 0, 0, 0.14))
 	draw_rect(r, Pal.c("paper"))
 	draw_rect(Rect2(0, 0, 6, h), Icons.rarity_col(d.rarity))
-	draw_rect(r, el, false, 1.4)
+	Ink.frame(self, r, el, 1.4)
 	if tip_v > 0.35:
 		var a := clampf((tip_v - 0.35) / 0.4, 0.0, 1.0)
 		Ink.text(self, d.name, Vector2(20, 30), 19, Color(ink, a), Pal.bold)

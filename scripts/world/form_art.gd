@@ -59,6 +59,7 @@ func draw(canvas: CanvasItem, origin: Vector2, scale: float, state: Dictionary) 
 			"saved": _saved()
 			"synced": _synced()
 			"crowned": _crowned()
+	_flush()
 
 # —— 坐标：局部 → 画布（受损时歪斜 + 抖动）——
 func _route(tier: int) -> void:
@@ -79,31 +80,120 @@ func _poly(pts: PackedVector2Array) -> PackedVector2Array:
 		out.append(P(q))
 	return out
 
+# —— 三角形批处理 ——
+# Godot 4 每条抗锯齿 draw_polyline / 每个 draw_colored_polygon 都单独申请一份多边形缓冲，
+# 一帧几百次就是几毫秒。这里全部攒成一个三角形数组，最后一次提交（项目开着 MSAA，边缘照样平滑）。
+var _bp := PackedVector2Array()
+var _bc := PackedColorArray()
+var _bi := PackedInt32Array()
+
+func _flush() -> void:
+	if _bi.is_empty():
+		return
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), _bi, _bp, _bc)
+	_bp = PackedVector2Array()
+	_bc = PackedColorArray()
+	_bi = PackedInt32Array()
+
+func _tris(pp: PackedVector2Array, idx: PackedInt32Array, c: Color) -> void:
+	var base := _bp.size()
+	_bp.append_array(pp)
+	for i in pp.size():
+		_bc.append(c)
+	for k in idx:
+		_bi.append(base + k)
+
+## 描边：斜接带（相邻段共用顶点，半透明线拐角不叠深）；首尾同点视为闭合
+func _stroke(pp: PackedVector2Array, c: Color, w: float) -> void:
+	var n := pp.size()
+	if n < 2 or c.a <= 0.0 or w <= 0.0:
+		return
+	var closed := n > 2 and pp[0].distance_squared_to(pp[n - 1]) < 0.01
+	if closed:
+		pp = pp.slice(0, n - 1)
+		n -= 1
+	var hw := w * 0.5
+	var base := _bp.size()
+	for i in n:
+		var prev: Vector2
+		var next: Vector2
+		if closed:
+			prev = pp[(i - 1 + n) % n]
+			next = pp[(i + 1) % n]
+		else:
+			prev = pp[maxi(i - 1, 0)]
+			next = pp[mini(i + 1, n - 1)]
+		var d1 := (pp[i] - prev).normalized() if i > 0 or closed else (next - pp[i]).normalized()
+		var d2 := (next - pp[i]).normalized() if i < n - 1 or closed else d1
+		if d1 == Vector2.ZERO:
+			d1 = d2
+		if d2 == Vector2.ZERO:
+			d2 = d1
+		var n1 := Vector2(-d1.y, d1.x)
+		var nm := Vector2(-(d1 + d2).y, (d1 + d2).x).normalized()
+		if nm == Vector2.ZERO:
+			nm = n1
+		var k := clampf(1.0 / maxf(0.25, nm.dot(n1)), 1.0, 2.0)
+		_bp.append(pp[i] + nm * hw * k)
+		_bp.append(pp[i] - nm * hw * k)
+		_bc.append(c)
+		_bc.append(c)
+	var segs := n if closed else n - 1
+	for i in segs:
+		var a := base + i * 2
+		var b := base + ((i + 1) % n) * 2
+		_bi.append_array(PackedInt32Array([a, a + 1, b, b, a + 1, b + 1]))
+
+func _disc(cen: Vector2, r: float, c: Color) -> void:
+	var m := clampi(int(r * 0.9), 10, 28)
+	var pp := PackedVector2Array([cen])
+	for i in m:
+		pp.append(cen + Vector2.from_angle(TAU * i / m) * r)
+	var idx := PackedInt32Array()
+	for i in m:
+		idx.append_array(PackedInt32Array([0, 1 + i, 1 + (i + 1) % m]))
+	_tris(pp, idx, c)
+
+func _ring(cen: Vector2, r: float, c: Color, w: float, m := 24) -> void:
+	var pp := PackedVector2Array()
+	for i in m + 1:
+		pp.append(cen + Vector2.from_angle(TAU * i / m) * r)
+	_stroke(pp, c, w)
+
 func line(pts: PackedVector2Array, c: Color, w: float, outline := true) -> void:
 	if pts.size() < 2:
 		return
 	var pp := _poly(pts)
 	c.a *= fade
 	if outline:
-		ci.draw_polyline(pp, Color(ink, c.a), (w + 2.2) * s, true)
-	ci.draw_polyline(pp, c, w * s, true)
+		_stroke(pp, Color(ink, c.a), (w + 2.2) * s)
+	_stroke(pp, c, w * s)
 
 func fill(pts: PackedVector2Array, c: Color, ow := 1.6) -> void:
 	var pp := _poly(pts)
-	if Geometry2D.triangulate_polygon(pp).is_empty():
+	var idx: PackedInt32Array
+	if pp.size() == 3:
+		if absf((pp[1] - pp[0]).cross(pp[2] - pp[0])) < 0.01:
+			return
+		idx = PackedInt32Array([0, 1, 2])
+	elif pp.size() < 3:
 		return
+	else:
+		idx = Geometry2D.triangulate_polygon(pp)
+		if idx.is_empty():
+			return
 	c.a *= fade
-	ci.draw_colored_polygon(pp, c)
+	_tris(pp, idx, c)
 	if ow > 0.0:
 		var cl := pp.duplicate()
 		cl.append(pp[0])
-		ci.draw_polyline(cl, Color(ink, minf(1.0, c.a * 2.0)), ow * s, true)
+		_stroke(cl, Color(ink, minf(1.0, c.a * 2.0)), ow * s)
 
 func dot(q: Vector2, r: float, c: Color, ow := 1.0) -> void:
 	c.a *= fade
-	ci.draw_circle(P(q), r * s, c)
+	_disc(P(q), r * s, c)
 	if ow > 0.0:
-		ci.draw_arc(P(q), r * s, 0, TAU, 16, Color(ink, fade), ow * s, true)
+		_ring(P(q), r * s, Color(ink, fade), ow * s, 16)
 
 func ellipse(c: Vector2, rx: float, ry: float, rot: float, n := 48, a0 := 0.0, a1 := TAU) -> PackedVector2Array:
 	var pts := PackedVector2Array()
@@ -386,7 +476,7 @@ func _saved() -> void:
 		fill(pts, Color(TAN, 0.95), 1.4)
 		fill(PackedVector2Array([Vector2(-h, -h * 0.7).rotated(rot), Vector2(h, -h * 0.7).rotated(rot), Vector2(h, h * 0.7).rotated(rot), Vector2(-h, h * 0.7).rotated(rot)]), Color(TAN.darkened(0.15), 0.95), 0.0)
 		for j in 2:
-			ci.draw_circle(P(Vector2(-w * 0.62 + j * w * 1.24, 0).rotated(rot)), 1.3 * s, Color(ink, 0.5))
+			_disc(P(Vector2(-w * 0.62 + j * w * 1.24, 0).rotated(rot)), 1.3 * s, Color(ink, 0.5))
 
 func _synced() -> void:
 	var a := t * 0.8
@@ -443,11 +533,12 @@ func _blackhole() -> void:
 	for i in 3:
 		line(ellipse(Vector2.ZERO, 64.0 + i * 16.0, 14.0 + i * 4.0, -0.18, 48), Color(col.lerp(Pal.c("orange"), 0.5), 0.8 - i * 0.2), 2.0 - i * 0.4, false)
 	dot(Vector2.ZERO, 28.0, Color("#15130f"), 2.0)
-	ci.draw_arc(P(Vector2.ZERO), 31.0 * s, 0, TAU, 32, Pal.c("paper"), 1.4 * s, true)
+	_ring(P(Vector2.ZERO), 31.0 * s, Pal.c("paper"), 1.4 * s, 32)
 	# 便条
 	var nc := Vector2(176, -84)
 	var note := PackedVector2Array([nc + Vector2(-38, -32).rotated(0.12), nc + Vector2(38, -32).rotated(0.12), nc + Vector2(38, 32).rotated(0.12), nc + Vector2(-38, 32).rotated(0.12)])
 	fill(note, NOTE, 1.2)
+	_flush()
 	Ink.text(ci, "别担心", P(nc + Vector2(0, 8)), int(19 * s), Pal.c("blue") if not Pal.dark else Color("#2f5d9e"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _bigbang() -> void:
@@ -493,6 +584,7 @@ func _foil() -> void:
 	sq = Vector2.ONE
 	fade = 1.0
 	dot(Vector2.ZERO, 6.0, col, 1.0)
+	_flush()
 	Ink.text(ci, "（二维）", P(Vector2(150, 44)), int(14 * s), Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _door() -> void:
@@ -507,6 +599,7 @@ func _door() -> void:
 	fill(panel, Pal.c("paper2").darkened(0.15), 2.2)
 	dot(Vector2(-54 + 108 * (1.0 - open) - 12, 6), 4.0, Pal.c("gold"), 1.2)
 	fill(PackedVector2Array([Vector2(-30, -88), Vector2(-4, -88), Vector2(-4, -64), Vector2(-30, -64)]), Pal.c("paper"), 1.2)
+	_flush()
 	Ink.text(ci, "8", P(Vector2(-17, -69)), int(20 * s), Pal.c("ink"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 
 # —— 束芯：一颗随能级长大的“晶体”（哑光切面，不发光）——

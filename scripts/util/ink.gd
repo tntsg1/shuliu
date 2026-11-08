@@ -57,24 +57,69 @@ static func wobble(pts: PackedVector2Array, seed: int, closed := true, step := 2
 static func rect_pts(r: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 
+# —— 便宜的画法（实测单价：draw_circle 0.014 ms、抗锯齿 draw_polyline 0.021 ms、矩形描边 0.008 ms，
+#    而单条抗锯齿 draw_line 0.0006 ms、实心矩形 0.0003 ms、贴图 ≈ 矩形）——
+static var _disc_tex := {}
+
+## 圆形贴图：小圆用 64 像素，大圆用 256 像素（放大后边缘不发虚）
+static func _disc(n: int) -> ImageTexture:
+	if not _disc_tex.has(n):
+		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		var c := (n - 1) * 0.5
+		for y in n:
+			for x in n:
+				var d := Vector2(x - c, y - c).length()
+				img.set_pixel(x, y, Color(1, 1, 1, clampf(c - d + 0.5, 0.0, 1.0)))
+		_disc_tex[n] = ImageTexture.create_from_image(img)
+	return _disc_tex[n]
+
+## 实心圆：等同 draw_circle(p, r, col)，用一张圆形贴图画
+static func disc(ci: CanvasItem, p: Vector2, r: float, col: Color) -> void:
+	if r <= 0.0 or col.a <= 0.0:
+		return
+	var n := 64 if r < 20.0 else 256
+	var rr := r * n / (n - 1.0)
+	ci.draw_texture_rect(_disc(n), Rect2(p - Vector2(rr, rr), Vector2(rr, rr) * 2.0), false, col)
+
+## 折线：短的拆成一段段抗锯齿直线（便宜），长的仍用 draw_polyline
+static func pl(ci: CanvasItem, pts: PackedVector2Array, col: Color, width := 1.0) -> void:
+	var n := pts.size()
+	if n < 2 or col.a <= 0.0:
+		return
+	if n > 28:
+		ci.draw_polyline(pts, col, width, true)
+		return
+	for i in n - 1:
+		ci.draw_line(pts[i], pts[i + 1], col, width, true)
+
+## 矩形描边：等同 draw_rect(r, col, false, w)，四条实心窄矩形
+static func frame(ci: CanvasItem, r: Rect2, col: Color, w := 1.0) -> void:
+	if col.a <= 0.0:
+		return
+	var h := w * 0.5
+	ci.draw_rect(Rect2(r.position.x - h, r.position.y - h, r.size.x + w, w), col)
+	ci.draw_rect(Rect2(r.position.x - h, r.end.y - h, r.size.x + w, w), col)
+	ci.draw_rect(Rect2(r.position.x - h, r.position.y + h, w, r.size.y - w), col)
+	ci.draw_rect(Rect2(r.end.x - h, r.position.y + h, w, r.size.y - w), col)
+
 ## 墨线矩形：填充 + 抖动描边
 static func box(ci: CanvasItem, r: Rect2, fill: Color, line: Color, width := 1.6, seed := 0) -> void:
 	ci.draw_rect(r, fill)
 	if line.a > 0.0:
-		ci.draw_polyline(wobble(rect_pts(r), seed + int(r.position.x * 7 + r.position.y * 13)), line, width, true)
+		pl(ci, wobble(rect_pts(r), seed + int(r.position.x * 7 + r.position.y * 13)), line, width)
 
 static func poly(ci: CanvasItem, pts: PackedVector2Array, fill: Color, line: Color, width := 1.6, seed := 0) -> void:
 	ci.draw_colored_polygon(pts, fill)
 	if line.a > 0.0:
-		ci.draw_polyline(wobble(pts, seed), line, width, true)
+		pl(ci, wobble(pts, seed), line, width)
 
 static func line(ci: CanvasItem, a: Vector2, b: Vector2, col: Color, width := 1.4, seed := 0) -> void:
-	ci.draw_polyline(wobble(PackedVector2Array([a, b]), seed, false), col, width, true)
+	pl(ci, wobble(PackedVector2Array([a, b]), seed, false), col, width)
 
 ## 铆钉
 static func rivet(ci: CanvasItem, p: Vector2, r := 2.6) -> void:
-	ci.draw_circle(p, r, Pal.equip_line().lerp(Pal.c("equip"), 0.45))
-	ci.draw_circle(p + Vector2(-0.7, -0.7), r * 0.45, Pal.c("paper").lerp(Pal.c("equip"), 0.3))
+	disc(ci, p, r, Pal.equip_line().lerp(Pal.c("equip"), 0.45))
+	disc(ci, p + Vector2(-0.7, -0.7), r * 0.45, Pal.c("paper").lerp(Pal.c("equip"), 0.3))
 
 # —— 文字排版缓存 ——
 # Godot 每个字体只缓存很少几条排好版的字；我们一帧画的不同文字远超这个数，
@@ -140,6 +185,6 @@ static func sticker(ci: CanvasItem, s: String, center: Vector2, rot := 0.0, size
 	ci.draw_set_transform(center, rot)
 	var b := bg if bg.a > 0.0 else Pal.c("paper")
 	ci.draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), b)
-	ci.draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Pal.equip_line(), false, 1.0)
+	frame(ci, Rect2(-w * 0.5, -h * 0.5, w, h), Pal.equip_line(), 1.0)
 	Ink.text(ci, s, Vector2(-w * 0.5 + 6, h * 0.5 - 6), size, Pal.equip_line(), fnt)
 	ci.draw_set_transform(Vector2.ZERO)

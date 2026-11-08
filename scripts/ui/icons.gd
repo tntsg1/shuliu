@@ -11,14 +11,14 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			_poly(ci, [Vector2(-22, -22), Vector2(22, -22), Vector2(22, -8), Vector2(-8, -8), Vector2(-8, 8), Vector2(22, 8), Vector2(22, 22), Vector2(-22, 22)], Pal.c("dip_b"), ink)
 			for y in [-18, -13, 13, 18]:
 				ci.draw_line(Vector2(-18, y), Vector2(18, y), Pal.c("dip_a"), 2.0)
-			ci.draw_circle(Vector2(8, 0), 3.0, Pal.c("ramp2"))
+			Ink.disc(ci, Vector2(8, 0), 3.0, Pal.c("ramp2"))
 		"quad_array":
 			for i in 4:
 				var a := PI / 4 + i * PI / 2
 				ci.draw_set_transform(c + Vector2.from_angle(a) * 14 * s, rot + a, Vector2(s, s))
 				_poly(ci, [Vector2(-6, -9), Vector2(10, -6), Vector2(10, 6), Vector2(-6, 9)], Pal.c("quad_a"), ink)
 			ci.draw_set_transform(c, rot, Vector2(s, s))
-			ci.draw_circle(Vector2.ZERO, 4.0, Pal.c("ramp2"))
+			Ink.disc(ci, Vector2.ZERO, 4.0, Pal.c("ramp2"))
 			ci.draw_arc(Vector2.ZERO, 4.0, 0, TAU, 16, ink, 1.5, true)
 		"injector_hi":
 			_box(ci, Rect2(-24, -18, 40, 36), Pal.c("equip"), ink)
@@ -32,7 +32,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_line(Vector2(-10, -4), Vector2(10, -4), ink, 2.0)
 		"rf_backup":
 			for i in 4:
-				ci.draw_circle(Vector2(-18 + i * 12, 0), 9.0, Pal.c("gold"))
+				Ink.disc(ci, Vector2(-18 + i * 12, 0), 9.0, Pal.c("gold"))
 				ci.draw_arc(Vector2(-18 + i * 12, 0), 9.0, 0, TAU, 20, ink, 1.6, true)
 			ci.draw_line(Vector2(-28, 0), Vector2(28, 0), ink, 1.5)
 			_box(ci, Rect2(-6, -24, 12, 8), Pal.c("equip"), ink)
@@ -41,20 +41,20 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			var pts := PackedVector2Array()
 			for i in 21:
 				pts.append(Vector2(-22 + i * 2.2, sin(i * 0.9) * 8.0 * (1.0 - absf(i - 10) / 12.0)))
-			ci.draw_polyline(pts, Pal.c("ramp3"), 2.0, true)
+			Ink.pl(ci, pts, Pal.c("ramp3"), 2.0)
 			_box(ci, Rect2(-8, 16, 16, 8), Pal.c("equip"), ink)
 		"dean_paper":
 			_poly(ci, [Vector2(-18, -26), Vector2(14, -26), Vector2(22, -18), Vector2(22, 26), Vector2(-18, 26)], Color("#ead9a8"), ink)
 			for i in 6:
 				ci.draw_line(Vector2(-12, -14 + i * 7), Vector2(14 - (i % 3) * 6, -14 + i * 7), Color(ink, 0.5), 1.4)
-			ci.draw_polyline(PackedVector2Array([Vector2(4, 16), Vector2(9, 21), Vector2(20, 8)]), Pal.c("red"), 2.6, true)
+			Ink.pl(ci, PackedVector2Array([Vector2(4, 16), Vector2(9, 21), Vector2(20, 8)]), Pal.c("red"), 2.6)
 		"eraser":
 			ci.draw_set_transform(c, rot - 0.35, Vector2(s, s))
 			_box(ci, Rect2(-24, -11, 48, 22), paper, ink)
 			_box(ci, Rect2(-6, -12, 30, 24), Pal.c("blue"), ink)
 			ci.draw_rect(Rect2(-24, -11, 8, 22), Color("#d8cfc0"))
 		"coin":
-			ci.draw_circle(Vector2.ZERO, 22.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2.ZERO, 22.0, Pal.c("gold"))
 			ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 40, ink, 2.0, true)
 			ci.draw_arc(Vector2.ZERO, 16.0, 0, TAU, 40, Color(ink, 0.6), 1.2, true)
 			_star(ci, Vector2.ZERO, 8.0, ink)
@@ -81,30 +81,30 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			_box(ci, Rect2(-19, -13, 38, 26), Color("#cfe6ea"), Color(ink, 0.5))
 			_poly(ci, [Vector2(-16, 0), Vector2(-4, -8), Vector2(6, -6), Vector2(6, 6), Vector2(-4, 8)], Pal.c("orange"), ink)
 			ci.draw_line(Vector2(6, -10), Vector2(6, 10), Color(ink, 0.7), 1.0)
-			ci.draw_circle(Vector2(-10, -1), 1.6, ink)
+			Ink.disc(ci, Vector2(-10, -1), 1.6, ink)
 		"ultimatum":
 			_box(ci, Rect2(-26, -16, 52, 34), paper, ink)
-			ci.draw_polyline(PackedVector2Array([Vector2(-26, -16), Vector2(0, 4), Vector2(26, -16)]), ink, 1.6, true)
-			ci.draw_circle(Vector2(0, 6), 8.0, Pal.c("red"))
+			Ink.pl(ci, PackedVector2Array([Vector2(-26, -16), Vector2(0, 4), Vector2(26, -16)]), ink, 1.6)
+			Ink.disc(ci, Vector2(0, 6), 8.0, Pal.c("red"))
 			Ink.text(ci, "!", Vector2(0, 11), 14, paper, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"lucky_cat":
-			ci.draw_circle(Vector2(0, 10), 16.0, paper)
+			Ink.disc(ci, Vector2(0, 10), 16.0, paper)
 			ci.draw_arc(Vector2(0, 10), 16.0, 0, TAU, 32, ink, 1.8, true)
-			ci.draw_circle(Vector2(0, -10), 13.0, paper)
+			Ink.disc(ci, Vector2(0, -10), 13.0, paper)
 			ci.draw_arc(Vector2(0, -10), 13.0, 0, TAU, 32, ink, 1.8, true)
 			_poly(ci, [Vector2(-12, -16), Vector2(-9, -28), Vector2(-3, -21)], paper, ink)
 			_poly(ci, [Vector2(12, -16), Vector2(9, -28), Vector2(3, -21)], paper, ink)
 			ci.draw_line(Vector2(-6, -11), Vector2(-3, -11), ink, 1.6)
 			ci.draw_line(Vector2(3, -11), Vector2(6, -11), ink, 1.6)
 			ci.draw_rect(Rect2(-10, -1, 20, 4), Pal.c("red"))
-			ci.draw_circle(Vector2(0, 3), 3.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2(0, 3), 3.0, Pal.c("gold"))
 			_box(ci, Rect2(12, -24, 8, 16), paper, ink)
 		"rejected":
 			for i in 3:
 				_box(ci, Rect2(-20 + i * 3, -24 + i * 3, 38, 46), paper, ink)
 			ci.draw_set_transform(c, rot - 0.3, Vector2(s, s))
 			ci.draw_rect(Rect2(-20, 0, 40, 14), Color(Pal.c("red"), 0.2))
-			ci.draw_rect(Rect2(-20, 0, 40, 14), Pal.c("red"), false, 2.0)
+			Ink.frame(ci, Rect2(-20, 0, 40, 14), Pal.c("red"), 2.0)
 			Ink.text(ci, "REJECT", Vector2(0, 11), 9, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"dean_pen":
 			ci.draw_set_transform(c, rot - 0.7, Vector2(s, s))
@@ -117,10 +117,10 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_line(Vector2(0, 7), Vector2(0, 20), ink, 3.0)
 			ci.draw_line(Vector2(-14, 24), Vector2(14, 24), ink, 3.0)
 			for x in [-14, 0, 14]:
-				ci.draw_circle(Vector2(x, 26), 2.6, ink)
+				Ink.disc(ci, Vector2(x, 26), 2.6, ink)
 		"budget":
 			_box(ci, Rect2(-26, -16, 52, 34), Color("#d9c49a"), ink)
-			ci.draw_polyline(PackedVector2Array([Vector2(-26, -16), Vector2(0, 2), Vector2(26, -16)]), ink, 1.4, true)
+			Ink.pl(ci, PackedVector2Array([Vector2(-26, -16), Vector2(0, 2), Vector2(26, -16)]), ink, 1.4)
 			Ink.text(ci, "$", Vector2(0, 15), 18, Pal.c("green"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"coffee":
 			_poly(ci, [Vector2(-14, -14), Vector2(14, -14), Vector2(10, 24), Vector2(-10, 24)], paper, ink)
@@ -130,9 +130,9 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 				var pts := PackedVector2Array()
 				for k in 7:
 					pts.append(Vector2(-8 + i * 8 + sin(k * 1.2) * 2.0, -24 - k * 2.4))
-				ci.draw_polyline(pts, Color(ink, 0.35), 1.2, true)
+				Ink.pl(ci, pts, Color(ink, 0.35), 1.2)
 		"fast_clock":
-			ci.draw_circle(Vector2.ZERO, 22.0, paper)
+			Ink.disc(ci, Vector2.ZERO, 22.0, paper)
 			ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 40, ink, 2.0, true)
 			for i in 12:
 				var a := TAU * i / 12.0
@@ -155,7 +155,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_rect(Rect2(-22, -26, 44, 9), Color("#d8c48a"))
 			for i in 3:
 				ci.draw_line(Vector2(-16, -8 + i * 8), Vector2(16, -8 + i * 8), Color(ink, 0.4), 1.2)
-			ci.draw_polyline(PackedVector2Array([Vector2(-10, 12), Vector2(-3, 19), Vector2(13, 3)]), Pal.c("green"), 3.0, true)
+			Ink.pl(ci, PackedVector2Array([Vector2(-10, 12), Vector2(-3, 19), Vector2(13, 3)]), Pal.c("green"), 3.0)
 			Ink.text(ci, "2000", Vector2(10, -19), 8, Color(ink, 0.7), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 		"duty_roster":
 			# 排班表：网格，周末两列全是红圈
@@ -185,7 +185,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 				ci.draw_line(Vector2(-14, -4 + i * 7), Vector2(14, -4 + i * 7), Color(ink, 0.4), 1.2)
 			ci.draw_set_transform(c, rot + 0.35, Vector2(s, s))
 			ci.draw_rect(Rect2(-15, 6, 30, 14), Color(Pal.c("red"), 0.15))
-			ci.draw_rect(Rect2(-15, 6, 30, 14), Pal.c("red"), false, 2.0)
+			Ink.frame(ci, Rect2(-15, 6, 30, 14), Pal.c("red"), 2.0)
 			Ink.text(ci, "退回", Vector2(0, 17), 10, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"applications":
 			# 一沓申报书，最上面一张盖着“新”
@@ -200,7 +200,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			for i in 5:
 				ci.draw_line(Vector2(-16, -16 + i * 8), Vector2(10, -16 + i * 8), Color(ink, 0.45), 1.3)
 			ci.draw_line(Vector2(-18, -8), Vector2(14, -8), Pal.c("red"), 2.6)
-			ci.draw_circle(Vector2(16, 16), 9.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2(16, 16), 9.0, Pal.c("gold"))
 			ci.draw_arc(Vector2(16, 16), 9.0, 0, TAU, 24, ink, 1.6, true)
 			_star(ci, Vector2(16, 16), 4.5, ink)
 		# —— M3 第 2 批：咖啡 / 钟表 ——
@@ -212,8 +212,8 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_line(Vector2(-18, -10), Vector2(12, -10), ink, 1.4)
 			for i in 3:
 				ci.draw_line(Vector2(-12 + i * 9, -10), Vector2(-12 + i * 9, -3 + i * 2), Color("#8a5a3a"), 2.0)
-			ci.draw_circle(Vector2(-6, 13), 4.0, Color("#7a9a5a"))
-			ci.draw_circle(Vector2(0, 14), 3.0, Color("#8aaa6a"))
+			Ink.disc(ci, Vector2(-6, 13), 4.0, Color("#7a9a5a"))
+			Ink.disc(ci, Vector2(0, 14), 3.0, Color("#8aaa6a"))
 			ci.draw_rect(Rect2(-14, 4, 20, 4), Color(Pal.c("red"), 0.8))
 		"thermos":
 			# 老式保温杯：深红杯身 + 不锈钢盖，杯口飘出茶叶
@@ -225,14 +225,14 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			_poly(ci, [Vector2(14, -24), Vector2(22, -28), Vector2(20, -20)], Color("#6a8a4a"), ink)
 		"alarm_4am":
 			# 双铃闹钟，指针停在四点
-			ci.draw_circle(Vector2(-14, -18), 7.0, Pal.c("red"))
+			Ink.disc(ci, Vector2(-14, -18), 7.0, Pal.c("red"))
 			ci.draw_arc(Vector2(-14, -18), 7.0, 0, TAU, 16, ink, 1.6, true)
-			ci.draw_circle(Vector2(14, -18), 7.0, Pal.c("red"))
+			Ink.disc(ci, Vector2(14, -18), 7.0, Pal.c("red"))
 			ci.draw_arc(Vector2(14, -18), 7.0, 0, TAU, 16, ink, 1.6, true)
 			ci.draw_line(Vector2(-12, 18), Vector2(-17, 26), ink, 2.4)
 			ci.draw_line(Vector2(12, 18), Vector2(17, 26), ink, 2.4)
-			ci.draw_circle(Vector2(0, 2), 19.0, Pal.c("red"))
-			ci.draw_circle(Vector2(0, 2), 15.0, paper)
+			Ink.disc(ci, Vector2(0, 2), 19.0, Pal.c("red"))
+			Ink.disc(ci, Vector2(0, 2), 15.0, paper)
 			ci.draw_arc(Vector2(0, 2), 19.0, 0, TAU, 32, ink, 1.8, true)
 			for i in 12:
 				var a := TAU * i / 12.0
@@ -243,13 +243,13 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 		"bandaid":
 			# 一块屏幕，裂缝上斜贴着创可贴
 			_box(ci, Rect2(-26, -20, 52, 36), Pal.c("screen"), ink)
-			ci.draw_polyline(PackedVector2Array([Vector2(-18, -14), Vector2(-6, -4), Vector2(-10, 4), Vector2(6, 12)]), Color(1, 1, 1, 0.6), 1.4, true)
+			Ink.pl(ci, PackedVector2Array([Vector2(-18, -14), Vector2(-6, -4), Vector2(-10, 4), Vector2(6, 12)]), Color(1, 1, 1, 0.6), 1.4)
 			ci.draw_set_transform(c, rot - 0.6, Vector2(s, s))
 			_box(ci, Rect2(-18, -6, 36, 12), Color("#e8b88a"), ink)
 			ci.draw_rect(Rect2(-6, -6, 12, 12), Color("#f2d2b0"))
 			for x in [-3, 0, 3]:
 				for y in [-3, 0, 3]:
-					ci.draw_circle(Vector2(x, y), 0.8, Color(ink, 0.5))
+					Ink.disc(ci, Vector2(x, y), 0.8, Color(ink, 0.5))
 		"marker":
 			# 白板笔，红色笔帽
 			ci.draw_set_transform(c, rot - 0.75, Vector2(s, s))
@@ -265,10 +265,10 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			Ink.text(ci, "½", Vector2(16, 12), 12, Pal.c("blue"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"tape_roll":
 			# 透明胶带卷，找不到头
-			ci.draw_circle(Vector2.ZERO, 22.0, Color("#e9dfc4"))
+			Ink.disc(ci, Vector2.ZERO, 22.0, Color("#e9dfc4"))
 			ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 40, ink, 1.8, true)
 			ci.draw_arc(Vector2.ZERO, 17.0, 0, TAU, 40, Color(ink, 0.3), 1.0, true)
-			ci.draw_circle(Vector2.ZERO, 11.0, paper)
+			Ink.disc(ci, Vector2.ZERO, 11.0, paper)
 			ci.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 32, ink, 1.6, true)
 			Ink.text(ci, "?", Vector2(17, -14), 13, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		# —— M3 第 4 批：证章 ——
@@ -278,14 +278,14 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			_box(ci, Rect2(-18, -26, 36, 32), paper, ink)
 			for i in 3:
 				ci.draw_line(Vector2(-12, -18 + i * 6), Vector2(12, -18 + i * 6), Color(ink, 0.4), 1.2)
-			ci.draw_polyline(PackedVector2Array([Vector2(-2, 0), Vector2(3, -4), Vector2(6, 0), Vector2(10, -3), Vector2(13, 0)]), Pal.c("red"), 1.6, true)
-			ci.draw_polyline(PackedVector2Array([Vector2(-24, -4), Vector2(0, 12), Vector2(24, -4)]), ink, 1.6, true)
+			Ink.pl(ci, PackedVector2Array([Vector2(-2, 0), Vector2(3, -4), Vector2(6, 0), Vector2(10, -3), Vector2(13, 0)]), Pal.c("red"), 1.6)
+			Ink.pl(ci, PackedVector2Array([Vector2(-24, -4), Vector2(0, 12), Vector2(24, -4)]), ink, 1.6)
 		"grad_promise":
 			# 学位帽 + 一张写着“明年”的小纸条
 			_poly(ci, [Vector2(-26, -8), Vector2(0, -20), Vector2(26, -8), Vector2(0, 4)], Color("#2b2a28"), ink)
 			_box(ci, Rect2(-14, -2, 28, 12), Color("#2b2a28"), ink)
 			ci.draw_line(Vector2(18, -10), Vector2(20, 8), Pal.c("gold"), 2.0)
-			ci.draw_circle(Vector2(20, 9), 3.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2(20, 9), 3.0, Pal.c("gold"))
 			_box(ci, Rect2(-18, 14, 30, 13), paper, ink)
 			Ink.text(ci, "明年", Vector2(-3, 25), 9, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"phd_cert":
@@ -295,7 +295,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			Ink.text(ci, "学位证书", Vector2(0, -6), 8, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 			ci.draw_line(Vector2(-14, 6), Vector2(14, 6), Pal.c("red"), 1.4)
 			Ink.text(ci, "?", Vector2(0, 5), 9, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
-			ci.draw_circle(Vector2(12, 11), 4.0, Color(Pal.c("red"), 0.7))
+			Ink.disc(ci, Vector2(12, 11), 4.0, Color(Pal.c("red"), 0.7))
 		"dose_card":
 			# 剂量卡：胶片窗变了色
 			_box(ci, Rect2(-18, -24, 36, 48), Color("#d8dde2"), ink)
@@ -314,7 +314,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 		"red_flag":
 			# 流动红旗：旗杆 + 带金穗的红旗
 			ci.draw_line(Vector2(-18, -26), Vector2(-18, 28), Color("#9aa0a6"), 3.0)
-			ci.draw_circle(Vector2(-18, -27), 3.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2(-18, -27), 3.0, Pal.c("gold"))
 			_poly(ci, [Vector2(-17, -22), Vector2(22, -18), Vector2(18, -2), Vector2(22, 12), Vector2(-17, 8)], Pal.c("red"), ink)
 			_star(ci, Vector2(-6, -8), 5.0, Pal.c("gold"))
 			for i in 4:
@@ -322,7 +322,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 		"crooked_seal":
 			# 圆形红章，印面歪着盖
 			ci.draw_set_transform(c, rot + 0.35, Vector2(s, s))
-			ci.draw_circle(Vector2.ZERO, 22.0, Color(Pal.c("red"), 0.12))
+			Ink.disc(ci, Vector2.ZERO, 22.0, Color(Pal.c("red"), 0.12))
 			ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 40, Pal.c("red"), 3.0, true)
 			ci.draw_arc(Vector2.ZERO, 17.0, 0, TAU, 40, Color(Pal.c("red"), 0.6), 1.0, true)
 			_star(ci, Vector2(0, -2), 8.0, Pal.c("red"))
@@ -338,9 +338,9 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_line(Vector2(-6, -13), Vector2(6, -13), ink, 2.0)
 		"lab8_key":
 			# 旧铜钥匙，挂着写着“8”的塑料牌
-			ci.draw_circle(Vector2(-12, -8), 11.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2(-12, -8), 11.0, Pal.c("gold"))
 			ci.draw_arc(Vector2(-12, -8), 11.0, 0, TAU, 24, ink, 1.8, true)
-			ci.draw_circle(Vector2(-12, -8), 4.0, paper)
+			Ink.disc(ci, Vector2(-12, -8), 4.0, paper)
 			_box(ci, Rect2(-2, -11, 28, 6), Pal.c("gold"), ink)
 			_box(ci, Rect2(16, -5, 4, 7), Pal.c("gold"), ink)
 			_box(ci, Rect2(22, -5, 4, 5), Pal.c("gold"), ink)
@@ -349,10 +349,10 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 		"extinguisher":
 			# 红色灭火器，检查卡上一个问号
 			_box(ci, Rect2(-11, -14, 22, 40), Pal.c("red"), ink)
-			ci.draw_circle(Vector2(0, -14), 11.0, Pal.c("red"))
+			Ink.disc(ci, Vector2(0, -14), 11.0, Pal.c("red"))
 			ci.draw_arc(Vector2(0, -14), 11.0, PI, TAU, 16, ink, 1.8, true)
 			_box(ci, Rect2(-4, -28, 8, 6), Color("#2b2a28"), ink)
-			ci.draw_polyline(PackedVector2Array([Vector2(4, -26), Vector2(16, -26), Vector2(20, -18)]), ink, 2.4, true)
+			Ink.pl(ci, PackedVector2Array([Vector2(4, -26), Vector2(16, -26), Vector2(20, -18)]), ink, 2.4)
 			_box(ci, Rect2(-8, 2, 16, 14), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 14), 11, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"wrench":
@@ -365,7 +365,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 		"rf_cavity":
 			# 一节铜色射频腔：几个鼓起的腔室
 			for i in 3:
-				ci.draw_circle(Vector2(-16 + i * 16, 0), 12.0, Color("#c98a4a"))
+				Ink.disc(ci, Vector2(-16 + i * 16, 0), 12.0, Color("#c98a4a"))
 				ci.draw_arc(Vector2(-16 + i * 16, 0), 12.0, 0, TAU, 24, ink, 1.8, true)
 			ci.draw_line(Vector2(-30, 0), Vector2(30, 0), Pal.c("ramp2"), 3.0)
 			for i in 3:
@@ -383,7 +383,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			_box(ci, Rect2(-22, -16, 44, 32), Color("#dfe8f0"), ink)
 			ci.draw_rect(Rect2(-16, -10, 32, 20), Pal.c("dip_b"))
 			for i in 5:
-				ci.draw_circle(Vector2(-18 + i * 9, -16), 3.0, Color("#f6f9fb"))
+				Ink.disc(ci, Vector2(-18 + i * 9, -16), 3.0, Color("#f6f9fb"))
 			for i in 3:
 				var a := i * PI / 3.0
 				ci.draw_line(Vector2.from_angle(a) * -7.0, Vector2.from_angle(a) * 7.0, Color("#f6f9fb"), 2.0)
@@ -391,18 +391,18 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			# 收集靶：一块厚铁块，正面一个被打出来的坑
 			_box(ci, Rect2(-20, -20, 40, 40), Color("#6f747a"), ink)
 			_box(ci, Rect2(-14, -14, 28, 28), Color("#878c92"), ink)
-			ci.draw_circle(Vector2.ZERO, 7.0, Color("#3a3d42"))
+			Ink.disc(ci, Vector2.ZERO, 7.0, Color("#3a3d42"))
 			ci.draw_line(Vector2(-30, 0), Vector2(-14, 0), Pal.c("ramp2"), 3.0)
 			Ink.text(ci, "$", Vector2(14, 26), 12, Pal.c("green"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		# —— M3 第 6 批：电子 ——
 		"emergency_call":
 			# 老式红色电话，听筒搁在上面，一张写着号码的小纸条
 			_poly(ci, [Vector2(-22, 22), Vector2(-16, -4), Vector2(16, -4), Vector2(22, 22)], Pal.c("red"), ink)
-			ci.draw_circle(Vector2(0, 9), 8.0, paper)
+			Ink.disc(ci, Vector2(0, 9), 8.0, paper)
 			ci.draw_arc(Vector2(0, 9), 8.0, 0, TAU, 20, ink, 1.4, true)
 			_box(ci, Rect2(-24, -16, 48, 9), Pal.c("red"), ink)
-			ci.draw_circle(Vector2(-22, -12), 6.0, Pal.c("red"))
-			ci.draw_circle(Vector2(22, -12), 6.0, Pal.c("red"))
+			Ink.disc(ci, Vector2(-22, -12), 6.0, Pal.c("red"))
+			Ink.disc(ci, Vector2(22, -12), 6.0, Pal.c("red"))
 			_box(ci, Rect2(8, 14, 20, 12), paper, ink)
 			Ink.text(ci, "急", Vector2(18, 24), 9, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		"red_button":
@@ -410,15 +410,15 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			_box(ci, Rect2(-24, 6, 48, 18), Color("#e9c64a"), ink)
 			for i in 4:
 				ci.draw_line(Vector2(-20 + i * 12, 24), Vector2(-12 + i * 12, 6), Color("#2b2a28"), 3.0)
-			ci.draw_circle(Vector2(0, 4), 15.0, Pal.c("red").darkened(0.3))
-			ci.draw_circle(Vector2(0, 0), 15.0, Pal.c("red"))
+			Ink.disc(ci, Vector2(0, 4), 15.0, Pal.c("red").darkened(0.3))
+			Ink.disc(ci, Vector2(0, 0), 15.0, Pal.c("red"))
 			ci.draw_arc(Vector2(0, 0), 15.0, 0, TAU, 28, ink, 1.8, true)
 			_poly(ci, [Vector2(-16, -14), Vector2(16, -14), Vector2(12, -28), Vector2(-12, -28)], Color(1, 1, 1, 0.5), ink)
 		"printer":
 			# 打印机，出纸口卡着一张皱纸
 			_box(ci, Rect2(-24, -8, 48, 24), Color("#d8dde2"), ink)
 			_box(ci, Rect2(-18, -18, 36, 10), Color("#b8bcc0"), ink)
-			ci.draw_circle(Vector2(16, 8), 2.5, Pal.c("red"))
+			Ink.disc(ci, Vector2(16, 8), 2.5, Pal.c("red"))
 			_poly(ci, [Vector2(-14, 2), Vector2(14, 2), Vector2(10, 26), Vector2(2, 20), Vector2(-4, 28), Vector2(-12, 22)], paper, ink)
 		"last_slide":
 			# 投影幕：“谢谢！”
@@ -451,9 +451,9 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			# 数据采集机箱：一排指示灯 + 一条向上的曲线
 			_box(ci, Rect2(-26, -18, 52, 36), Color("#3a3d42"), ink)
 			_box(ci, Rect2(-22, -14, 44, 20), Pal.c("screen"), ink)
-			ci.draw_polyline(PackedVector2Array([Vector2(-20, 4), Vector2(-10, 0), Vector2(-2, 1), Vector2(6, -6), Vector2(14, -8), Vector2(20, -12)]), Pal.c("green"), 2.0, true)
+			Ink.pl(ci, PackedVector2Array([Vector2(-20, 4), Vector2(-10, 0), Vector2(-2, 1), Vector2(6, -6), Vector2(14, -8), Vector2(20, -12)]), Pal.c("green"), 2.0)
 			for i in 5:
-				ci.draw_circle(Vector2(-18 + i * 9, 12), 2.2, [Pal.c("green"), Pal.c("green"), Pal.c("gold"), Pal.c("green"), Pal.c("red")][i])
+				Ink.disc(ci, Vector2(-18 + i * 9, 12), 2.2, [Pal.c("green"), Pal.c("green"), Pal.c("gold"), Pal.c("green"), Pal.c("red")][i])
 		"lock_loop":
 			# 一个闭环箭头 + 锁
 			ci.draw_arc(Vector2.ZERO, 18.0, -PI * 0.8, PI * 1.1, 32, Pal.c("lock"), 4.0, true)
@@ -463,11 +463,11 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 		"bpm":
 			# 束流管上一圈四个电极，中间一个十字准星
 			ci.draw_line(Vector2(-30, 0), Vector2(30, 0), Pal.c("ramp2"), 3.0)
-			ci.draw_circle(Vector2.ZERO, 18.0, Pal.c("equip"))
+			Ink.disc(ci, Vector2.ZERO, 18.0, Pal.c("equip"))
 			ci.draw_arc(Vector2.ZERO, 18.0, 0, TAU, 32, ink, 1.8, true)
 			for i in 4:
 				var a := PI / 4 + i * PI / 2
-				ci.draw_circle(Vector2.from_angle(a) * 12.0, 3.5, Pal.c("gold"))
+				Ink.disc(ci, Vector2.from_angle(a) * 12.0, 3.5, Pal.c("gold"))
 			ci.draw_line(Vector2(-6, 0), Vector2(6, 0), Pal.c("red"), 1.6)
 			ci.draw_line(Vector2(0, -6), Vector2(0, 6), Pal.c("red"), 1.6)
 		# —— M3 第 7 批：书籍 / 吉祥物 ——
@@ -481,8 +481,8 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			_poly(ci, [Vector2(-24, -6), Vector2(24, -6), Vector2(20, 24), Vector2(-20, 24)], Color("#c9a26a"), ink)
 			_poly(ci, [Vector2(-24, -6), Vector2(-4, -20), Vector2(2, -10)], Color("#d9b47a"), ink)
 			_poly(ci, [Vector2(24, -6), Vector2(8, -22), Vector2(2, -10)], Color("#d9b47a"), ink)
-			ci.draw_circle(Vector2(-7, 6), 3.0, Pal.c("gold"))
-			ci.draw_circle(Vector2(7, 6), 3.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2(-7, 6), 3.0, Pal.c("gold"))
+			Ink.disc(ci, Vector2(7, 6), 3.0, Pal.c("gold"))
 			Ink.text(ci, "50%", Vector2(0, 21), 9, ink, Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 		"qm_book2":
 			# 厚书，书脊写着“量子力学 II”
@@ -500,7 +500,7 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 				_poly(ci, [Vector2(0, 2), tip + tip.orthogonal().normalized() * 6.0, tip, tip - tip.orthogonal().normalized() * 6.0], Color("#5a9a5a"), ink)
 		"lab_cat":
 			# 一只橘猫的脑袋，眯着眼
-			ci.draw_circle(Vector2(0, 4), 20.0, Pal.c("orange"))
+			Ink.disc(ci, Vector2(0, 4), 20.0, Pal.c("orange"))
 			_poly(ci, [Vector2(-18, -6), Vector2(-14, -26), Vector2(-4, -14)], Pal.c("orange"), ink)
 			_poly(ci, [Vector2(18, -6), Vector2(14, -26), Vector2(4, -14)], Pal.c("orange"), ink)
 			ci.draw_arc(Vector2(0, 4), 20.0, 0, TAU, 32, ink, 1.8, true)
@@ -517,13 +517,13 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 
 static func _box(ci: CanvasItem, r: Rect2, fill: Color, line: Color) -> void:
 	ci.draw_rect(r, fill)
-	ci.draw_rect(r, line, false, 1.8)
+	Ink.frame(ci, r, line, 1.8)
 
 static func _poly(ci: CanvasItem, pts: Array, fill: Color, line: Color) -> void:
 	var p := PackedVector2Array(pts)
 	ci.draw_colored_polygon(p, fill)
 	p.append(p[0])
-	ci.draw_polyline(p, line, 1.8, true)
+	Ink.pl(ci, p, line, 1.8)
 
 static func _star(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
 	var pts := PackedVector2Array()

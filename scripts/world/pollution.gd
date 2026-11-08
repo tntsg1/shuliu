@@ -125,7 +125,7 @@ func _paper(h: Vector2, p: float) -> void:
 				draw_rect(Rect2(r.position + Vector2(1.5, 2), r.size), Color(0, 0, 0, 0.1 * ga))
 			draw_rect(r, Color(s.tone, ga))
 			if g == 0:
-				draw_rect(r, Color(ink, ga * 0.75), false, 1.1)
+				Ink.frame(self, r, Color(ink, ga * 0.75), 1.1)
 				for k in s.lines:
 					var yy: float = -s.h * 0.28 + k * 3.4
 					draw_line(Vector2(-s.w * 0.36, yy), Vector2(s.w * (0.3 - 0.12 * k), yy), Color(ink, ga * 0.5), 1.0)
@@ -150,7 +150,7 @@ func _paper(h: Vector2, p: float) -> void:
 		draw_rect(Rect2(-17, -17, 34, 6), Color(nt.c.darkened(0.1), 0.92 * a))
 		var fold := 7.0 + 4.0 * lift
 		_tri(Vector2(17 - fold, 17), Vector2(17, 17 - fold), Vector2(17 - fold * 0.9, 17 - fold * 0.9), Color(nt.c.darkened(0.25), a))
-		draw_rect(r, Color(ink, 0.6 * a), false, 1.0)
+		Ink.frame(self, r, Color(ink, 0.6 * a), 1.0)
 		for k in 3:
 			var y := -6.0 + k * 7.0
 			draw_line(Vector2(-11, y), Vector2(7 - k * 4, y + sin(k + i) * 1.5), Color(ink, 0.55 * a), 1.2, true)
@@ -164,14 +164,14 @@ func _coffee(h: Vector2, p: float) -> void:
 		if a <= 0.0:
 			continue
 		var c: Vector2 = s.p
-		draw_circle(c, s.r, Color(brown, 0.06 * a))
+		Ink.disc(self, c, s.r, Color(brown, 0.06 * a))
 		draw_arc(c, s.r, s.a0, s.a0 + s.span, 40, Color(brown, 0.45 * a), 2.6, true)
 		draw_arc(c, s.r - 2.5, s.a0 + 0.3, s.a0 + s.span - 0.4, 40, Color(brown, 0.18 * a), 1.2, true)
 		if s.drip:
 			var top: Vector2 = c + Vector2(0, s.r)
 			var L: float = 24.0 + 16.0 * sin(s.a0 * 3.0)
 			draw_line(top, top + Vector2(1.5, L), Color(brown, 0.35 * a), 2.2, true)
-			draw_circle(top + Vector2(1.5, L + 1), 2.6, Color(brown, 0.4 * a))
+			Ink.disc(self, top + Vector2(1.5, L + 1), 2.6, Color(brown, 0.4 * a))
 
 ## 钟表：舱玻璃内侧一圈表盘刻度；一枚指针沿刻度走，每加速一次走一格
 func _clock(h: Vector2, p: float) -> void:
@@ -266,13 +266,13 @@ func _stationery(h: Vector2, p: float) -> void:
 		var pts: PackedVector2Array = d.pts
 		var n := int(round(pts.size() * a))
 		if n >= 2:
-			draw_polyline(pts.slice(0, n), Color(pencil, 0.55), 1.4, true)
+			Ink.pl(self, pts.slice(0, n), Color(pencil, 0.55), 1.4)
 	# 透明尺：贴在舱底玻璃上
 	var ra := clampf(p * 2.0, 0.0, 1.0)
 	var r := Rect2(-170, h.y - 44, 300, 18)
 	draw_set_transform(Vector2.ZERO, -0.03)
 	draw_rect(r, Color(Color("#e9e2c8"), 0.55 * ra))
-	draw_rect(r, Color(ink, 0.5 * ra), false, 1.0)
+	Ink.frame(self, r, Color(ink, 0.5 * ra), 1.0)
 	for i in 31:
 		var x := r.position.x + 8 + i * 9.5
 		var L := 8.0 if i % 5 == 0 else 4.0
@@ -320,7 +320,7 @@ func _seals(h: Vector2, p: float) -> void:
 			Ink.text(self, sd.word, Vector2(0, 11), 9, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		else:
 			var w := r * 2.2
-			draw_rect(Rect2(-w * 0.5, -r * 0.55, w, r * 1.1), col, false, 2.4)
+			Ink.frame(self, Rect2(-w * 0.5, -r * 0.55, w, r * 1.1), col, 2.4)
 			Ink.text(self, sd.word, Vector2(0, 6), 14, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 
@@ -356,15 +356,15 @@ func _metal(h: Vector2, p: float) -> void:
 					pts.append(Vector2.from_angle(i * TAU / 6.0) * 7.0)
 				draw_colored_polygon(pts, col)
 				pts.append(pts[0])
-				draw_polyline(pts, lc, 1.2, true)
-				draw_circle(Vector2.ZERO, 2.6, Pal.c("paper2"))
+				Ink.pl(self, pts, lc, 1.2)
+				Ink.disc(self, Vector2.ZERO, 2.6, Pal.c("paper2"))
 				draw_arc(Vector2.ZERO, 2.6, 0, TAU, 12, lc, 1.0, true)
 			1:
 				# 小螺丝
 				draw_rect(Rect2(-2, -2, 4, 12), col)
-				draw_rect(Rect2(-2, -2, 4, 12), lc, false, 1.0)
+				Ink.frame(self, Rect2(-2, -2, 4, 12), lc, 1.0)
 				draw_rect(Rect2(-5, -5, 10, 4), col)
-				draw_rect(Rect2(-5, -5, 10, 4), lc, false, 1.0)
+				Ink.frame(self, Rect2(-5, -5, 10, 4), lc, 1.0)
 				for k in 3:
 					draw_line(Vector2(-2, 1 + k * 3), Vector2(2, 2 + k * 3), Color(ink, a * 0.5), 0.8)
 			2:
@@ -399,12 +399,12 @@ func _photos(h: Vector2, p: float) -> void:
 			1:
 				# 合影：几个小人头
 				for i in 4:
-					draw_circle(Vector2(-12 + i * 8, -3), 3.2, Color(Color("#8a8f96"), a))
+					Ink.disc(self, Vector2(-12 + i * 8, -3), 3.2, Color(Color("#8a8f96"), a))
 					draw_rect(Rect2(-15 + i * 8, 1, 6, 9), Color(Color("#8a8f96"), a))
 			2:
 				# 加速器的老照片：一个环
 				draw_arc(Vector2(0, -2), 9.0, 0, TAU, 24, Color(Color("#6f747a"), a), 2.0, true)
-		draw_rect(r, Color(ink, 0.5 * a), false, 1.0)
+		Ink.frame(self, r, Color(ink, 0.5 * a), 1.0)
 		# 胶带
 		draw_set_transform(sh.p + Vector2(0, -19).rotated(sh.r), sh.r - 0.2, Vector2.ONE)
 		draw_rect(Rect2(-12, -5, 24, 10), Color(Color("#e9e2c8"), 0.75 * a))
@@ -430,19 +430,19 @@ func _scope(h: Vector2, p: float) -> void:
 		var ph := u * 9.0 - t * 1.6
 		var pulse := exp(-pow(fmod(ph, 1.0) - 0.5, 2.0) * 120.0)
 		pts.append(Vector2(x0 + w * u, y0 - 26.0 * pulse - 3.0 * sin(u * 40.0 + t * 3.0)))
-	draw_polyline(pts, Color(green, 0.75 * a), 1.8, true)
+	Ink.pl(self, pts, Color(green, 0.75 * a), 1.8)
 	if p > 0.5:
 		var a2 := clampf((p - 0.5) / 0.25, 0.0, 1.0) * a
 		var pts2 := PackedVector2Array()
 		for i in 121:
 			var u := float(i) / 120.0
 			pts2.append(Vector2(x0 + w * u, -h.y * 0.5 + 14.0 * sin(u * TAU * 3.0 + t * 2.2) * sin(u * PI)))
-		draw_polyline(pts2, Color(amber, 0.6 * a2), 1.4, true)
+		Ink.pl(self, pts2, Color(amber, 0.6 * a2), 1.4)
 	if p > 0.8:
 		var a3 := clampf((p - 0.8) / 0.2, 0.0, 1.0) * a
 		var box := Rect2(h.x - 150, -h.y + 26, 98, 34)
 		draw_rect(box, Color(Color("#e9e6da"), 0.75 * a3))
-		draw_rect(box, Color(green, 0.6 * a3), false, 1.0)
+		Ink.frame(self, box, Color(green, 0.6 * a3), 1.0)
 		Ink.text(self, "CH1  2.00V", box.position + Vector2(6, 14), 10, Color(green, a3), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 		Ink.text(self, "CH2  %.2fV" % (0.5 + 0.3 * sin(t)), box.position + Vector2(6, 28), 10, Color(amber, a3), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 
@@ -480,16 +480,16 @@ func _mascots(h: Vector2, p: float) -> void:
 		# 身体 + 尾巴
 		draw_set_transform(Vector2(x, y))
 		draw_colored_polygon(_oval(Vector2(0, -12), 20.0, 10.0), o)
-		draw_polyline(PackedVector2Array([Vector2(-18, -14), Vector2(-28, -24), Vector2(-26, -34)]), o, 4.0, true)
+		Ink.pl(self, PackedVector2Array([Vector2(-18, -14), Vector2(-28, -24), Vector2(-26, -34)]), o, 4.0)
 		# 腿
 		for i in 4:
 			var lx := -12.0 + i * 8.0
 			draw_line(Vector2(lx, -4), Vector2(lx + walk * (2.5 if i % 2 == 0 else -2.5), 6), o, 3.5)
 		# 头
-		draw_circle(Vector2(20, -20), 8.0, o)
+		Ink.disc(self, Vector2(20, -20), 8.0, o)
 		draw_colored_polygon(PackedVector2Array([Vector2(14, -25), Vector2(16, -34), Vector2(20, -27)]), o)
 		draw_colored_polygon(PackedVector2Array([Vector2(22, -27), Vector2(25, -34), Vector2(27, -24)]), o)
-		draw_circle(Vector2(23, -21), 1.2, l)
+		Ink.disc(self, Vector2(23, -21), 1.2, l)
 		draw_set_transform(Vector2.ZERO)
 	if p > 0.6:
 		var a2 := clampf((p - 0.6) / 0.3, 0.0, 1.0)

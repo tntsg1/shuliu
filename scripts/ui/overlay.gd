@@ -194,7 +194,7 @@ func _draw() -> void:
 		var w := Ink.size(Pal.font, toast, 18).x + 40
 		var rr := Rect2(vp.x * 0.5 - w * 0.5, 76, w, 40)
 		draw_rect(rr, Color(Pal.c("paper"), a))
-		draw_rect(rr, Color(Pal.equip_line(), a), false, 1.4)
+		Ink.frame(self, rr, Color(Pal.equip_line(), a), 1.4)
 		Ink.text(self, toast, Vector2(vp.x * 0.5, 102), 18, Color(Pal.c("text"), a), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
 
 ## 超级同步：金色/纸色相间的射线从观测舱中心转着炸开，三道墨圈依次扩散（哑光平涂，不发光）
@@ -232,7 +232,7 @@ func _strip(vp: Vector2) -> void:
 	var w := 860.0
 	draw_rect(Rect2(4, 5, w, 42), Color(0, 0, 0, 0.12))
 	draw_rect(Rect2(0, 0, w, 42), Pal.c("paper"))
-	draw_rect(Rect2(0, 0, w, 42), Color(el, 0.5), false, 1.0)
+	Ink.frame(self, Rect2(0, 0, w, 42), Color(el, 0.5), 1.0)
 	draw_rect(Rect2(-8, 8, 34, 26), Color(Pal.c("gold"), 0.45))
 	draw_rect(Rect2(w - 26, 8, 34, 26), Color(Pal.c("gold"), 0.45))
 	Ink.text(self, "BEAMLINE  束流", Vector2(40, 29), 18, Pal.c("text"), Pal.bold)
@@ -255,15 +255,15 @@ func _stamp(vp: Vector2) -> void:
 	var h := fs + 34.0
 	var col := Color(st_col, a * 0.92)
 	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.c("paper"), a * 0.55))
-	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), col, false, 4.0)
-	draw_rect(Rect2(-w * 0.5 + 7, -h * 0.5 + 7, w - 14, h - 14), col, false, 1.6)
+	Ink.frame(self, Rect2(-w * 0.5, -h * 0.5, w, h), col, 4.0)
+	Ink.frame(self, Rect2(-w * 0.5 + 7, -h * 0.5 + 7, w - 14, h - 14), col, 1.6)
 	Ink.text(self, st_text, Vector2(0, fs * 0.36), fs, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	# 印泥不均：随机白点
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(st_text)
 	for i in 26:
 		var p := Vector2(rng.randf_range(-w * 0.5, w * 0.5), rng.randf_range(-h * 0.5, h * 0.5))
-		draw_circle(p, rng.randf_range(0.8, 2.4), Color(Pal.c("paper"), a * 0.7))
+		Ink.disc(self, p, rng.randf_range(0.8, 2.4), Color(Pal.c("paper"), a * 0.7))
 	draw_set_transform(Vector2.ZERO)
 
 func _tally(vp: Vector2) -> void:
@@ -281,7 +281,7 @@ func _tally(vp: Vector2) -> void:
 	draw_rect(Rect2(-w * 0.5 + 5, -h * 0.5 + 7, w, h), Color(0, 0, 0, 0.14 * a))
 	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.c("paper"), a))
 	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, 10), Color(tl.col, a))
-	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.equip_line(), a), false, 1.6)
+	Ink.frame(self, Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.equip_line(), a), 1.6)
 	Ink.text(self, tl.title, Vector2(-w * 0.5 + 20, -h * 0.5 + 36), 16, Color(Pal.c("text2"), a), Pal.bold)
 	Ink.text(self, tl.sub, Vector2(w * 0.5 - 20, -h * 0.5 + 36), 15, Color(Pal.c("green"), a), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 	Ink.text(self, tl.value, Vector2(0, h * 0.5 - 20), 40, Color(tl.col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
@@ -300,7 +300,7 @@ func _prev_stamp(vp: Vector2) -> void:
 	var h := fs + 34.0
 	var col := Color(prev.col, a * 0.6)
 	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.c("paper"), a * 0.5))
-	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), col, false, 3.0)
+	Ink.frame(self, Rect2(-w * 0.5, -h * 0.5, w, h), col, 3.0)
 	Ink.text(self, prev.text, Vector2(0, fs * 0.36), fs, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	var sk := clampf(k / 0.18, 0.0, 1.0)
 	draw_line(Vector2(-w * 0.55, 6), Vector2(-w * 0.55 + w * 1.1 * sk, -6), Color(Pal.c("red"), a), 5.0, true)
@@ -312,7 +312,7 @@ func _bloom(vp: Vector2) -> void:
 	var bw := 520.0
 	draw_rect(Rect2(vp.x * 0.5 - bw * 0.5 + 6, y - 74, bw, 132), Color(0, 0, 0, 0.15 * a))
 	draw_rect(Rect2(vp.x * 0.5 - bw * 0.5, y - 80, bw, 132), Color(Pal.c("paper"), a))
-	draw_rect(Rect2(vp.x * 0.5 - bw * 0.5, y - 80, bw, 132), Color(Pal.equip_line(), a), false, 1.6)
+	Ink.frame(self, Rect2(vp.x * 0.5 - bw * 0.5, y - 80, bw, 132), Color(Pal.equip_line(), a), 1.6)
 	var s: String = main.fmt(int(round(bloom_disp)))
 	Ink.text(self, "+" + s + " RP", Vector2(vp.x * 0.5 + 3, y + 3), 64, Color(0, 0, 0, 0.25 * a), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 	Ink.text(self, "+" + s + " RP", Vector2(vp.x * 0.5, y), 64, Color(Pal.c("text"), a), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
@@ -328,7 +328,7 @@ func _bloom(vp: Vector2) -> void:
 			var col := Pal.c("red") if bloom_meme.first else Pal.c("text2")
 			var txt := "新发现！" if bloom_meme.first else "已收录"
 			draw_rect(Rect2(-58, -18, 116, 36), Color(Pal.c("paper"), a))
-			draw_rect(Rect2(-58, -18, 116, 36), Color(col, a), false, 3.0)
+			Ink.frame(self, Rect2(-58, -18, 116, 36), Color(col, a), 3.0)
 			Ink.text(self, txt, Vector2(0, 8), 20, Color(col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 			draw_set_transform(Vector2.ZERO)
 
@@ -342,11 +342,11 @@ func _card(vp: Vector2) -> void:
 	var o := Vector2(-w * 0.5, -h * 0.5)
 	draw_rect(Rect2(o + Vector2(8, 10), Vector2(w, h)), Color(0, 0, 0, 0.2))
 	draw_rect(Rect2(o, Vector2(w, h)), Pal.c("paper"))
-	draw_rect(Rect2(o, Vector2(w, h)), el, false, 2.0)
-	draw_rect(Rect2(o + Vector2(10, 10), Vector2(w - 20, h - 20)), Color(el, 0.3), false, 1.0)
+	Ink.frame(self, Rect2(o, Vector2(w, h)), el, 2.0)
+	Ink.frame(self, Rect2(o + Vector2(10, 10), Vector2(w - 20, h - 20)), Color(el, 0.3), 1.0)
 	# 打孔
 	for i in 3:
-		draw_circle(o + Vector2(28, 60 + i * 70), 7.0, Pal.c("paper2"))
+		Ink.disc(self, o + Vector2(28, 60 + i * 70), 7.0, Pal.c("paper2"))
 		draw_arc(o + Vector2(28, 60 + i * 70), 7.0, 0, TAU, 16, Color(el, 0.5), 1.0, true)
 	Ink.text(self, card.get("title", ""), o + Vector2(64, 62), 30, card.get("title_col", Pal.c("text")), Pal.bold)
 	Ink.text(self, card.get("value", ""), o + Vector2(64, 138), 56, Pal.c("text"), Pal.mono)
@@ -367,7 +367,7 @@ func _card(vp: Vector2) -> void:
 		var br := Rect2(bx, o.y + h - 54, bw, 40)
 		var hot := hover_btn == i
 		draw_rect(br.grow(2) if hot else br, Pal.c("gold") if hot else Pal.c("paper2"))
-		draw_rect(br, Pal.equip_line(), false, 2.0 if hot else 1.4)
+		Ink.frame(self, br, Pal.equip_line(), 2.0 if hot else 1.4)
 		Ink.text(self, label, br.position + Vector2(14, 27), 18, Pal.c("text"), Pal.bold)
 		Ink.text(self, b.key, br.end - Vector2(12, 13), 13, Pal.c("text2"), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
 		# 按钮矩形转回屏幕坐标（卡片绕中心有极小旋转，可忽略）
@@ -422,7 +422,7 @@ func _trigs(vp: Vector2) -> void:
 		draw_set_transform(p, -0.02)
 		draw_rect(Rect2(4, 5, w, 54), Color(0, 0, 0, 0.15 * a))
 		draw_rect(Rect2(0, 0, w, 54), Color(Pal.c("paper"), a))
-		draw_rect(Rect2(0, 0, w, 54), Color(Pal.c("gold"), a), false, 3.0)
+		Ink.frame(self, Rect2(0, 0, w, 54), Color(Pal.c("gold"), a), 3.0)
 		draw_set_transform(Vector2.ZERO)
 		Icons.draw(self, tg.id, p + Vector2(32, 27), 40.0)
 		draw_set_transform(p, -0.02)
@@ -469,7 +469,7 @@ func _tip(vp: Vector2) -> void:
 	var a := tip_v
 	draw_rect(Rect2(p + Vector2(4, 5), Vector2(w, h)), Color(0, 0, 0, 0.15 * a))
 	draw_rect(Rect2(p, Vector2(w, h)), Color(Pal.c("paper"), a))
-	draw_rect(Rect2(p, Vector2(w, h)), Color(Pal.equip_line(), a), false, 1.6)
+	Ink.frame(self, Rect2(p, Vector2(w, h)), Color(Pal.equip_line(), a), 1.6)
 	var y := p.y + 30.0
 	for i in tip_lines.size():
 		if i == 0:
@@ -515,7 +515,7 @@ func _celebrate(vp: Vector2) -> void:
 		var br := Rect2(vp.x * 0.5 - bw * 0.5, 96.0, bw, 120.0)
 		draw_rect(Rect2(br.position + Vector2(8, 10), br.size), Color(0, 0, 0, 0.2 * fade))
 		draw_rect(br, Color(Pal.c("red"), fade))
-		draw_rect(br.grow(-8), Color(Pal.c("gold"), fade), false, 3.0)
+		Ink.frame(self, br.grow(-8), Color(Pal.c("gold"), fade), 3.0)
 		# 两头燕尾
 		for sd in [-1.0, 1.0]:
 			var ex := br.position.x if sd < 0 else br.end.x
@@ -529,7 +529,7 @@ func _celebrate(vp: Vector2) -> void:
 	if qa > 0.0 and cel_quip != "":
 		var qw := Ink.size(Pal.hand, cel_quip, 26).x + 60.0
 		draw_rect(Rect2(vp.x * 0.5 - qw * 0.5, 232.0, qw, 44.0), Color(Pal.c("paper"), 0.92 * qa))
-		draw_rect(Rect2(vp.x * 0.5 - qw * 0.5, 232.0, qw, 44.0), Color(Pal.equip_line(), 0.5 * qa), false, 1.2)
+		Ink.frame(self, Rect2(vp.x * 0.5 - qw * 0.5, 232.0, qw, 44.0), Color(Pal.equip_line(), 0.5 * qa), 1.2)
 		Ink.text(self, cel_quip, Vector2(vp.x * 0.5, 263.0), 26, Color(Pal.c("blue"), qa), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 	# 大红“通过”章：先从天而降砸在中间，再缩到横幅右上角
 	var drop := clampf(k / 0.22, 0.0, 1.0)
@@ -538,7 +538,7 @@ func _celebrate(vp: Vector2) -> void:
 	var sc := lerpf(3.2, 1.0, Ink.ease_out_cubic(drop)) * lerpf(1.0, 0.42, move)
 	var sa := drop * fade
 	draw_set_transform(sp, -0.18, Vector2(sc, sc))
-	draw_circle(Vector2.ZERO, 120.0, Color(Pal.c("paper"), 0.85 * sa))
+	Ink.disc(self, Vector2.ZERO, 120.0, Color(Pal.c("paper"), 0.85 * sa))
 	draw_arc(Vector2.ZERO, 120.0, 0.3, TAU - 0.1, 64, Color(Pal.c("red"), sa), 10.0, true)
 	draw_arc(Vector2.ZERO, 100.0, 0, TAU, 64, Color(Pal.c("red"), sa), 3.0, true)
 	var star := PackedVector2Array()
@@ -581,11 +581,11 @@ func _form_card(vp: Vector2) -> void:
 	draw_rect(r, Pal.c("paper"))
 	draw_rect(Rect2(r.position, Vector2(W, 48)), head)
 	Ink.text(self, "实验成果 · #%d · E%d 引出" % [d.get("no", 1), d.energy], r.position + Vector2(20, 32), 20, Pal.c("paper"), Pal.bold)
-	draw_rect(r, el, false, 2.0)
+	Ink.frame(self, r, el, 2.0)
 	# 画框：迷你束流
 	var box := Rect2(r.position + Vector2(24, 66), Vector2(W - 48, 230))
 	draw_rect(box, Pal.c("inner0"))
-	draw_rect(box, Color(el, 0.6), false, 1.4)
+	Ink.frame(self, box, Color(el, 0.6), 1.4)
 	for gx in range(1, 12):
 		draw_line(Vector2(box.position.x + gx * box.size.x / 12.0, box.position.y), Vector2(box.position.x + gx * box.size.x / 12.0, box.end.y), Color(Pal.c("grid"), 0.6), 1.0)
 	var st := d.duplicate()
@@ -637,6 +637,6 @@ func _form_card(vp: Vector2) -> void:
 		var ncol := Pal.c("red") if d.first else Pal.c("text2")
 		var txt := "新发现！" if d.first else "已收录"
 		draw_rect(Rect2(-58, -18, 116, 36), Pal.c("paper"))
-		draw_rect(Rect2(-58, -18, 116, 36), ncol, false, 3.0)
+		Ink.frame(self, Rect2(-58, -18, 116, 36), ncol, 3.0)
 		Ink.text(self, txt, Vector2(0, 8), 20, ncol, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)

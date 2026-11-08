@@ -37,7 +37,7 @@ func _draw() -> void:
 	var br := Rect2(X + 8, y - 232, W - 16, 74)
 	draw_rect(Rect2(br.position + Vector2(3, 4), br.size), Color(0, 0, 0, 0.12))
 	draw_rect(br, Pal.c("paper"))
-	draw_rect(br, el, false, 1.6)
+	Ink.frame(self, br, el, 1.6)
 	draw_rect(Rect2(br.position, Vector2(br.size.x, 16)), Pal.c("red") if must else (Pal.c("green") if can else Pal.c("blue")))
 	Ink.text(self, "考核审核台", br.position + Vector2(br.size.x * 0.5, 13), 12, Pal.c("paper"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	if not run.won():
@@ -47,7 +47,7 @@ func _draw() -> void:
 		draw_rect(pr, Pal.c("paper2"))
 		var k := clampf(float(run.total) / maxf(1.0, run.line()), 0.0, 1.0)
 		draw_rect(Rect2(pr.position, Vector2(pr.size.x * k, pr.size.y)), Pal.c("green") if can else Pal.c("ramp2"))
-		draw_rect(pr, el, false, 1.0)
+		Ink.frame(self, pr, el, 1.0)
 	Ink.rivet(self, br.position + Vector2(6, 22), 1.8)
 	Ink.rivet(self, Vector2(br.end.x - 6, br.position.y + 22), 1.8)
 	# —— 桌子 ——
@@ -64,7 +64,7 @@ func _draw() -> void:
 		var lift := -sin(bump * PI) * 6.0 if i == n - 1 else 0.0
 		draw_rect(Rect2(tray.position.x + 4 + (i % 2) * 1.5, tray.end.y - 4 - i * 1.6 + lift, 50, 3), Pal.c("paper"))
 		draw_line(Vector2(tray.position.x + 4, tray.end.y - 4 - i * 1.6 + lift), Vector2(tray.position.x + 54, tray.end.y - 4 - i * 1.6 + lift), Color(el, 0.4), 0.8)
-	draw_polyline(PackedVector2Array([tray.position, Vector2(tray.position.x, tray.end.y), tray.end, Vector2(tray.end.x, tray.position.y)]), el, 1.8, true)
+	Ink.pl(self, PackedVector2Array([tray.position, Vector2(tray.position.x, tray.end.y), tray.end, Vector2(tray.end.x, tray.position.y)]), el, 1.8)
 	# 印章 + 印台
 	Ink.box(self, Rect2(X + 82, top - 8, 26, 8), Color("#3a3d42"), el, 1.0, 615)
 	draw_rect(Rect2(X + 85, top - 6, 20, 4), Pal.c("red"))
@@ -75,7 +75,7 @@ func _draw() -> void:
 	draw_line(Vector2(X + 136, top), Vector2(X + 136, top - 40), el, 2.0)
 	draw_line(Vector2(X + 136, top - 40), Vector2(X + 120, top - 52), el, 2.0)
 	draw_colored_polygon(PackedVector2Array([Vector2(X + 108, top - 46), Vector2(X + 128, top - 60), Vector2(X + 132, top - 50), Vector2(X + 116, top - 40)]), lamp_on)
-	draw_polyline(PackedVector2Array([Vector2(X + 108, top - 46), Vector2(X + 128, top - 60), Vector2(X + 132, top - 50), Vector2(X + 116, top - 40), Vector2(X + 108, top - 46)]), el, 1.4, true)
+	Ink.pl(self, PackedVector2Array([Vector2(X + 108, top - 46), Vector2(X + 128, top - 60), Vector2(X + 132, top - 50), Vector2(X + 116, top - 40), Vector2(X + 108, top - 46)]), el, 1.4)
 	# 够线：收件盘上插一面小旗
 	if can:
 		var wv := sin(t * 4.0) * 2.0
@@ -86,4 +86,4 @@ func _draw() -> void:
 		Ink.text(self, "束流用完 · 请提交", Vector2(X + W * 0.5, top - 98 - sin(t * 5.0) * 2.0), 13, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	# 悬停描边
 	if hot > 0.01:
-		draw_rect(rect().grow(4), Color(Pal.c("red"), 0.6 * hot), false, 2.0)
+		Ink.frame(self, rect().grow(4), Color(Pal.c("red"), 0.6 * hot), 2.0)

@@ -104,7 +104,7 @@ func profile(tag: String, n := 120) -> void:
 
 func freeze_test(tag: String) -> void:
 	var base: float = (await measure(tag + " 基线", 240)).frame
-	for k in ["overlay", "panel", "charms", "form", "chamber", "pollution", "clip_l", "clip_r", "ringmap", "gear", "title", "detector", "grain"]:
+	for k in ["overlay", "panel", "charms", "form", "chamber", "pollution", "clip_l", "clip_r", "ringmap", "gear", "detector", "desk", "review", "player", "prompt", "shot", "cel"]:
 		var n = main.get(k)
 		if n == null:
 			continue
@@ -147,4 +147,21 @@ func _go() -> void:
 	await frames(60)
 	await measure("控制台 E14")
 	await freeze_test("控制台 E14")
+	# 动作场景：连续加速、引出开花
+	main.run.beam.energy = 8
+	main._sync()
+	await frames(30)
+	for i in 4:
+		main.accelerate()
+		await measure("  加速 #%d 揭晓" % (i + 1), 70)
+		if main.run.beam == null:
+			break
+	if main.run.beam != null:
+		main.extract()
+		await measure("  引出开花前段", 90)
+		await freeze_test("开花中")
+		await measure("  引出开花后段", 90)
+	await frames(200)
+	await measure("  开花后控制台", 90)
+	await freeze_test("开花后")
 	quit(0)

@@ -42,5 +42,5 @@ func _draw() -> void:
 		if xx > tail:
 			draw_line(Vector2(xx, y - 10 - i % 2 * 4), Vector2(xx - 16, y - 10 - i % 2 * 4), Color(ink, 0.6), 1.0)
 			draw_line(Vector2(xx - 8, y + 10 + i % 2 * 4), Vector2(xx - 24, y + 10 + i % 2 * 4), Color(ink, 0.6), 1.0)
-	draw_circle(Vector2(head, y), 7.0, col)
+	Ink.disc(self, Vector2(head, y), 7.0, col)
 	draw_arc(Vector2(head, y), 7.0, 0, TAU, 20, ink, 1.4, true)

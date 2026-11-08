@@ -17,6 +17,20 @@ func _process(dt: float) -> void:
 		bounce[k] = maxf(0.0, bounce[k] - dt * 1.6)
 	queue_redraw()
 
+var _shelf: Baked     # 护身符架（两层搁板 + 标签）
+
+func _ready() -> void:
+	_shelf = Baked.make(self, _paint_shelf, true)
+
+func _paint_shelf(ci: CanvasItem) -> void:
+	var s := SHELF
+	var el := Pal.equip_line()
+	Ink.box(ci, Rect2(s.position.x, s.position.y + 42, s.size.x, 6), Pal.c("equip_dark"), el, 1.4, 901)
+	Ink.box(ci, Rect2(s.position.x, s.end.y - 6, s.size.x, 6), Pal.c("equip_dark"), el, 1.4, 902)
+	Ink.box(ci, Rect2(s.position.x - 4, s.position.y - 4, 6, s.size.y + 4), Pal.c("equip_dark"), el, 1.2, 903)
+	Ink.box(ci, Rect2(s.end.x - 2, s.position.y - 4, 6, s.size.y + 4), Pal.c("equip_dark"), el, 1.2, 904)
+	Ink.sticker(ci, "护身符", Vector2(s.position.x + 34, s.position.y - 12), -0.05, 10)
+
 func _draw() -> void:
 	if main == null or main.run == null:
 		return
@@ -32,23 +46,18 @@ func _draw() -> void:
 		draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.12))
 		Ink.box(self, r, Pal.c("equip"), el, 2.0, i * 31)
 		draw_rect(Rect2(r.position + Vector2(6, 6), Vector2(56, 56)), Pal.c("paper"))
-		draw_rect(Rect2(r.position + Vector2(6, 6), Vector2(56, 56)), el, false, 1.2)
+		Ink.frame(self, Rect2(r.position + Vector2(6, 6), Vector2(56, 56)), el, 1.2)
 		Icons.draw(self, id, r.position + Vector2(34, 34), 50.0)
 		# 底部状态灯：触发时变亮
 		var lamp := Pal.c("ramp2").lerp(Pal.c("gold"), b) if b > 0.0 else Pal.c("equip_dark")
 		draw_rect(Rect2(r.position + Vector2(10, 70), Vector2(48, 10)), lamp)
-		draw_rect(Rect2(r.position + Vector2(10, 70), Vector2(48, 10)), el, false, 1.0)
+		Ink.frame(self, Rect2(r.position + Vector2(10, 70), Vector2(48, 10)), el, 1.0)
 		Ink.rivet(self, r.position + Vector2(5, 86), 2.0)
 		Ink.rivet(self, r.position + Vector2(63, 86), 2.0)
 		if b > 0.0:
-			draw_rect(r.grow(4 + b * 6), Color(Pal.c("gold"), b), false, 3.0)
+			Ink.frame(self, r.grow(4 + b * 6), Color(Pal.c("gold"), b), 3.0)
 	# —— 护身符架（舱下两层搁板） ——
 	var s := SHELF
-	Ink.box(self, Rect2(s.position.x, s.position.y + 42, s.size.x, 6), Pal.c("equip_dark"), el, 1.4, 901)
-	Ink.box(self, Rect2(s.position.x, s.end.y - 6, s.size.x, 6), Pal.c("equip_dark"), el, 1.4, 902)
-	Ink.box(self, Rect2(s.position.x - 4, s.position.y - 4, 6, s.size.y + 4), Pal.c("equip_dark"), el, 1.2, 903)
-	Ink.box(self, Rect2(s.end.x - 2, s.position.y - 4, 6, s.size.y + 4), Pal.c("equip_dark"), el, 1.2, 904)
-	Ink.sticker(self, "护身符", Vector2(s.position.x + 34, s.position.y - 12), -0.05, 10)
 	var shown := 0
 	for id in run.relics:
 		if id == "chair":

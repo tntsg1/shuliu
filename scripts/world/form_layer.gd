@@ -118,14 +118,14 @@ func _morph_fx() -> void:
 		for i in 49:
 			var an := i / 48.0 * TAU
 			pts.append(Vector2(cos(an) * 270.0, sin(an) * 145.0) * e)
-		draw_polyline(pts, Color(Pal.c("ink"), a), 3.0, true)
+		Ink.pl(self, pts, Color(Pal.c("ink"), a), 3.0)
 	var sa := clampf(k / 0.12, 0.0, 1.0) * clampf((1.6 - k) / 0.3, 0.0, 1.0)
 	var sc := lerpf(2.2, 1.0, Ink.ease_out_back(clampf(k / 0.18, 0.0, 1.0)))
 	var red := Pal.c("gold").darkened(0.2) if info.legend != "" else Pal.c("red")
 	draw_set_transform(Vector2(190, -112), -0.18, Vector2(sc, sc))
 	var w := Ink.size(Pal.bold, morph_label, 26).x + 28.0
 	draw_rect(Rect2(-w * 0.5, -22, w, 40), Color(Pal.c("paper"), 0.9 * sa))
-	draw_rect(Rect2(-w * 0.5, -22, w, 40), Color(red, sa), false, 3.0)
+	Ink.frame(self, Rect2(-w * 0.5, -22, w, 40), Color(red, sa), 3.0)
 	Ink.text(self, morph_label, Vector2(0, 8), 26, Color(red, sa), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 
@@ -178,8 +178,8 @@ func _draw_shatter() -> void:
 			var m := int(c.size() * ck)
 			if m >= 2:
 				var sub: PackedVector2Array = c.slice(0, m)
-				draw_polyline(sub, Color(Pal.c("ink"), 1.0 - go), 3.0, true)
-				draw_polyline(sub, Color(Pal.c("paper"), 0.8 * (1.0 - go)), 1.0, true)
+				Ink.pl(self, sub, Color(Pal.c("ink"), 1.0 - go), 3.0)
+				Ink.pl(self, sub, Color(Pal.c("paper"), 0.8 * (1.0 - go)), 1.0)
 	# 3) 束芯碎片：定格后才飞
 	var fly := hold >= 1.0
 	for sh in shards:
@@ -190,4 +190,4 @@ func _draw_shatter() -> void:
 			pts.append(p + (q as Vector2).rotated(sh.rot if fly else 0.0))
 		draw_colored_polygon(pts, Color(sh.c, a))
 		pts.append(pts[0])
-		draw_polyline(pts, Color(Pal.c("ink"), a), 1.4, true)
+		Ink.pl(self, pts, Color(Pal.c("ink"), a), 1.4)

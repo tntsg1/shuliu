@@ -51,13 +51,13 @@ func _draw() -> void:
 	# 硬纸板
 	draw_rect(Rect2(o + Vector2(6, 8), Vector2(W, HGT)), Color(0, 0, 0, 0.18))
 	draw_rect(Rect2(o, Vector2(W, HGT)), Color("#b58a5a") if not Pal.dark else Color("#7a5a3a"))
-	draw_rect(Rect2(o, Vector2(W, HGT)), el, false, 1.8)
+	Ink.frame(self, Rect2(o, Vector2(W, HGT)), el, 1.8)
 	# 纸
 	var pr := Rect2(o + Vector2(16, 40), Vector2(W - 32, HGT - 56))
 	draw_rect(pr, Pal.c("paper"))
 	draw_rect(Rect2(pr.position + Vector2(3, -3), pr.size), Color(Pal.c("paper2"), 0.9))
 	draw_rect(pr, Pal.c("paper"))
-	draw_rect(pr, Color(el, 0.4), false, 1.0)
+	Ink.frame(self, pr, Color(el, 0.4), 1.0)
 	# 横格线
 	var yy := pr.position.y + 64
 	while yy < pr.end.y - 10:
@@ -67,12 +67,12 @@ func _draw() -> void:
 	# 金属夹
 	var cx := 0.0
 	draw_rect(Rect2(Vector2(cx - 70, o.y + 10), Vector2(140, 46)), Color("#9aa0a6"))
-	draw_rect(Rect2(Vector2(cx - 70, o.y + 10), Vector2(140, 46)), el, false, 1.6)
+	Ink.frame(self, Rect2(Vector2(cx - 70, o.y + 10), Vector2(140, 46)), el, 1.6)
 	draw_rect(Rect2(Vector2(cx - 54, o.y + 16), Vector2(108, 10)), Color(1, 1, 1, 0.35))
-	draw_circle(Vector2(cx, o.y + 12), 9.0, Color("#9aa0a6"))
+	Ink.disc(self, Vector2(cx, o.y + 12), 9.0, Color("#9aa0a6"))
 	draw_arc(Vector2(cx, o.y + 12), 9.0, 0, TAU, 20, el, 1.4, true)
-	draw_circle(Vector2(cx - 50, o.y + 44), 3.0, el)
-	draw_circle(Vector2(cx + 50, o.y + 44), 3.0, el)
+	Ink.disc(self, Vector2(cx - 50, o.y + 44), 3.0, el)
+	Ink.disc(self, Vector2(cx + 50, o.y + 44), 3.0, el)
 	if side < 0:
 		_left(pr)
 	else:
@@ -84,8 +84,8 @@ func _draw() -> void:
 		var a := clampf((3.0 - stamp_t) / 0.4, 0.0, 1.0)
 		draw_set_transform(Vector2(x + W * 0.5, y + 330), -0.16, Vector2(sc, sc))
 		var col := Color(Pal.c("red"), 0.85 * a)
-		draw_rect(Rect2(-130, -36, 260, 72), col, false, 4.0)
-		draw_rect(Rect2(-122, -28, 244, 56), col, false, 1.6)
+		Ink.frame(self, Rect2(-130, -36, 260, 72), col, 4.0)
+		Ink.frame(self, Rect2(-122, -28, 244, 56), col, 1.6)
 		Ink.text(self, stamp_text, Vector2(0, 12), 32, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 
@@ -103,7 +103,7 @@ func _left(pr: Rect2) -> void:
 	# 图：阶梯考核线 + 累计曲线
 	var g := Rect2(pr.position + Vector2(20, 150), Vector2(pr.size.x - 40, 170))
 	draw_rect(g, Color(Pal.c("paper2"), 0.5))
-	draw_rect(g, Color(ink, 0.5), false, 1.0)
+	Ink.frame(self, g, Color(ink, 0.5), 1.0)
 	var vmax := float(Run.LINES[-1]) * 1.15
 	var steps := Run.LINES.size()
 	var prev := Vector2(g.position.x, g.end.y)
@@ -121,14 +121,14 @@ func _left(pr: Rect2) -> void:
 	var tot_y := g.end.y - g.size.y * minf(total_disp, vmax) / vmax
 	var cur_x := g.position.x + g.size.x * (mini(run.stage, steps - 1) + 0.5) / steps
 	draw_line(Vector2(g.position.x, tot_y), Vector2(cur_x, tot_y), Pal.c("blue"), 2.2, true)
-	draw_circle(Vector2(cur_x, tot_y), 4.0, Pal.c("blue"))
+	Ink.disc(self, Vector2(cur_x, tot_y), 4.0, Pal.c("blue"))
 	# 剩余实验
 	var q := pr.position + Vector2(52, 370)
 	Ink.text(self, "本阶段剩余实验", q, 16, Pal.c("text2"))
 	for i in maxi(Run.PER_STAGE, run.experiments_left):
 		var c := q + Vector2(150 + i * 30, -6)
 		if i < run.experiments_left:
-			draw_circle(c, 9.0, Pal.c("ramp2"))
+			Ink.disc(self, c, 9.0, Pal.c("ramp2"))
 		draw_arc(c, 9.0, 0, TAU, 20, ink, 1.6, true)
 	if run.total >= run.line() and not run.won():
 		Ink.text(self, "已够线：可去审核台提交", pr.position + Vector2(52, 410), 18, Pal.c("green"), Pal.bold)
@@ -142,7 +142,7 @@ func _left(pr: Rect2) -> void:
 		var tag := Rect2(pr.position + Vector2(40, 452), Vector2(pr.size.x - 80, 66))
 		draw_rect(tag, Pal.c("paper"))
 		draw_rect(Rect2(tag.position, Vector2(6, tag.size.y)), Pal.c("red"))
-		draw_rect(tag, Color(ink, 0.5), false, 1.0)
+		Ink.frame(self, tag, Color(ink, 0.5), 1.0)
 		Ink.text(self, "计划书：" + pd.name, tag.position + Vector2(14, 20), 15, Pal.c("red"), Pal.bold)
 		Ink.text(self, "▲ " + pd.good, tag.position + Vector2(14, 40), 12, Pal.c("green"), Pal.font)
 		Ink.text(self, "▼ " + pd.bad, tag.position + Vector2(14, 58), 12, Pal.c("red"), Pal.font)
@@ -159,7 +159,7 @@ func _right(pr: Rect2) -> void:
 		var yy := p.y + 40 + i * 26
 		var a := 1.0 - i * 0.07
 		draw_rect(Rect2(Vector2(p.x, yy - 12), Vector2(12, 12)), Color(Pal.outcome(e.outcome), a))
-		draw_rect(Rect2(Vector2(p.x, yy - 12), Vector2(12, 12)), Color(ink, 0.5 * a), false, 1.0)
+		Ink.frame(self, Rect2(Vector2(p.x, yy - 12), Vector2(12, 12)), Color(ink, 0.5 * a), 1.0)
 		Ink.text(self, Odds.NAMES[e.outcome], Vector2(p.x + 20, yy), 16, Color(ink, a))
 		var tx := "E%d→E%d" % [e.from, e.to] if e.outcome != Odds.LOSS else "E%d ✕" % e.from
 		Ink.text(self, tx, Vector2(p.x + 120, yy), 15, Color(Pal.c("text2"), a), Pal.mono)
@@ -168,7 +168,7 @@ func _right(pr: Rect2) -> void:
 	if not freq_open:
 		freq_rect = Rect2(pr.position.x + 20, pr.end.y - 40, pr.size.x - 40, 30)
 		draw_rect(freq_rect, Pal.c("paper2"))
-		draw_rect(freq_rect, Color(ink, 0.35), false, 1.0)
+		Ink.frame(self, freq_rect, Color(ink, 0.35), 1.0)
 		Ink.text(self, "▸ 概率核对：显示概率 vs 实际频率（点开）", freq_rect.position + Vector2(12, 21), 14, Pal.c("text2"))
 		return
 	var q := pr.position + Vector2(20, 300)

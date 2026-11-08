@@ -176,8 +176,8 @@ func _card(i: int, vp: Vector2) -> void:
 	draw_rect(Rect2(r.position, Vector2(CW, 54)), Pal.c("red").darkened(0.1))
 	Ink.text(self, "科研计划书", r.position + Vector2(22, 36), 20, Pal.c("paper"), Pal.bold)
 	Ink.text(self, "No.%03d" % (hash(id) % 997), Vector2(r.end.x - 20, r.position.y + 35), 14, Pal.c("paper"), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
-	draw_rect(r, Pal.c("gold") if (i == hover and pick < 0) else el, false, 3.0 if i == hover else 1.6)
-	draw_rect(r.grow(-8), Color(el, 0.25), false, 1.0)
+	Ink.frame(self, r, Pal.c("gold") if (i == hover and pick < 0) else el, 3.0 if i == hover else 1.6)
+	Ink.frame(self, r.grow(-8), Color(el, 0.25), 1.0)
 	# 名称
 	var nfs := 34
 	while nfs > 20 and Ink.size(Pal.bold, d.name, nfs).x > CW - 48:
@@ -206,13 +206,13 @@ func _card(i: int, vp: Vector2) -> void:
 			var u := k / 39.0
 			pts.append(Vector2(r.position.x + 140 + u * 170.0, sy - 4 + sin(u * 23.0) * 9.0 * (1.0 - u * 0.4) + cos(u * 7.0) * 4.0))
 		if pts.size() > 1:
-			draw_polyline(pts, Pal.c("blue"), 2.4, true)
+			Ink.pl(self, pts, Pal.c("blue"), 2.4)
 		# 红色“批准”章砸下来
 		if pick_t > 1.0:
 			var sk2 := clampf((pick_t - 1.0) / 0.14, 0.0, 1.0)
 			var ssc := lerpf(2.4, 1.0, Ink.ease_out_back(sk2))
 			draw_set_transform(p + Vector2(70, 120).rotated(rot) * sc, rot - 0.3, Vector2(sc * ssc, sc * ssc))
-			draw_circle(Vector2.ZERO, 70.0, Color(Pal.c("red"), 0.1))
+			Ink.disc(self, Vector2.ZERO, 70.0, Color(Pal.c("red"), 0.1))
 			draw_arc(Vector2.ZERO, 70.0, 0.4, TAU, 48, Pal.c("red"), 6.0, true)
 			draw_arc(Vector2.ZERO, 58.0, 0, TAU, 48, Pal.c("red"), 2.0, true)
 			Ink.text(self, "批准", Vector2(0, 14), 40, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

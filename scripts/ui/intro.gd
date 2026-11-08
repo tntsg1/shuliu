@@ -60,7 +60,7 @@ func _draw() -> void:
 	for i in 40:
 		var x := -200.0 + i * 60.0
 		river.append(Vector2(x, center.y + 330 + sin(i * 0.5) * 40))
-	draw_polyline(river, Color(blue, 0.35 * a), 8.0 * maxf(lw, 0.2), true)
+	Ink.pl(self, river, Color(blue, 0.35 * a), 8.0 * maxf(lw, 0.2))
 	for i in 14:
 		var p := center + Vector2(cos(i * 2.3) * (R + 120 + (i % 3) * 60), sin(i * 1.7) * (R * 0.7 + 60))
 		draw_rect(Rect2(p, Vector2(28 + (i % 4) * 10, 18 + (i % 3) * 8)), Color(ink, 0.12 * a))
@@ -71,8 +71,8 @@ func _draw() -> void:
 		var pts := PackedVector2Array()
 		for i in n + 1:
 			pts.append(center + Vector2.from_angle(-PI * 0.5 + TAU * i / 240.0) * R)
-		draw_polyline(pts, Color(blue, a), maxf(5.0 * lw * zoom * 0.2, 4.0 * lw), true)
-		draw_polyline(pts, Color(ink, a), 1.2 * lw, true)
+		Ink.pl(self, pts, Color(blue, a), maxf(5.0 * lw * zoom * 0.2, 4.0 * lw))
+		Ink.pl(self, pts, Color(ink, a), 1.2 * lw)
 	var bk := clampf((zoom - 6.0) / 10.0, 0.0, 1.0)
 	# 八个实验站（推近后淡出，让位给建筑平面）
 	for i in 8:
@@ -80,7 +80,7 @@ func _draw() -> void:
 		var s := 9.0
 		var sa := a * (1.0 - bk)
 		draw_rect(Rect2(p - Vector2(s, s), Vector2(s, s) * 2), Color(red if i == 6 else paper, sa))
-		draw_rect(Rect2(p - Vector2(s, s), Vector2(s, s) * 2), Color(ink, sa), false, 1.4 * lw)
+		Ink.frame(self, Rect2(p - Vector2(s, s), Vector2(s, s) * 2), Color(ink, sa), 1.4 * lw)
 		if zoom < 4.0:
 			Ink.text(self, "EXP-%d" % (i + 1), p + Vector2.from_angle(-PI * 0.5 + TAU * i / 8.0) * 26 + Vector2(-20, 6), 15, Color(ink, a * clampf(4.0 - zoom, 0, 1)), Pal.mono)
 	draw_set_transform(Vector2.ZERO)
@@ -91,8 +91,8 @@ func _draw() -> void:
 		var p1: Vector2 = xf * (me + half)
 		var br := Rect2(p0, p1 - p0)
 		draw_rect(br, Color(paper, a * bk))
-		draw_rect(br, Color(ink, a * bk), false, 3.0)
-		draw_rect(br.grow(-14), Color(ink, 0.35 * a * bk), false, 1.4)
+		Ink.frame(self, br, Color(ink, a * bk), 3.0)
+		Ink.frame(self, br.grow(-14), Color(ink, 0.35 * a * bk), 1.4)
 		for i in 6:
 			var x := br.position.x + br.size.x * (i + 1) / 7.0
 			draw_line(Vector2(x, br.position.y + 14), Vector2(x, br.end.y - 14), Color(ink, 0.18 * a * bk), 1.0)
@@ -116,7 +116,7 @@ func _titleblock(vp: Vector2, a: float, zoom: float) -> void:
 	var red := Color("#c2412d")
 	var r := Rect2(vp.x - 470, vp.y - 160, 430, 120)
 	draw_rect(r, Color(Color("#f7f2e6"), a))
-	draw_rect(r, Color(ink, a), false, 2.0)
+	Ink.frame(self, r, Color(ink, a), 2.0)
 	draw_line(Vector2(r.position.x, r.position.y + 44), Vector2(r.end.x, r.position.y + 44), Color(ink, a), 1.0)
 	draw_line(Vector2(r.position.x + 250, r.position.y + 44), Vector2(r.position.x + 250, r.end.y), Color(ink, a), 1.0)
 	var title := "园区总平面图" if zoom < 20.0 else "第七实验站 · 剖面 A-A"

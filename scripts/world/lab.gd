@@ -35,7 +35,7 @@ func _office() -> void:
 	# 台灯光
 	if Pal.dark:
 		for i in 6:
-			draw_circle(Vector2(1338, 104), 60.0 + i * 50.0, Color(Pal.c("lamp"), 0.025))
+			Ink.disc(self, Vector2(1338, 104), 60.0 + i * 50.0, Color(Pal.c("lamp"), 0.025))
 	# 书架
 	var books := ["red", "blue", "gold", "green", "lock", "orange", "ink2", "blue", "red"]
 	draw_rect(Rect2(800, 52, 440, 6), Pal.c("equip_dark"))
@@ -63,7 +63,7 @@ func _office() -> void:
 	for i in 4:
 		draw_set_transform(Vector2(1400 + i * 1.5, 126 - i * 2.5), 0.04 * (i - 1.5))
 		draw_rect(Rect2(-22, -2, 44, 3), Pal.c("paper"))
-		draw_rect(Rect2(-22, -2, 44, 3), Pal.equip_line(), false, 0.6)
+		Ink.frame(self, Rect2(-22, -2, 44, 3), Pal.equip_line(), 0.6)
 	draw_set_transform(Vector2.ZERO)
 	# 黑板 + 手写公式
 	Ink.box(self, Rect2(200, 40, 420, 120), Pal.c("screen").lerp(Pal.c("green"), 0.25), Pal.equip_line(), 2.0, 7)
@@ -76,14 +76,14 @@ func _office() -> void:
 	_section(Rect2(0, Geo.CEIL - 24, Geo.W, 24))
 
 func _clock(p: Vector2, r: float, hrs: float) -> void:
-	draw_circle(p, r, Pal.c("paper"))
+	Ink.disc(self, p, r, Pal.c("paper"))
 	draw_arc(p, r, 0, TAU, 48, Pal.equip_line(), 2.0, true)
 	for i in 12:
 		var a := TAU * i / 12.0
 		draw_line(p + Vector2.from_angle(a) * (r - 5), p + Vector2.from_angle(a) * (r - 2), Pal.equip_line(), 1.2)
 	draw_line(p, p + Vector2.from_angle(TAU * hrs - PI / 2) * r * 0.5, Pal.equip_line(), 2.2, true)
 	draw_line(p, p + Vector2.from_angle(TAU * 0.08 - PI / 2) * r * 0.78, Pal.equip_line(), 1.4, true)
-	draw_circle(p, 2.0, Pal.c("red"))
+	Ink.disc(self, p, 2.0, Pal.c("red"))
 
 func _storage() -> void:
 	var y0 := Geo.FLOOR + 22
@@ -92,7 +92,7 @@ func _storage() -> void:
 	for i in 10:
 		var x := 360.0 + i * 128.0
 		var shelf := Rect2(x, y0 + 46, 104, 172)
-		draw_rect(shelf, Pal.equip_line(), false, 1.4)
+		Ink.frame(self, shelf, Pal.equip_line(), 1.4)
 		for k in 3:
 			draw_line(Vector2(x, y0 + 46 + 57 * k), Vector2(x + 104, y0 + 46 + 57 * k), Pal.equip_line(), 1.4)
 		for k in 2:
@@ -103,7 +103,7 @@ func _storage() -> void:
 	Ink.box(self, Rect2(150, y0 + 150, 120, 70), Pal.c("equip"), Pal.equip_line(), 1.6, 41)
 	Ink.text(self, "失物招领", Vector2(210, y0 + 192), 16, Pal.equip_line(), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 	# 那枚硬币
-	draw_circle(Vector2(1003, y0 + 92), 6.0, Pal.c("gold"))
+	Ink.disc(self, Vector2(1003, y0 + 92), 6.0, Pal.c("gold"))
 	draw_arc(Vector2(1003, y0 + 92), 6.0, 0, TAU, 20, Pal.equip_line(), 1.0, true)
 	Ink.text(self, "地下储藏室 · 尚未开放", Vector2(1640, y0 + 210), 15, Pal.c("ink2"), Pal.hand)
 
@@ -130,7 +130,7 @@ func _main_room() -> void:
 		for i in 49:
 			var xx := i * 40.0
 			pts.append(Vector2(xx, y + 5.0 * sin(xx / 240.0 * PI) * sin(xx / 240.0 * PI)))
-		draw_polyline(pts, Pal.c(cables[k]), 2.4, true)
+		Ink.pl(self, pts, Pal.c(cables[k]), 2.4)
 	# 吸顶灯
 	for i in 6:
 		var lx := 200.0 + i * 320.0
@@ -161,7 +161,7 @@ func _hazard(r: Rect2) -> void:
 		x += 14.0
 
 func _trefoil(p: Vector2, r: float) -> void:
-	draw_circle(p, r + 6, Pal.c("gold"))
+	Ink.disc(self, p, r + 6, Pal.c("gold"))
 	draw_arc(p, r + 6, 0, TAU, 40, Pal.equip_line(), 1.4, true)
 	for i in 3:
 		var a0 := -PI / 2 + TAU * i / 3.0 - PI / 6
@@ -169,16 +169,16 @@ func _trefoil(p: Vector2, r: float) -> void:
 		for k in 9:
 			pts.append(p + Vector2.from_angle(a0 + PI / 3 * k / 8.0) * r)
 		draw_colored_polygon(pts, Pal.c("ink"))
-	draw_circle(p, r * 0.22, Pal.c("gold"))
-	draw_circle(p, r * 0.14, Pal.c("ink"))
+	Ink.disc(self, p, r * 0.22, Pal.c("gold"))
+	Ink.disc(self, p, r * 0.14, Pal.c("ink"))
 
 func _gauge(p: Vector2, r: float, v: float) -> void:
-	draw_circle(p, r, Pal.c("paper"))
+	Ink.disc(self, p, r, Pal.c("paper"))
 	draw_arc(p, r, 0, TAU, 32, Pal.equip_line(), 1.4, true)
 	draw_arc(p, r - 3, PI * 0.8, PI * 1.6, 12, Pal.c("red"), 2.0)
 	var a := lerpf(PI * 0.8, PI * 2.2, v)
 	draw_line(p, p + Vector2.from_angle(a) * (r - 3), Pal.equip_line(), 1.6, true)
-	draw_circle(p, 1.8, Pal.equip_line())
+	Ink.disc(self, p, 1.8, Pal.equip_line())
 
 func _injector() -> void:
 	var r := Rect2(150, Geo.BEAMY - 110, 190, 220)
@@ -218,7 +218,7 @@ func _bellows(x: float, w: float) -> void:
 		pts.append(Vector2(x + i * w / n, Geo.BEAMY + 16 if i % 2 == 0 else Geo.BEAMY + 11))
 	draw_colored_polygon(pts, Pal.c("pipe").lerp(Pal.c("ink"), 0.08))
 	pts.append(pts[0])
-	draw_polyline(pts, Pal.equip_line(), 1.0, true)
+	Ink.pl(self, pts, Pal.equip_line(), 1.0)
 
 func _pipes() -> void:
 	_pipe(340, 820)
@@ -276,7 +276,7 @@ func _detector() -> void:
 		for i in 12:
 			var t := i / 11.0
 			pts.append(Vector2(lerpf(x + 130, 1880, t), lerpf(Geo.BEAMY + 60 + k * 8, Geo.FLOOR - 10, t * t) + sin(t * 6 + k) * 3))
-		draw_polyline(pts, Pal.c(["red", "blue", "gold", "ink2"][k]), 2.0, true)
+		Ink.pl(self, pts, Pal.c(["red", "blue", "gold", "ink2"][k]), 2.0)
 
 func _terminal() -> void:
 	var x := Geo.TERMINAL_X
@@ -303,7 +303,7 @@ func _main_ring() -> void:
 	# 墙洞套环
 	for x in [0.0, Geo.W]:
 		draw_rect(Rect2(x - 22, y - 34, 44, 68), Pal.c("slab"))
-		draw_rect(Rect2(x - 22, y - 34, 44, 68), el, false, 1.6)
+		Ink.frame(self, Rect2(x - 22, y - 34, 44, 68), el, 1.6)
 	Ink.box(self, Rect2(-10, y - 18, Geo.W + 20, 36), Pal.c("pipe").lerp(Pal.c("equip_dark"), 0.3), el, 1.8, 501)
 	draw_rect(Rect2(0, y - 13, Geo.W, 4), Color(1, 1, 1, 0.22))
 	draw_rect(Rect2(0, y + 9, Geo.W, 5), Color(0, 0, 0, 0.08))
