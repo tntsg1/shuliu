@@ -172,7 +172,8 @@ func _draw() -> void:
 	if not open:
 		return
 	var vp := get_viewport_rect().size
-	var ink := Pal.c("ink")
+	var ink := Pal.c("text")        # 纸上的字：两种配色下纸都是浅色，字一律深色
+	var lens_ink := Pal.c("ink")
 	var paper := Pal.c("paper")
 	var el := Pal.equip_line()
 	var ok := Ink.ease_out_cubic(clampf(out_t / 0.8, 0.0, 1.0)) if out_t >= 0.0 else 0.0
@@ -212,8 +213,8 @@ func _draw() -> void:
 			var a := i * TAU / 24.0 + t * 0.02
 			draw_line(lens_c + Vector2(cos(a), sin(a)) * (lr + 4), lens_c + Vector2(cos(a), sin(a)) * (lr + (14 if i % 6 == 0 else 9)), Color(el, 0.7 * ra), 1.4)
 		# 镜内读数：十字刻线 + 当前演示束流
-		draw_line(lens_c + Vector2(-lr * 0.92, 0), lens_c + Vector2(-lr * 0.78, 0), Color(ink, 0.5 * ra), 1.2)
-		draw_line(lens_c + Vector2(lr * 0.78, 0), lens_c + Vector2(lr * 0.92, 0), Color(ink, 0.5 * ra), 1.2)
+		draw_line(lens_c + Vector2(-lr * 0.92, 0), lens_c + Vector2(-lr * 0.78, 0), Color(lens_ink, 0.5 * ra), 1.2)
+		draw_line(lens_c + Vector2(lr * 0.78, 0), lens_c + Vector2(lr * 0.92, 0), Color(lens_ink, 0.5 * ra), 1.2)
 		if demo_text != "":
 			# 读数纸签：挂在镜圈右下
 			var tp := lens_c + Vector2(lr * 0.42, lr * 0.86)
@@ -231,9 +232,9 @@ func _draw() -> void:
 	draw_colored_polygon(sheet, paper)
 	# 坐标纸格
 	for gx in range(int(px) + 40, int(px) + 640, 40):
-		draw_line(Vector2(gx, 0), Vector2(gx, vp.y), Color(Pal.c("grid"), 0.5), 1.0)
+		draw_line(Vector2(gx, 0), Vector2(gx, vp.y), Color("#d6cbb4", 0.5), 1.0)
 	for gy in range(40, int(vp.y), 40):
-		draw_line(Vector2(px, gy), Vector2(px + 640, gy), Color(Pal.c("grid"), 0.5), 1.0)
+		draw_line(Vector2(px, gy), Vector2(px + 640, gy), Color("#d6cbb4", 0.5), 1.0)
 	var sc := sheet.duplicate()
 	sc.append(sheet[0])
 	draw_polyline(sc, el, 2.0, true)
