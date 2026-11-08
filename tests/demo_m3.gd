@@ -19,7 +19,7 @@ func frames(n: int) -> void:
 func sec(s: float) -> void:
 	await frames(int(s * 60.0))
 
-func until(f: Callable, limit := 3000) -> void:
+func until(f: Callable, limit := 900) -> void:
 	var n := 0
 	while not f.call() and n < limit:
 		await process_frame
@@ -45,9 +45,10 @@ func _go() -> void:
 	await frames(3)
 	var run: Run = main.run
 	run.money = 160
-	run.relics = ["koi"]
+	run.relics = []
+	run.devices = ["magnet_sc"]
 	run.offers.clear()
-	for id in ["quad_array", "wrong_answer", "coin", "red_button", "third_draft"]:
+	for id in ["quad_array", "wrong_answer", "coin", "duty_roster", "third_draft"]:
 		run.offers.append({"id": id, "sold": false, "price": Items.ALL[id].price})
 	main.player.position.x = 700
 	await sec(1.0)
@@ -55,7 +56,7 @@ func _go() -> void:
 	main._walk_to(Geo.TERMINAL_X + 35, "shop")
 	await until(func(): return main.mode == main.M.SHOP)
 	await sec(1.0)
-	for i in [1, 2, 3]:
+	for i in [0, 1, 2]:
 		move(main.shop.card_rects[i].get_center())
 		await sec(0.55)
 		main.shop.area = "shop"
@@ -66,6 +67,8 @@ func _go() -> void:
 	await sec(1.0)
 	main.shop.hide_shop()
 	await sec(0.4)
+	run.relics.append("red_button")     # 演示用：红色按钮是之前就买好的
+	main.gear_bought()
 	# —— 去控制台 ——
 	main._walk_to(Geo.CONSOLE_STAND, "console")
 	await until(func(): return main.mode == main.M.CONSOLE)
