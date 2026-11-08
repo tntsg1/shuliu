@@ -157,11 +157,17 @@ func _initialize() -> void:
 	run.extract()
 	check(run.stage == 0 and run.experiments_left == 2, "达标不自动过关")
 	check(run.can_submit() and not run.must_submit(), "够线可主动提交")
+	run.total = Run.LINES[-1]
 	var n_pass := 0
 	while run.can_submit():
 		var res := run.submit()
 		if res.passed: n_pass += 1
-	check(n_pass == 3 and run.won(), "大爆分连续提交三关 (%d)" % Odds.value_at(16))
+	check(n_pass == Run.LINES.size() and run.won(), "攒够分连续提交全部 %d 关 (%d)" % [Run.LINES.size(), n_pass])
+	# 无尽：通关后继续，线按 ENDLESS_G 增长，每 4 阶段一次大考
+	run.go_endless()
+	check(not run.won() and run.endless and run.plan_offers.size() == 3, "继续挑战进入无尽")
+	check(run.line() == Run.line_at(8) and Run.line_at(8) > Run.LINES[-1] and Run.is_big(11) and not Run.is_big(8), "无尽考核线与大考")
+	check(Run.is_big(3) and Run.is_big(7) and not Run.is_big(4), "第 4、8 阶段大考")
 	# 次数用完强制提交：不够线失败
 	var r2 := Run.new(2)
 	for i in 3:
@@ -171,9 +177,9 @@ func _initialize() -> void:
 	check(not res2.passed and r2.lost() and not r2.won(), "不够线提交失败")
 	# 够线但不提交：继续做实验，分数带到下一阶段
 	var r4 := Run.new(4)
-	r4.start_experiment(); r4.beam.energy = 10; r4.extract()     # 487
-	r4.start_experiment(); r4.beam.energy = 10; r4.extract()     # 974 ≥ 580
-	r4.start_experiment(); r4.beam.energy = 10; r4.extract()     # 1461
+	r4.start_experiment(); r4.beam.energy = 12; r4.extract()     # 848 ×1.1
+	r4.start_experiment(); r4.beam.energy = 12; r4.extract()     # ≥ 580
+	r4.start_experiment(); r4.beam.energy = 12; r4.extract()     # ≥ 1800（第 2 阶段线）
 	check(r4.must_submit(), "第三次后必须提交")
 	r4.submit()
 	check(r4.stage == 1 and r4.experiments_left == 3 and r4.can_submit(), "攒下的分可直接再交下一阶段")
@@ -346,6 +352,7 @@ func _initialize() -> void:
 	var b4 := Run.new(71)
 	b4.relics.append("crooked_seal")
 	b4.total = b4.line()
+	b4.experiments_left = 0     # 束流用完再交（不算提前提交折的经费）
 	var mm := b4.money
 	var sr := b4.submit()
 	check(sr.bonus == 30 and b4.money - mm == 30, "公章奖金 ×2")

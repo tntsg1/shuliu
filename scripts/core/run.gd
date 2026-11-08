@@ -4,8 +4,14 @@ extends RefCounted
 ## 提交规则（DECISIONS Q30）：够线可选提交；次数用完强制提交。
 ## 结算顺序（GDD 4.6）：最终概率 → 抽取 → 重抽 → 结果转化 → 破碎抵挡 → 科研抢救 → 执行与后续效果
 
-const LINES := [580, 1410, 2370]
+# 8 个阶段（DECISIONS Q56）：第 4、8 阶段是大考（线跳高、奖金翻倍）；数值由 tests/bot_balance.gd 校准
+static var LINES := [580, 1800, 3800, 7000, 9600, 13800, 19500, 31000]
+const BIG := [3, 7]
+const ENDLESS_G := 1.55          # 无尽：第 9 阶段起每阶段考核线 ×1.55
 const PER_STAGE := 3
+static var LEFTOVER_PAY := 20    # 提前提交：每束没用的束流折 $LEFTOVER_PAY + 阶段 × LEFTOVER_STEP
+static var LEFTOVER_STEP := 4
+static var OVERLINE_TAX := 0.3   # 已够线还继续赌，束流丢了：扣掉累计分的 30%（可能跌回线下）
 const START_MONEY := 30
 const REFRESH_BASE := 3
 
@@ -13,6 +19,7 @@ var seed_value := 0
 var rng := RandomNumberGenerator.new()
 var shop_rng := RandomNumberGenerator.new()   # 商店单独一路随机，买不买东西都不影响实验结果序列
 var stage := 0
+var endless := false             # 通过第 8 阶段后选择继续挑战
 var experiments_left := PER_STAGE
 var total := 0
 var beam: Beam = null
@@ -81,13 +88,40 @@ func has(id: String) -> bool:
 	return relics.has(id) or devices.has(id)
 
 func won() -> bool:
-	return stage >= LINES.size()
+	return stage >= LINES.size() and not endless
+
+## 第 s 阶段（从 0 数）的考核线，不含计划书修正
+static func line_at(s: int) -> int:
+	if s < LINES.size():
+		return LINES[s]
+	return int(round(LINES[-1] * pow(ENDLESS_G, s - LINES.size() + 1) / 100.0)) * 100
+
+## 大考：第 4、8 阶段；无尽里每 4 阶段一次
+static func is_big(s: int) -> bool:
+	return s in BIG or (s >= LINES.size() and (s + 1) % 4 == 0)
+
+## 通过第 8 阶段后继续挑战（无尽）
+func go_endless() -> void:
+	endless = true
+	plan_offers = Plans.deal(shop_rng)
+
+## 已够线还继续做实验：这束丢了会扣多少
+func overline_tax() -> int:
+	if total >= line():
+		return int(floor(total * OVERLINE_TAX))
+	return 0
+
+func _apply_tax(res: Dictionary) -> void:
+	var tax := overline_tax()
+	if tax > 0:
+		total -= tax
+		res["tax"] = tax
 
 func lost() -> bool:
 	return failed
 
 func line() -> int:
-	var l: int = LINES[mini(stage, LINES.size() - 1)]
+	var l: int = line_at(stage)
 	if plan == "collab":
 		l = int(ceil(l * 1.1))
 	elif plan == "downsizing":
@@ -333,6 +367,7 @@ func accelerate() -> Dictionary:
 				trig.append(["lost_data", "下次引出 +%d" % lost_bonus])
 		_log(k, from, from)
 		b.alive = false
+		_apply_tax(res)
 		res.merge(_finish(keep))
 		return res
 	# 执行结果
@@ -504,6 +539,7 @@ func press_red() -> Dictionary:
 			stage_had_loss = true
 			_log(Odds.LOSS, b.energy, b.energy)
 			b.alive = false
+			_apply_tax(res)
 			res.merge(_finish(0))
 		3:
 			var pool: Array = []
@@ -573,6 +609,9 @@ func submit() -> Dictionary:
 	assert(beam == null and not won() and not failed)
 	if total >= line():
 		var s := stage
+		var left := maxi(0, experiments_left)
+		var leftover := left * (LEFTOVER_PAY + s * LEFTOVER_STEP)
+		money += leftover
 		stage += 1
 		experiments_left = PER_STAGE
 		stage_badge_used = false
@@ -585,6 +624,8 @@ func submit() -> Dictionary:
 		stage_had_loss = false
 		stage_safety_used = false
 		var bonus := 15 + 5 * s
+		if is_big(s):
+			bonus *= 2
 		if plan == "audit":
 			bonus *= 3
 		if has("crooked_seal"):
@@ -594,7 +635,7 @@ func submit() -> Dictionary:
 		money += bonus
 		plan = ""
 		plan_offers = Plans.deal(shop_rng) if not won() else []
-		return {"passed": true, "stage": s, "won": won(), "bonus": bonus}
+		return {"passed": true, "stage": s, "won": won(), "bonus": bonus, "leftover": leftover, "left": left, "big": is_big(s)}
 	failed = true
 	return {"passed": false, "stage": stage, "won": false, "bonus": 0}
 

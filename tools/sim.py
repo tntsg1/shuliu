@@ -111,6 +111,35 @@ def campaign(cfg, policy, lines, n=20000, seed=7, per_stage=3):
             passed[s] += 1
     return [x / n for x in passed]
 
+# —— M4：8 阶段 + 形态加成 + 达标后丢失扣分（不买东西的基线，和 tests/bot_balance.gd 的“不买东西”一行对照）——
+M4_LINES = [580, 1800, 3800, 7000, 9600, 13800, 19500, 31000]
+FORM_BONUS = lambda E: 0.25 if E >= 13 else (0.10 if E >= 7 else 0.0)
+
+def m4_campaign(cfg, T, lines=M4_LINES, tax=0.3, n=20000, seed=11, per_stage=3):
+    rng = random.Random(seed); reach = [0] * (len(lines) + 1); pol = threshold(T)
+    for _ in range(n):
+        tot = 0; s = 0
+        for s, L in enumerate(lines):
+            for _ in range(per_stage):
+                v, _, E = run_experiment(cfg, rng, pol)
+                if v == 0:
+                    if tot >= L: tot -= int(tot * tax)
+                else:
+                    tot += int(v * (1 + FORM_BONUS(E)))
+            if tot < L: break
+            reach[s + 1] += 1
+    return [reach[i + 1] / n for i in range(len(lines))]
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "m4":
+    cfg = Cfg(1.32)
+    print("M4 不买东西基线（3 束/阶段，形态加成，够线后丢失扣 30%）：线", M4_LINES)
+    for T in (8, 10, 12):
+        print(f"停在E{T:<3}" + " ".join(f"{x:5.0%}" for x in m4_campaign(cfg, T)))
+    # 曲线形状：线 / 期望累计（越往后越接近 1 = 越依赖构筑）
+    m = stats(cfg, optimal_policy(cfg))[0]
+    print("每阶段线 / 无饰品期望累计：", " ".join(f"{L / (m * 3 * (i + 1)):.2f}" for i, L in enumerate(M4_LINES)))
+    sys.exit(0)
+
 if __name__ == "__main__":
     print("== 扫描增长倍率 g：短视期望转负的能级 / 最优停手期望 ==")
     for g in (1.25, 1.3, 1.35, 1.4, 1.45, 1.5, 1.6, 1.7):

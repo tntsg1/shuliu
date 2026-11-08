@@ -3,6 +3,7 @@ extends Control
 ## 里面一束演示束流自己一路加速、蜕变、偶尔碎掉再重来。鼠标点选，或 ↑↓ + 回车 / E / 空格。哑光平涂，不发光。
 
 signal start_game
+signal continue_game
 signal quit_game
 
 var main: Node
@@ -22,7 +23,9 @@ var demo_text := ""
 var drag_vol := false
 var vol_rect := Rect2()
 
-const MAIN_ITEMS := [["01", "开始实验", "START"], ["02", "设置", "SETTINGS"], ["03", "退出", "QUIT"]]
+const MAIN_ITEMS := [["01", "开始实验", "START", "start"], ["02", "设置", "SETTINGS", "settings"], ["03", "退出", "QUIT", "quit"]]
+var cont_info := ""       # 有存档时：“第 3 阶段 · 累计 4,210 RP”，菜单最上面多一项“继续实验”
+var _go_continue := false
 
 func _ready() -> void:
 	set_anchors_preset(PRESET_FULL_RECT)
@@ -42,7 +45,9 @@ func show_title() -> void:
 
 func _items() -> Array:
 	if page == "main":
-		return MAIN_ITEMS
+		if cont_info == "":
+			return MAIN_ITEMS
+		return [["01", "继续实验", cont_info, "continue"], ["02", "开始新实验", "NEW RUN", "start"], ["03", "设置", "SETTINGS", "settings"], ["04", "退出", "QUIT", "quit"]]
 	return [["", "主音量", "%d%%" % Options.volume], ["", "全屏", "开" if Options.fullscreen else "关"],
 		["", "配色", "七十年代实验室（暗）" if Options.dark else "工程图纸（亮）"], ["", "画面震动", "开" if Options.shake else "关"],
 		["", "新手便条", "重新开启"], ["", "返回", "Esc"]]
@@ -114,16 +119,20 @@ func _to_page(p: String) -> void:
 
 func _choose(i: int) -> void:
 	if page == "main":
-		match i:
-			0:
+		var its := _items()
+		if i < 0 or i >= its.size():
+			return
+		match its[i][3]:
+			"continue", "start":
+				_go_continue = its[i][3] == "continue"
 				out_t = 0.0
 				Sfx.play("btn", -2.0, 0.8)
 				Sfx.play("whoosh", -6.0, 0.9)
 				Input.set_default_cursor_shape(Input.CURSOR_ARROW)
-			1:
+			"settings":
 				Sfx.play("btn2", -6.0)
 				_to_page("settings")
-			2:
+			"quit":
 				Sfx.play("btn2", -6.0, 0.8)
 				quit_game.emit()
 		return
@@ -160,7 +169,10 @@ func _process(dt: float) -> void:
 		if out_t > 0.9:
 			open = false
 			visible = false
-			start_game.emit()
+			if _go_continue:
+				continue_game.emit()
+			else:
+				start_game.emit()
 	for i in slide.size():
 		var tg := 1.0 if i == hover else 0.0
 		slide_v[i] += (260.0 * (tg - slide[i]) - 22.0 * slide_v[i]) * minf(dt, 1.0 / 30.0)

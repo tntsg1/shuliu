@@ -236,7 +236,9 @@ func _strip(vp: Vector2) -> void:
 	draw_rect(Rect2(-8, 8, 34, 26), Color(Pal.c("gold"), 0.45))
 	draw_rect(Rect2(w - 26, 8, 34, 26), Color(Pal.c("gold"), 0.45))
 	Ink.text(self, "BEAMLINE  束流", Vector2(40, 29), 18, Pal.c("text"), Pal.bold)
-	var stg := "全部通过" if run.won() else "考核 %d/%d" % [run.stage + 1, Run.LINES.size()]
+	var stg := "全部通过" if run.won() else (("无尽 %d" % (run.stage + 1)) if run.endless else "考核 %d/%d" % [run.stage + 1, Run.LINES.size()])
+	if Run.is_big(run.stage) and not run.won():
+		stg += " 大考"
 	Ink.text(self, stg, Vector2(230, 29), 17, Pal.c("text"))
 	Ink.text(self, "累计 %s / %s" % [main.fmt(run.total), main.fmt(run.line())], Vector2(350, 29), 17, Pal.c("text"), Pal.mono)
 	Ink.text(self, "剩余实验 %d" % run.experiments_left, Vector2(610, 29), 17, Pal.c("text"))

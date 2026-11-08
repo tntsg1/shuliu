@@ -607,7 +607,11 @@ func _decision(r: Rect2) -> void:
 	Ink.text(self, "%.0f%%" % (lp * 100.0) if lp >= 0.1 else "%.1f%%" % (lp * 100.0), Vector2(r.position.x + 70, y), 20, rc, Pal.bold)
 	var prot: Array = dec.prot
 	var ps := "保护：" + ("、".join(prot) if not prot.is_empty() else "无")
+	var tax: int = dec.get("tax", 0)
+	if tax > 0:
+		# 已够线还在赌：丢了要扣累计分（DECISIONS Q54/Q57）
+		ps = "丢了扣 %s RP" % main.fmt(tax) + (" · 保护 %d 件" % prot.size() if not prot.is_empty() else "")
 	var fs := 15
 	while fs > 11 and Ink.size(Pal.font, ps, fs).x > r.size.x - 140:
 		fs -= 1
-	Ink.text(self, ps, Vector2(r.end.x, y), fs, Pal.c("green") if not prot.is_empty() else Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)
+	Ink.text(self, ps, Vector2(r.end.x, y), fs, Pal.c("red") if tax > 0 else (Pal.c("green") if not prot.is_empty() else Pal.c("text2")), Pal.bold if tax > 0 else Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)

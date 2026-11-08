@@ -41,7 +41,7 @@ func _draw() -> void:
 	draw_rect(Rect2(br.position, Vector2(br.size.x, 16)), Pal.c("red") if must else (Pal.c("green") if can else Pal.c("blue")))
 	Ink.text(self, "考核审核台", br.position + Vector2(br.size.x * 0.5, 13), 12, Pal.c("paper"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	if not run.won():
-		Ink.text(self, "第 %d 阶段" % (run.stage + 1), br.position + Vector2(8, 34), 12, Pal.c("text2"))
+		Ink.text(self, ("第 %d 阶段 · 大考" if Run.is_big(run.stage) else "第 %d 阶段") % (run.stage + 1), br.position + Vector2(8, 34), 12, Pal.c("red") if Run.is_big(run.stage) else Pal.c("text2"))
 		Ink.text(self, "%d / %d" % [run.total, run.line()], br.end - Vector2(8, 38), 13, Pal.c("text"), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
 		var pr := Rect2(br.position.x + 8, br.end.y - 18, br.size.x - 16, 8)
 		draw_rect(pr, Pal.c("paper2"))

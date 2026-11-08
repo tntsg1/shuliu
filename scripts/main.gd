@@ -140,6 +140,7 @@ func _ready() -> void:
 	title = _ctrl("res://scripts/ui/title.gd", tl)
 	title.set("main", self)
 	title.start_game.connect(_on_title_start)
+	title.continue_game.connect(_on_title_continue)
 	title.quit_game.connect(func(): get_tree().quit())
 	var il := CanvasLayer.new()
 	il.layer = 30
@@ -168,6 +169,66 @@ func _ready() -> void:
 	Options.load_and_apply()
 	if play_intro:
 		_open_title()
+
+# —— 存档（Save）：状态一变就写；关窗口时再写一次 ——
+var live_save := false      # 主页的演示束流不存；开始/继续一局后才存
+var _save_t := 0.0
+var _save_sig := 0
+
+func _autosave(dt: float, force := false) -> void:
+	if not live_save or mode == M.TITLE:
+		return
+	_save_t += dt
+	if _save_t < 0.5 and not force:
+		return
+	_save_t = 0.0
+	var sig := var_to_str(Save.pack(run)).hash()
+	if sig != _save_sig or force:
+		_save_sig = sig
+		Save.write(run)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_autosave(0.0, true)
+
+## 主页“继续实验”：读档，舱里有束流就直接回控制台接着按
+func _on_title_continue() -> void:
+	var loaded := Save.read()
+	if loaded == null:
+		_on_title_start()
+		return
+	resume(loaded)
+
+## 接着玩一局读回来的存档（测试也直接调这个）
+func resume(loaded: Run) -> void:
+	run = loaded
+	live_save = true
+	_save_sig = 0
+	chamber.empty()
+	form.reset()
+	form.shatter_t = -1.0
+	overlay.strip_t = 1.0
+	title.demo_text = ""
+	panel.dec = {}
+	panel.reset_beam()
+	timer = 0.0
+	cam_pos = Vector2(1000, 520)
+	cam_zoom = 1.45
+	cam_omega = 2.2
+	player.input_enabled = true
+	mode = M.WALK
+	Sfx.play("paper", -6.0, 0.9)
+	overlay.say("读取存档：第 %d 阶段 · 累计 %s RP" % [run.stage + 1, fmt(run.total)])
+	if not run.plan_offers.is_empty():
+		# 存档时正在挑计划书
+		mode = M.PLAN
+		player.input_enabled = false
+		plans.show_plans(run.plan_offers, run.stage + 1)
+	elif run.beam != null:
+		chamber.inject()
+		_sync()
+		player.position.x = Geo.CONSOLE_STAND - 80
+		enter_console()
 
 func _on_intro_done() -> void:
 	player.input_enabled = true
@@ -304,6 +365,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 		M.END:
 			if ev.is_action("restart"):
 				restart()
+			elif ev is InputEventKey and ev.physical_keycode == KEY_C and run.won():
+				go_endless()
 
 func _near_console() -> bool:
 	return absf(player.position.x - Geo.CONSOLE_STAND) < 70.0
@@ -632,7 +695,13 @@ func _after_experiment() -> void:
 	mode = M.CONSOLE
 	e_guard = 0.35
 	var g: int = fin.get("gained", 0)
-	if last_result.lost:
+	var tax: int = fin.get("tax", 0)
+	if last_result.lost and tax > 0:
+		# 已够线还赌、丢了：扣分（可能跌回线下）
+		overlay.tally("实验 #%d · 够线后丢失 · 扣 %d%%" % [run.experiment_no, int(Run.OVERLINE_TAX * 100)], ("+%s RP" % fmt(g - tax)) if g >= tax else ("−%s RP" % fmt(tax - g)), "经费 +$%d" % fin.get("income", 0), Pal.c("red"))
+		clip_l.stamp("扣 %s" % fmt(tax))
+		Sfx.play("hit_low", -4.0, 0.7)
+	elif last_result.lost:
 		overlay.tally("实验 #%d · 束流丢失" % run.experiment_no, ("+%d RP（稿纸抢救）" % g) if g > 0 else "+0 RP", "经费 +$%d" % fin.get("income", 0), Pal.c("red"))
 	else:
 		overlay.tally("实验 #%d · E%d 引出" % [run.experiment_no, last_result.energy], "+%s RP" % fmt(g), "经费 +$%d" % fin.get("income", 0), Pal.c("green"))
@@ -708,8 +777,11 @@ func submit() -> void:
 		hitstop(0.08)
 		if run.won():
 			mode = M.END
+			Save.clear()
 			overlay.show_card({"title": "科研资助续期！", "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
-				"sub": "三个阶段全部通过 · 共 %d 次实验" % run.experiment_no, "lines": ["实验室保住了。至少保住到下一个财年。"], "keys": "R  重新开始"})
+				"sub": "%d 个阶段全部通过 · 共 %d 次实验" % [Run.LINES.size(), run.experiment_no],
+				"lines": ["实验室保住了。至少保住到下一个财年。", "想看看能撑到第几阶段？继续挑战：考核线每阶段 ×%.2f，没有终点。" % Run.ENDLESS_G],
+				"keys": "C  继续挑战（无尽）      R  重新开始"})
 			return
 		mode = M.REVIEW
 		review_passed = true
@@ -728,15 +800,20 @@ func submit() -> void:
 			if mode != M.REVIEW or not review_passed:
 				return
 			Sfx.play("paper", -4.0, 0.9)
-			var lines: Array = ["束流重新配给 %d 束 · 阶段奖金 +$%d" % [Run.PER_STAGE, res.bonus]]
+			var lines: Array = ["束流重新配给 %d 束 · 阶段奖金 +$%d%s" % [Run.PER_STAGE, res.bonus, "（大考翻倍）" if res.big else ""]]
+			if res.leftover > 0:
+				lines.append("提前提交：没用的 %d 束折成经费 +$%d" % [res.left, res.leftover])
+			if Run.is_big(run.stage):
+				lines.append("下一阶段是大考：考核线明显更高。")
 			if carry >= nl:
 				lines.append("攒下的分已经够这一关了！想交，回审核台再交一次。")
 			else:
 				lines.append("已经带过去 %s RP，还差 %s RP。" % [fmt(carry), fmt(nl - carry)])
-			overlay.show_card({"title": "下一阶段目标 · 第 %d 阶段" % (run.stage + 1), "title_col": Pal.c("blue"), "value": "%s RP" % fmt(nl),
+			overlay.show_card({"title": ("下一阶段目标 · 第 %d 阶段（大考）" if Run.is_big(run.stage) else "下一阶段目标 · 第 %d 阶段") % (run.stage + 1), "title_col": Pal.c("blue"), "value": "%s RP" % fmt(nl),
 				"sub": "累计分达到 %s 即可提交（现在 %s，%d%%）" % [fmt(nl), fmt(carry), int(100.0 * carry / maxf(1.0, nl))], "lines": lines, "keys": "", "dy": 150.0})
 	else:
 		mode = M.END
+		Save.clear()
 		Sfx.play("boom", -3.0, 0.7)
 		overlay.show_card({"title": "科研资助终止", "title_col": Pal.c("red"), "value": fmt(run.total) + " / " + fmt(run.line()),
 			"sub": "第 %d 阶段考核未达标" % (run.stage + 1), "lines": ["“经费的事，明年再说吧。” —— 校长"], "keys": "R  重新开始"})
@@ -831,6 +908,17 @@ func leave_console() -> void:
 	else:
 		overlay.say("束流在舱里等你，随时回控制台继续")
 
+## 通过第 8 阶段后继续挑战：考核线每阶段 ×ENDLESS_G，先挑计划书再接着做
+func go_endless() -> void:
+	if not run.won():
+		return
+	run.go_endless()
+	review_passed = true
+	Sfx.play("btn", -4.0, 0.8)
+	overlay.say("继续挑战：第 %d 阶段起没有终点，考核线每阶段 ×%.2f" % [run.stage + 1, Run.ENDLESS_G])
+	close_review()
+	Save.write(run)
+
 func restart() -> void:
 	run = Run.new()
 	overlay.hide_card()
@@ -848,12 +936,13 @@ func _sync() -> void:
 	panel.enabled = true
 	chamber.set_state(b.energy, p[Odds.LOSS], b.locked())
 	panel.hint = ""
-	panel.dec = {"total": run.total, "pot": run.potential(), "line": run.line(), "loss": 0.0 if b.locked() else p[Odds.LOSS],
+	panel.dec = {"total": run.total, "pot": run.potential(), "line": run.line(), "tax": run.overline_tax(), "loss": 0.0 if b.locked() else p[Odds.LOSS],
 		"prot": run.protections(), "lock_left": b.lock_left}
 
 # —— 每帧 ——
 func _process(dt: float) -> void:
 	_hover()
+	_autosave(dt)
 	var now := Time.get_ticks_usec() / 1e6
 	if now >= stop_until:
 		Engine.time_scale = (slow_scale if now < slow_until else 1.0) * dev_speed
@@ -1046,6 +1135,8 @@ func _triggers(r: Dictionary) -> void:
 # —— 结算卡按钮（鼠标可点，同时显示快捷键） ——
 func card_buttons() -> Array:
 	if mode == M.END:
+		if run.won():
+			return [{"label": "继续挑战（无尽）", "key": "C", "action": "endless"}, {"label": "重新开始", "key": "R", "action": "restart"}]
 		return [{"label": "重新开始", "key": "R", "action": "restart"}]
 	if mode == M.CHOICE:
 		return [{"label": "结束，保留 30%", "key": "E", "action": "sch_end"}, {"label": "再加速一次", "key": "空格", "action": "sch_go"}]
@@ -1071,6 +1162,7 @@ func card_buttons() -> Array:
 func _card_action(a: String) -> void:
 	match a:
 		"restart": restart()
+		"endless": go_endless()
 		"submit": submit()
 		"new":
 			if run.can_start(): _new_beam()
@@ -1251,6 +1343,8 @@ func _to_world(sp: Vector2) -> Vector2:
 
 # —— 主页 ——
 func _open_title() -> void:
+	live_save = false
+	title.cont_info = Save.summary()
 	mode = M.TITLE
 	player.input_enabled = false
 	cam_pos = Vector2(848, 520)
@@ -1305,6 +1399,9 @@ func _demo_tick(dt: float) -> void:
 
 func _on_title_start() -> void:
 	run = Run.new()
+	Save.clear()
+	live_save = true
+	_save_sig = 0
 	chamber.empty()
 	form.reset()
 	form.shatter_t = -1.0

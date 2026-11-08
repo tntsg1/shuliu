@@ -219,7 +219,7 @@ func _draw() -> void:
 	# 副标题
 	var sa := clampf((t - 1.7) / 0.3, 0.0, 1.0) * fade
 	if sa > 0.0:
-		var sub := "第 %d 阶段审核 · 评审委员会一致通过" % stage_no
+		var sub := ("第 %d 阶段大考 · 评审委员会一致通过" if Run.is_big(stage_no - 1) else "第 %d 阶段审核 · 评审委员会一致通过") % stage_no
 		var sw := Ink.size(Pal.bold, sub, 26).x + 60.0
 		draw_rect(Rect2(vp.x * 0.5 - sw * 0.5, 292.0, sw, 46.0), Color(Pal.c("paper"), 0.95 * sa))
 		Ink.frame(self, Rect2(vp.x * 0.5 - sw * 0.5, 292.0, sw, 46.0), Color(el, 0.6 * sa), 1.4)

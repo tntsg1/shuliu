@@ -89,12 +89,22 @@ func _draw() -> void:
 		Ink.text(self, stamp_text, Vector2(0, 12), 32, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 
+## 图上用的短数字：1.38万
+func _short(v: int) -> String:
+	if v >= 10000:
+		var w := v / 10000.0
+		return ("%.1f万" % w) if w < 100 else ("%d万" % int(w))
+	return str(v)
+
 func _left(pr: Rect2) -> void:
 	var run: Run = main.run
 	var ink := Pal.c("text")
 	var p := pr.position + Vector2(52, 40)
 	Ink.text(self, "科研考核", p, 24, ink, Pal.bold)
-	Ink.text(self, "第 %d / %d 阶段" % [mini(run.stage + 1, Run.LINES.size()), Run.LINES.size()], p + Vector2(150, 0), 17, Pal.c("text2"))
+	var stg := ("无尽 · 第 %d 阶段" % (run.stage + 1)) if run.endless else ("第 %d / %d 阶段" % [mini(run.stage + 1, Run.LINES.size()), Run.LINES.size()])
+	if Run.is_big(run.stage) and not run.won():
+		stg += " · 大考"
+	Ink.text(self, stg, p + Vector2(150, 0), 17, Pal.c("red") if Run.is_big(run.stage) and not run.won() else Pal.c("text2"))
 	# 累计总分
 	Ink.text(self, "累计科研点数", p + Vector2(0, 46), 15, Pal.c("text2"))
 	Ink.text(self, "%s" % _fmt(int(round(total_disp))), p + Vector2(0, 86), 34, ink, Pal.mono)
@@ -104,22 +114,28 @@ func _left(pr: Rect2) -> void:
 	var g := Rect2(pr.position + Vector2(20, 150), Vector2(pr.size.x - 40, 170))
 	draw_rect(g, Color(Pal.c("paper2"), 0.5))
 	Ink.frame(self, g, Color(ink, 0.5), 1.0)
-	var vmax := float(Run.LINES[-1]) * 1.15
+	# 8 个阶段（无尽时显示最近 8 个）；纵轴开方，前几关的线才看得见
 	var steps := Run.LINES.size()
+	var first := maxi(0, run.stage - steps + 1) if run.endless else 0
+	var vmax := float(Run.line_at(first + steps - 1)) * 1.15
 	var prev := Vector2(g.position.x, g.end.y)
 	var dash := Color(Pal.c("red"), 0.8)
 	for i in steps:
+		var si := first + i
+		var lv := float(Run.line_at(si))
 		var x0 := g.position.x + g.size.x * i / steps
 		var x1 := g.position.x + g.size.x * (i + 1) / steps
-		var ly: float = g.end.y - g.size.y * float(Run.LINES[i]) / vmax
+		var ly: float = g.end.y - g.size.y * sqrt(lv / vmax)
 		_dashed(Vector2(x0, ly), Vector2(x1, ly), dash)
 		_dashed(prev, Vector2(x0, ly), dash)
 		prev = Vector2(x1, ly)
-		Ink.text(self, _fmt(Run.LINES[i]), Vector2(x0 + 4, ly - 4), 12, dash, Pal.mono)
-		if i < run.stage:
-			Ink.text(self, "✓", Vector2(x1 - 18, ly - 4), 16, Pal.c("green"), Pal.bold)
-	var tot_y := g.end.y - g.size.y * minf(total_disp, vmax) / vmax
-	var cur_x := g.position.x + g.size.x * (mini(run.stage, steps - 1) + 0.5) / steps
+		Ink.text(self, _short(int(lv)), Vector2(x0 + 2, ly - 4), 11, dash, Pal.mono)
+		if Run.is_big(si):
+			Ink.text(self, "大考", Vector2(x0 + 2, ly - 18), 11, Pal.c("red"), Pal.bold)
+		if si < run.stage:
+			Ink.text(self, "✓", Vector2(x1 - 14, ly + 16), 14, Pal.c("green"), Pal.bold)
+	var tot_y := g.end.y - g.size.y * sqrt(minf(total_disp, vmax) / vmax)
+	var cur_x := g.position.x + g.size.x * (mini(run.stage - first, steps - 1) + 0.5) / steps
 	draw_line(Vector2(g.position.x, tot_y), Vector2(cur_x, tot_y), Pal.c("blue"), 2.2, true)
 	Ink.disc(self, Vector2(cur_x, tot_y), 4.0, Pal.c("blue"))
 	# 剩余实验
