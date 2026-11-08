@@ -45,6 +45,10 @@ func _ready() -> void:
 	Pal.changed.connect(queue_redraw)
 
 var tl := {}               # 一次实验结束的小纸条 {title, value, sub, col, t}
+var cel_t := -1.0          # 阶段通过的庆祝（秒，-1 = 无）
+var cel_stage := 1
+var cel_quip := ""
+var confetti: Array = []
 
 ## 一次实验结束：纸条从上方落下，报出这一束加了多少，然后飞进左边的考核夹板
 func tally(title: String, value: String, sub: String, col: Color) -> void:
@@ -72,6 +76,8 @@ func show_card(c: Dictionary) -> void:
 
 func hide_card() -> void:
 	card_t = 0.0
+
+var bloom_meme := {}       # 奇葩事件 {name, first}
 
 func show_bloom(v: int) -> void:
 	bloom_target = v
@@ -105,6 +111,17 @@ func say(s: String) -> void:
 
 func _process(dt: float) -> void:
 	t += dt
+	if cel_t >= 0.0:
+		cel_t += dt
+		for q in confetti:
+			q.v.y += 520.0 * dt
+			q.v.x *= 1.0 - 1.2 * dt
+			q.v.y = minf(q.v.y, 220.0)
+			q.p += q.v * dt + Vector2(sin(cel_t * q.f + q.ph) * 40.0 * dt, 0)
+			q.r += q.w * dt
+		if cel_t > 9.0:
+			cel_t = -1.0
+			confetti.clear()
 	if not tl.is_empty():
 		tl.t += dt
 		if tl.t > 2.6:
@@ -150,6 +167,8 @@ func _draw() -> void:
 		return
 	var vp := get_viewport_rect().size
 	_super(vp)
+	if cel_t >= 0.0:
+		_celebrate(vp)
 	_edges(vp)
 	_strip(vp)
 	_pops(vp)
@@ -292,7 +311,21 @@ func _bloom(vp: Vector2) -> void:
 	var s: String = main.fmt(int(round(bloom_disp)))
 	Ink.text(self, "+" + s + " RP", Vector2(vp.x * 0.5 + 3, y + 3), 64, Color(0, 0, 0, 0.25 * a), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 	Ink.text(self, "+" + s + " RP", Vector2(vp.x * 0.5, y), 64, Color(Pal.c("text"), a), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
-	Ink.text(self, "探测屏 · 事件图谱", Vector2(vp.x * 0.5, y + 40), 18, Color(Pal.c("text2"), a), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+	if bloom_meme.is_empty():
+		Ink.text(self, "探测屏 · 事件图谱", Vector2(vp.x * 0.5, y + 40), 18, Color(Pal.c("text2"), a), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		Ink.text(self, "奇葩事件 · " + bloom_meme.name, Vector2(vp.x * 0.5, y + 40), 20, Color(Pal.c("red"), a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		# 纸签从卡片右上角“啪”地贴上：第一次见到写“新发现！”，否则写“已收录”
+		var k := clampf((bloom_v - 0.5) / 0.18, 0.0, 1.0)
+		if k > 0.0:
+			var sc := lerpf(2.0, 1.0, Ink.ease_out_back(k))
+			draw_set_transform(Vector2(vp.x * 0.5 + bw * 0.5 - 30, y - 80), 0.22, Vector2(sc, sc))
+			var col := Pal.c("red") if bloom_meme.first else Pal.c("text2")
+			var txt := "新发现！" if bloom_meme.first else "已收录"
+			draw_rect(Rect2(-58, -18, 116, 36), Color(Pal.c("paper"), a))
+			draw_rect(Rect2(-58, -18, 116, 36), Color(col, a), false, 3.0)
+			Ink.text(self, txt, Vector2(0, 8), 20, Color(col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			draw_set_transform(Vector2.ZERO)
 
 func _card(vp: Vector2) -> void:
 	var el := Pal.equip_line()
@@ -440,3 +473,84 @@ func _tip(vp: Vector2) -> void:
 		else:
 			draw_multiline_string(Pal.font, Vector2(p.x + 16, y + 14), tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15, -1, Color(Pal.c("text") if i == 1 else Pal.c("blue"), a))
 			y += Pal.font.get_multiline_string_size(tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15).y + 6
+
+## 阶段通过：大红“通过”章砸下来 → 横幅展开“恭喜通过第 N 阶段审核” → 两边礼炮喷纸屑 → 章盖到横幅角上
+func celebrate(stage_no: int, quip: String) -> void:
+	cel_t = 0.0
+	cel_stage = stage_no
+	cel_quip = quip
+	confetti.clear()
+	var vp := get_viewport_rect().size
+	var cols := [Pal.c("red"), Pal.c("gold"), Pal.c("blue"), Pal.c("green"), Pal.c("paper"), Pal.c("orange"), Pal.c("lock")]
+	for side in [-1.0, 1.0]:
+		for i in 70:
+			var a := deg_to_rad(-90.0 - side * randf_range(8.0, 50.0))
+			var sp := randf_range(700.0, 1350.0)
+			confetti.append({"p": Vector2(vp.x * 0.5 + side * (vp.x * 0.5 + 10.0), vp.y + 10.0), "v": Vector2.from_angle(a) * sp,
+				"r": randf() * TAU, "w": randf_range(-9, 9), "s": Vector2(randf_range(7, 15), randf_range(4, 8)), "c": cols[i % cols.size()],
+				"f": randf_range(2.0, 5.0), "ph": randf() * TAU, "d": randf_range(0.25, 0.75)})
+
+func _celebrate(vp: Vector2) -> void:
+	var k := cel_t
+	var fade := clampf((8.6 - k) / 0.6, 0.0, 1.0)
+	# 背景压暗一点
+	draw_rect(Rect2(Vector2.ZERO, vp), Color(0, 0, 0, 0.22 * clampf(k / 0.2, 0.0, 1.0) * fade))
+	var c := Vector2(vp.x * 0.5, 400.0)
+	# 背后的射线：金纸相间，慢慢转
+	var ra := clampf((k - 0.1) / 0.3, 0.0, 1.0) * fade
+	if ra > 0.0:
+		for i in 20:
+			var ang := i * TAU / 20.0 + k * 0.25
+			var col: Color = Pal.c("gold") if i % 2 == 0 else Pal.c("paper")
+			draw_line(c + Vector2.from_angle(ang) * 120.0, c + Vector2.from_angle(ang) * 1300.0, Color(col, 0.28 * ra), 70.0)
+	# 横幅：从中间往两边展开
+	var bo := Ink.ease_out_back(clampf((k - 0.3) / 0.45, 0.0, 1.0))
+	if bo > 0.0:
+		var bw := 1040.0 * bo
+		var br := Rect2(vp.x * 0.5 - bw * 0.5, 96.0, bw, 120.0)
+		draw_rect(Rect2(br.position + Vector2(8, 10), br.size), Color(0, 0, 0, 0.2 * fade))
+		draw_rect(br, Color(Pal.c("red"), fade))
+		draw_rect(br.grow(-8), Color(Pal.c("gold"), fade), false, 3.0)
+		# 两头燕尾
+		for sd in [-1.0, 1.0]:
+			var ex := br.position.x if sd < 0 else br.end.x
+			draw_colored_polygon(PackedVector2Array([Vector2(ex, br.position.y + 18), Vector2(ex + sd * 70.0 * bo, br.position.y + 30), Vector2(ex + sd * 40.0 * bo, br.get_center().y + 12), Vector2(ex + sd * 70.0 * bo, br.end.y + 6), Vector2(ex, br.end.y - 18)]), Color(Pal.c("red").darkened(0.25), fade))
+		if bo > 0.85:
+			var ta := clampf((bo - 0.85) / 0.15, 0.0, 1.0) * fade
+			Ink.text(self, "恭喜通过第 %d 阶段审核！" % cel_stage, Vector2(vp.x * 0.5 + 3, br.get_center().y + 22), 54, Color(0, 0, 0, 0.25 * ta), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			Ink.text(self, "恭喜通过第 %d 阶段审核！" % cel_stage, Vector2(vp.x * 0.5, br.get_center().y + 19), 54, Color(Pal.c("paper"), ta), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	# 手写的一句“劫后余生”
+	var qa := clampf((k - 1.0) / 0.4, 0.0, 1.0) * fade
+	if qa > 0.0 and cel_quip != "":
+		var qw := Pal.hand.get_string_size(cel_quip, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 60.0
+		draw_rect(Rect2(vp.x * 0.5 - qw * 0.5, 232.0, qw, 44.0), Color(Pal.c("paper"), 0.92 * qa))
+		draw_rect(Rect2(vp.x * 0.5 - qw * 0.5, 232.0, qw, 44.0), Color(Pal.equip_line(), 0.5 * qa), false, 1.2)
+		Ink.text(self, cel_quip, Vector2(vp.x * 0.5, 263.0), 26, Color(Pal.c("blue"), qa), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
+	# 大红“通过”章：先从天而降砸在中间，再缩到横幅右上角
+	var drop := clampf(k / 0.22, 0.0, 1.0)
+	var move := Ink.ease_in_out(clampf((k - 1.1) / 0.4, 0.0, 1.0))
+	var sp := c.lerp(Vector2(vp.x * 0.5 + 470.0, 120.0), move)
+	var sc := lerpf(3.2, 1.0, Ink.ease_out_cubic(drop)) * lerpf(1.0, 0.42, move)
+	var sa := drop * fade
+	draw_set_transform(sp, -0.18, Vector2(sc, sc))
+	draw_circle(Vector2.ZERO, 120.0, Color(Pal.c("paper"), 0.85 * sa))
+	draw_arc(Vector2.ZERO, 120.0, 0.3, TAU - 0.1, 64, Color(Pal.c("red"), sa), 10.0, true)
+	draw_arc(Vector2.ZERO, 100.0, 0, TAU, 64, Color(Pal.c("red"), sa), 3.0, true)
+	var star := PackedVector2Array()
+	for i in 10:
+		star.append(Vector2.from_angle(-PI / 2 + i * PI / 5) * (26.0 if i % 2 == 0 else 11.0) + Vector2(0, -52))
+	draw_colored_polygon(star, Color(Pal.c("red"), sa))
+	Ink.text(self, "通过", Vector2(0, 30), 64, Color(Pal.c("red"), sa), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	Ink.text(self, "第七实验站 · 评审委员会", Vector2(0, 70), 14, Color(Pal.c("red"), sa), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	draw_set_transform(Vector2.ZERO)
+	# 砸下那一刻的冲击圈
+	if k > 0.2 and k < 0.7:
+		var ik := (k - 0.2) / 0.5
+		draw_arc(c, 130.0 + 260.0 * Ink.ease_out_cubic(ik), 0, TAU, 72, Color(Pal.c("red"), 0.7 * (1.0 - ik)), 8.0 * (1.0 - ik) + 1.0, true)
+	# 纸屑礼炮（两边一起喷）
+	if k > 0.45:
+		for q in confetti:
+			var qa2 := fade
+			draw_set_transform(q.p, q.r, Vector2(absf(cos(q.r * 1.7)) * 0.85 + 0.15, 1.0))
+			draw_rect(Rect2(-q.s * 0.5, q.s), Color(q.c, qa2))
+			draw_set_transform(Vector2.ZERO)

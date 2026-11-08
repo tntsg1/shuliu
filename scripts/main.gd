@@ -12,6 +12,7 @@ var pollution: Node2D
 var detector: Node2D
 var desk: Node2D
 var review: Node2D
+var goal_card := Callable()   # 庆祝播到 1.5 秒时升起“下一阶段目标”卡
 var review_passed := false   # 审核台：刚通过一个阶段，卡片只剩“好的”
 var player: Node2D
 var shot: Node2D
@@ -56,6 +57,9 @@ var stop_until := 0.0     # 顿帧结束的真实时间（秒）
 var slow_until := 0.0
 var slow_scale := 1.0
 var dev_speed := 1.0         # 开发者模式：整体加速
+var dev_meme_always := false   # 开发者模式：每次引出都出奇葩事件（随机一种）
+var dev_meme_force := ""
+var meme_rng := RandomNumberGenerator.new()
 var beat_t := 0.0
 var count_tick := 0
 var pending := {}          # 已抽定、等待揭晓的结果
@@ -66,6 +70,7 @@ var shown_lock := false
 
 func _ready() -> void:
 	_inputs()
+	meme_rng.randomize()
 	run = Run.new()
 	world = Node2D.new()
 	add_child(world)
@@ -456,7 +461,18 @@ func _on_shot_arrived() -> void:
 		await get_tree().create_timer(wait / dev_speed, true, false, true).timeout
 	mode = M.BLOOM
 	timer = 0.0
-	detector.bloom(bloom_energy, detector.get_meta("kind", "precise"))
+	# 奇葩事件：约 1/8 概率径迹拼成梗图（纯画面，单独的随机数）
+	var mm: String = Memes.roll(bloom_energy, meme_rng, "woodfish" if dev_meme_always else "")
+	if dev_meme_force != "":
+		mm = dev_meme_force
+		dev_meme_force = ""
+	detector.bloom(bloom_energy, detector.get_meta("kind", "precise"), mm)
+	overlay.bloom_meme = {}
+	if mm != "":
+		var first := Memes.record(mm)
+		overlay.bloom_meme = {"name": Memes.LIST[mm].name, "first": first}
+		Sfx.play("perfect", -8.0, 1.6)
+		Sfx.play("tick", -6.0, 2.0)
 	Sfx.play("metal", -3.0, 0.9 + bloom_energy * 0.02)
 	Sfx.play("ring", -9.0)
 	shake = 0.5
@@ -570,11 +586,31 @@ func submit() -> void:
 			return
 		mode = M.REVIEW
 		review_passed = true
-		var lines: Array = ["束流重新配给 %d 束。阶段奖金 +$%d。" % [Run.PER_STAGE, res.bonus]]
-		if run.can_submit():
-			lines.append("攒下的分已经够下一阶段了，想交可以马上再交。")
-		overlay.show_card({"title": "第 %d 阶段考核通过" % (res.stage + 1), "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
-			"sub": "进入第 %d 阶段 · 考核线 %s" % [run.stage + 1, fmt(run.line())], "lines": lines, "keys": ""})
+		overlay.hide_card()
+		overlay.card_v = 0.0
+		var quips := ["经费续上了。今晚终于能睡个好觉。", "校长点了点头。你偷偷松了口气。", "差点就要去隔壁实验室打工了。", "导师说“还行”。这是他说过最高的评价。", "实验室保住了。至少保住到下一次考核。"]
+		overlay.celebrate(res.stage + 1, quips[(res.stage + run.experiment_no) % quips.size()])
+		Sfx.play("perfect", -2.0, 0.8)
+		Sfx.play("boom", -10.0, 1.4)
+		get_tree().create_timer(0.45, true, false, true).timeout.connect(func():
+			Sfx.play("whoosh", -4.0, 0.9)
+			Sfx.play("paper", -2.0, 1.2))
+		hitstop(0.12)
+		shake = 1.0
+		# 1.5 秒后升起“下一阶段目标”卡片
+		var carry := run.total
+		var nl := run.line()
+		goal_card = func():
+			if mode != M.REVIEW or not review_passed:
+				return
+			Sfx.play("paper", -4.0, 0.9)
+			var lines: Array = ["束流重新配给 %d 束 · 阶段奖金 +$%d" % [Run.PER_STAGE, res.bonus]]
+			if carry >= nl:
+				lines.append("攒下的分已经够这一关了！想交，回审核台再交一次。")
+			else:
+				lines.append("已经带过去 %s RP，还差 %s RP。" % [fmt(carry), fmt(nl - carry)])
+			overlay.show_card({"title": "下一阶段目标 · 第 %d 阶段" % (run.stage + 1), "title_col": Pal.c("blue"), "value": "%s RP" % fmt(nl),
+				"sub": "累计分达到 %s 即可提交（现在 %s，%d%%）" % [fmt(nl), fmt(carry), int(100.0 * carry / maxf(1.0, nl))], "lines": lines, "keys": ""})
 	else:
 		mode = M.END
 		Sfx.play("boom", -3.0, 0.7)
@@ -613,6 +649,8 @@ func _review_card() -> void:
 
 func close_review() -> void:
 	overlay.hide_card()
+	if overlay.cel_t >= 0.0:
+		overlay.cel_t = maxf(overlay.cel_t, 8.6)     # 庆祝收尾淡出
 	review_passed = false
 	mode = M.WALK
 	player.input_enabled = true
@@ -684,6 +722,10 @@ func _process(dt: float) -> void:
 	overlay.danger = clampf((dang - 0.1) / 0.3, 0.0, 1.0)
 	cooldown = maxf(0.0, cooldown - dt)
 	e_guard = maxf(0.0, e_guard - dt)
+	if goal_card.is_valid() and overlay.cel_t >= 1.5:
+		var gc := goal_card
+		goal_card = Callable()
+		gc.call()
 	timer += dt
 	match mode:
 		M.WALK:

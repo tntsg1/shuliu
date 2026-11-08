@@ -135,6 +135,13 @@ func _do(act: String, arg) -> void:
 			main.dev_speed = arg
 		"god":
 			run.dev_god = not run.dev_god
+		"meme_all":
+			main.dev_meme_always = not main.dev_meme_always
+		"meme_next":
+			var keys: Array = Memes.LIST.keys()
+			var i := keys.find(main.dev_meme_force)
+			main.dev_meme_force = keys[(i + 1) % keys.size()]
+			_say("下次引出：" + Memes.LIST[main.dev_meme_force].name)
 
 func _btn(r: Rect2, label: String, act: String, arg = null, on := false, col := Color.TRANSPARENT) -> void:
 	var i := btns.size()
@@ -236,6 +243,11 @@ func _draw() -> void:
 	for i in 3:
 		_btn(Rect2(x + 100 + i * 78, y - 18, 70, 32), "×%d" % int(sp[i]), "speed", sp[i], is_equal_approx(main.dev_speed, sp[i]))
 	_btn(Rect2(pr.end.x - 24 - 130, y - 18, 130, 32), "无敌：开" if run.dev_god else "无敌：关", "god", null, run.dev_god, Pal.c("red") if run.dev_god else Color.TRANSPARENT)
+	y += 30.0
+	Ink.text(self, "奇葩事件", Vector2(x, y + 4), 15, Pal.c("text2"))
+	_btn(Rect2(x + 100, y - 18, 150, 32), "每次都出：开" if main.dev_meme_always else "每次都出：关", "meme_all", null, main.dev_meme_always)
+	var nm: String = Memes.LIST[main.dev_meme_force].name if main.dev_meme_force != "" else "（自动）"
+	_btn(Rect2(x + 258, y - 18, W - 48 - 258, 32), "下次指定：" + nm, "meme_next")
 	# 提示
 	if msg_t > 0.0:
 		Ink.text(self, msg, Vector2(x, pr.end.y - 28), 16, Color(Pal.c("red"), clampf(msg_t / 0.3, 0.0, 1.0)), Pal.bold)
