@@ -73,9 +73,10 @@ func ramp(v: float) -> Color:
 	var i := mini(3, int(floor(v)))
 	return c("ramp%d" % i).lerp(c("ramp%d" % (i + 1)), v - i)
 
-## 五种结果的颜色
+## 六种结果的颜色
 func outcome(k: int) -> Color:
 	match k:
+		Odds.SUPER: return c("gold")
 		Odds.PERFECT: return c("ramp4") if dark else c("blue")
 		Odds.SUCCESS: return c("ramp2")
 		Odds.STABLE: return c("ink2")

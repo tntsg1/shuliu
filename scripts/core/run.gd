@@ -19,8 +19,8 @@ var beam: Beam = null
 var log: Array = []
 var experiment_no := 0
 var failed := false
-var expected := PackedFloat64Array([0, 0, 0, 0, 0])
-var actual := PackedInt32Array([0, 0, 0, 0, 0])
+var expected := PackedFloat64Array([0, 0, 0, 0, 0, 0])
+var actual := PackedInt32Array([0, 0, 0, 0, 0, 0])
 var best_value := 0
 # —— 经费与构筑 ——
 var money := START_MONEY
@@ -75,7 +75,7 @@ func start_experiment() -> void:
 func odds() -> PackedFloat64Array:
 	var b := beam
 	var p := Odds.table(b.energy)
-	var d := PackedFloat64Array([0, 0, 0, 0, 0])
+	var d := PackedFloat64Array([0, 0, 0, 0, 0, 0])
 	if has("magnet_sc"): d[Odds.LOSS] -= 0.05
 	if has("collimator"): d[Odds.LOSS] -= 0.04
 	if has("injector_hi"): d[Odds.LOSS] += 0.05
@@ -88,8 +88,9 @@ func odds() -> PackedFloat64Array:
 	if b.locked():
 		q[Odds.LOSS] = 0.0
 		var s := 0.0
-		for k in 5: s += q[k]
-		for k in 5: q[k] /= s
+		for k in Odds.N: s += q[k]
+		for k in Odds.N: q[k] /= s
+		Odds.add_super(q, b.energy)
 	return q
 
 ## 本次是否必定至少普通成功
@@ -149,7 +150,7 @@ func accelerate() -> Dictionary:
 			trig.append(["coin", "正面！挡住了"])
 		else:
 			trig.append(["coin", "反面……"])
-	for kk in 5:
+	for kk in Odds.N:
 		expected[kk] += p[kk]
 	actual[k] += 1
 	b.presses += 1
@@ -172,12 +173,12 @@ func accelerate() -> Dictionary:
 	# 执行结果
 	var was_locked := b.locked()
 	var delta: int = Odds.DELTA[k]
-	if (k == Odds.SUCCESS or k == Odds.PERFECT) and has("rejected") and rejected_stacks >= 5:
+	if Odds.is_good(k) and has("rejected") and rejected_stacks >= 5:
 		delta += 3
 		rejected_stacks = 0
 		trig.append(["rejected", "怨气爆发 +3"])
 	b.energy = clampi(b.energy + delta, 1, Odds.EMAX)
-	var good := k == Odds.SUCCESS or k == Odds.PERFECT
+	var good := Odds.is_good(k)
 	if good:
 		b.streak += 1
 		if has("chair"):
@@ -198,7 +199,7 @@ func accelerate() -> Dictionary:
 		b.cat_last = false
 	if k == Odds.DETUNE and has("rejected"):
 		rejected_stacks = mini(5, rejected_stacks + 1)
-	if k == Odds.PERFECT and has("koi") and b.koi < 5:
+	if (k == Odds.PERFECT or k == Odds.SUPER) and has("koi") and b.koi < 5:
 		b.koi += 1
 		trig.append(["koi", "好运 ×%d" % b.koi])
 	var lock_n := Odds.LOCK_PRESSES + (2 if has("fast_clock") else 0)
@@ -223,7 +224,7 @@ func accelerate() -> Dictionary:
 	# 便利贴：成功率够高时预备下一次必定成功
 	if has("note100") and not b.guaranteed_next:
 		var q := odds()
-		if q[Odds.SUCCESS] + q[Odds.PERFECT] >= 0.75:
+		if q[Odds.SUCCESS] + q[Odds.PERFECT] + q[Odds.SUPER] >= 0.75:
 			b.guaranteed_next = true
 			relics.erase("note100")
 			trig.append(["note100", "贴上了"])

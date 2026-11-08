@@ -556,6 +556,24 @@ func _impact(r: Dictionary) -> void:
 	var col := Pal.outcome(k)
 	Sfx.play("btn", -3.0, 1.0, 0.04)
 	match k:
+		Odds.SUPER:
+			# 三连撞：+1 +1 +1 一下比一下重，最后金色射线炸满全屏
+			Sfx.play("perfect", 0.0, 0.9 + e * 0.015)
+			Sfx.play("arc", -3.0, 1.3)
+			hitstop(0.16)
+			slowmo(0.7, 0.35)
+			for i in 3:
+				get_tree().create_timer(0.11 * i, true, false, true).timeout.connect(func():
+					Sfx.play("hit", -4.0 + i * 1.5, 1.1 + i * 0.18)
+					chamber.kick(1.4 + i * 0.6, col)
+					cam_vel += Vector2(randf_range(-90, 90), -220 - i * 90)
+					cam_zv += 0.25 + i * 0.15
+					shake = maxf(shake, 0.5 + i * 0.25)
+					overlay.pop("+%d" % (i + 1), col, i == 2))
+			get_tree().create_timer(0.33, true, false, true).timeout.connect(func():
+				Sfx.play("ring", -2.0, 1.15)
+				Sfx.play("discharge", -8.0, 1.4)
+				overlay.super_burst(get_viewport().get_canvas_transform() * Geo.CHAMBER))
 		Odds.PERFECT:
 			Sfx.play("perfect", -2.0, 1.0 + e * 0.015)
 			Sfx.play("hit", -4.0, 1.25 + e * 0.03)

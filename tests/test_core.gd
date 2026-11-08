@@ -20,6 +20,24 @@ func _initialize() -> void:
 			check(absf(s - 1.0) < 1e-9, "E%d 概率和为1" % e)
 			if lk:
 				check(p[Odds.LOSS] == 0.0, "锁相丢失为0")
+				check(p[Odds.SUPER] > 0.04, "锁相有超级同步 E%d" % e)
+			else:
+				check(p[Odds.SUPER] == 0.0, "非锁相没有超级同步")
+	check(absf(Odds.super_chance(5) - 0.06) < 1e-9 and absf(Odds.super_chance(13) - 0.15) < 1e-9, "超级同步随能级升高")
+	# 超级同步：+3 能级，只在锁相时抽到
+	var rsu := Run.new(777)
+	var got_super := 0
+	for i in 4000:
+		rsu.beam = Beam.new()
+		rsu.beam.energy = 6
+		rsu.beam.lock_left = 4 if i % 2 == 0 else 0
+		var lk2 := rsu.beam.locked()
+		var r0 := rsu.accelerate()
+		if r0.outcome == Odds.SUPER:
+			got_super += 1
+			check(lk2, "超级同步只在锁相出现")
+			check(r0.to == 9, "超级同步 +3 能级")
+	check(got_super > 60 and got_super < 220, "锁相超级同步频率合理 %d" % got_super)
 	check(absf(Odds.table(1)[Odds.LOSS] - 0.01) < 1e-9, "E1 丢失 1%")
 	check(absf(Odds.table(9)[Odds.LOSS] - 0.16) < 1e-9, "E9 丢失 16%")
 	check(Odds.value_at(1) == 40 and Odds.value_at(8) == 279 and Odds.value_at(10) == 487, "价值曲线")
@@ -54,7 +72,7 @@ func _initialize() -> void:
 	for i in 500:
 		var base := Odds.table(rr.randi_range(1, 20))
 		var d := PackedFloat64Array()
-		for k in 5: d.append(rr.randf_range(-0.3, 0.3) if rr.randf() < 0.5 else 0.0)
+		for k in Odds.N: d.append(rr.randf_range(-0.3, 0.3) if rr.randf() < 0.5 else 0.0)
 		var q := Odds.apply_mods(base, d)
 		var sq := 0.0
 		for v in q:
@@ -172,7 +190,7 @@ func _initialize() -> void:
 		else: r3.accelerate()
 		n += 1
 	var se := 0.0; var sa := 0
-	for k in 5: se += r3.expected[k]; sa += r3.actual[k]
+	for k in Odds.N: se += r3.expected[k]; sa += r3.actual[k]
 	check(absf(se - sa) < 1e-6, "期望次数总和=实际次数总和")
 
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)

@@ -15,9 +15,9 @@ var e_disp := 1.0
 var _ve := 0.0
 var e_target := 1.0
 # 概率纸带宽度
-var seg := PackedFloat32Array([0.1, 0.69, 0.15, 0.05, 0.01])
-var seg_v := PackedFloat32Array([0, 0, 0, 0, 0])
-var seg_t := PackedFloat32Array([0.1, 0.69, 0.15, 0.05, 0.01])
+var seg := PackedFloat32Array([0.0, 0.1, 0.69, 0.15, 0.05, 0.01])
+var seg_v := PackedFloat32Array([0, 0, 0, 0, 0, 0])
+var seg_t := PackedFloat32Array([0.0, 0.1, 0.69, 0.15, 0.05, 0.01])
 # 锁相灯
 var charge := 0
 var lamp_pop := PackedFloat32Array([0, 0, 0, 0, 0, 0])
@@ -67,7 +67,7 @@ func _ready() -> void:
 func set_beam(energy: int, value: int, odds: PackedFloat64Array, ch: int, lk: int) -> void:
 	e_target = energy
 	val_target = value
-	for k in 5:
+	for k in Odds.N:
 		seg_t[k] = odds[k]
 	if ch > charge:
 		for i in range(charge, mini(ch, 6)):
@@ -80,7 +80,7 @@ func reset_beam() -> void:
 	e_target = 1
 	val_target = Odds.value_at(1)
 	var p := Odds.table(1)
-	for k in 5:
+	for k in Odds.N:
 		seg_t[k] = p[k]
 	charge = 0
 	lock_left = 0
@@ -117,14 +117,14 @@ func progress() -> float:
 
 func _seg_at(u: float) -> int:
 	var tot := 0.0
-	for k in 5:
+	for k in Odds.N:
 		tot += seg[k]
 	var acc := 0.0
-	for k in 5:
+	for k in Odds.N:
 		acc += seg[k] / maxf(tot, 1e-5)
 		if u < acc:
 			return k
-	return 4
+	return Odds.LOSS
 
 func pull() -> void:
 	_vlv = 9.0
@@ -134,7 +134,7 @@ func _process(dt: float) -> void:
 	var r := Ink.spring(show_v, _vs, show_t, 8.5, dt); show_v = r[0]; _vs = r[1]
 	r = Ink.spring(val_disp, _vval, val_target, 11.0, dt); val_disp = r[0]; _vval = r[1]
 	r = Ink.spring(e_disp, _ve, e_target, 12.0, dt); e_disp = r[0]; _ve = r[1]
-	for k in 5:
+	for k in Odds.N:
 		r = Ink.spring(seg[k], seg_v[k], seg_t[k], 10.0, dt); seg[k] = r[0]; seg_v[k] = r[1]
 	for i in 6:
 		lamp_pop[i] = maxf(0.0, lamp_pop[i] - dt * 3.0)
@@ -284,9 +284,9 @@ func _tape(r: Rect2) -> void:
 	var x := r.position.x
 	var centers: Array = []
 	var total := 0.0
-	for k in 5:
+	for k in Odds.N:
 		total += seg[k]
-	for k in 5:
+	for k in Odds.N:
 		var w := r.size.x * seg[k] / maxf(total, 1e-5)
 		var sr := Rect2(x, r.position.y, w, r.size.y)
 		var col := Pal.outcome(k)
@@ -298,28 +298,38 @@ func _tape(r: Rect2) -> void:
 		centers.append(sr.get_center().x)
 		seg_x.append(sr.end.x)
 		x += w
-	# 印字：标签按最小间距左右避让，并用细线指回色段
-	var lab: Array = centers.duplicate()
-	for i in range(1, 5):
+	# 印字：标签按最小间距左右避让，并用细线指回色段（超级同步只在锁相时出现）
+	var ks: Array = []
+	for k in Odds.N:
+		if k != Odds.SUPER or seg[k] > 0.004:
+			ks.append(k)
+	var n := ks.size()
+	var lab: Array = []
+	for k in ks:
+		lab.append(centers[k])
+	for i in range(1, n):
 		lab[i] = maxf(lab[i], lab[i - 1] + 96.0)
-	var over: float = lab[4] - (r.end.x - 40.0)
+	var over: float = lab[n - 1] - (r.end.x - 40.0)
 	if over > 0.0:
-		for i in 5:
+		for i in n:
 			lab[i] -= over
-		for i in range(3, -1, -1):
+		for i in range(n - 2, -1, -1):
 			lab[i] = minf(lab[i], lab[i + 1] - 96.0)
 	var under: float = r.position.x + 44.0 - lab[0]
 	if under > 0.0:
-		for i in 5:
+		for i in n:
 			lab[i] += under
-	for k in 5:
+	for i in n:
+		var k: int = ks[i]
 		var pct := seg[k] * 100.0
 		var hot := k == Odds.LOSS and pct >= 20.0
 		var col := Pal.c("red") if hot else Pal.c("text")
-		if absf(lab[k] - centers[k]) > 2.0:
-			draw_line(Vector2(centers[k], r.end.y + 2), Vector2(lab[k], r.end.y + 8), Color(el, 0.5), 1.0, true)
-		Ink.text(self, Odds.NAMES[k], Vector2(lab[k], r.end.y + 24), 15, col, Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
-		Ink.text(self, "%.1f%%" % pct, Vector2(lab[k], r.end.y + 44), 17, col, Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+		if k == Odds.SUPER:
+			col = Pal.c("gold").darkened(0.25)
+		if absf(lab[i] - centers[k]) > 2.0:
+			draw_line(Vector2(centers[k], r.end.y + 2), Vector2(lab[i], r.end.y + 8), Color(el, 0.5), 1.0, true)
+		Ink.text(self, Odds.NAMES[k], Vector2(lab[i], r.end.y + 24), 15, col, Pal.bold if k == Odds.SUPER else Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+		Ink.text(self, "%.1f%%" % pct, Vector2(lab[i], r.end.y + 44), 17, col, Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 	# 指针：墨线三角 + 贯穿纸带的竖线；滑动时拖出残影
 	if ptr_vis > 0.01:
 		var u := fposmod(ptr_abs, 1.0)
@@ -356,6 +366,16 @@ func _hatch(r: Rect2, k: int) -> void:
 		return
 	var c := Color(0, 0, 0, 0.13)
 	match k:
+		Odds.SUPER:
+			# 金色段：斜向双线 + 慢慢流动，提示“这一段很特别”
+			var x3 := r.position.x - fmod(t * 18.0, 10.0)
+			while x3 < r.end.x:
+				for o in [0.0, 3.0]:
+					var xa: float = x3 + o
+					var xb: float = xa + r.size.y * 0.5
+					if xb > r.position.x and xa < r.end.x:
+						draw_line(Vector2(clampf(xa, r.position.x, r.end.x), r.end.y), Vector2(clampf(xb, r.position.x, r.end.x), r.position.y), Color(1, 1, 1, 0.45), 1.2)
+				x3 += 10.0
 		Odds.PERFECT:
 			var y := r.position.y + 5
 			while y < r.end.y:

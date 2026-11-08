@@ -155,16 +155,16 @@ func _right(pr: Rect2) -> void:
 	draw_line(q + Vector2(0, -8), q + Vector2(pr.size.x - 40, -8), Color(ink, 0.4), 1.0)
 	Ink.text(self, "显示概率 · 实际频率（本局）", q + Vector2(32, 18), 15, Pal.c("text2"))
 	var tot := 0
-	for k in 5:
+	for k in Odds.N:
 		tot += run.actual[k]
-	for k in 5:
-		var yy := q.y + 46 + k * 26
+	for k in Odds.N:
+		var yy := q.y + 40 + k * 24
 		Ink.text(self, Odds.NAMES[k], Vector2(q.x + 32, yy), 15, ink)
 		var ex := run.expected[k] / maxf(1.0, tot) * 100.0
 		var ac := run.actual[k] / maxf(1.0, tot) * 100.0
 		Ink.text(self, "%.1f%%" % ex, Vector2(q.x + 230, yy), 15, Pal.c("text2"), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
 		Ink.text(self, "%.1f%%" % ac, Vector2(q.x + 320, yy), 15, ink, Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
-	Ink.text(self, "共 %d 次加速" % tot, Vector2(q.x + 32, q.y + 186), 14, Pal.c("text2"), Pal.hand)
+	Ink.text(self, "共 %d 次加速" % tot, Vector2(q.x + 32, q.y + 196), 14, Pal.c("text2"), Pal.hand)
 
 func _dashed(a: Vector2, b: Vector2, col: Color) -> void:
 	var L := a.distance_to(b)

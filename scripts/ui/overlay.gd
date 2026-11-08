@@ -33,6 +33,9 @@ var trigs: Array = []     # 饰品触发纸签 {id, s, t}
 var pops: Array = []      # 飞字 {s, col, big, t}
 var red := 0.0            # 红色边缘闪
 var lockfx := 0.0
+var superfx := -1.0       # 超级同步：从观测舱炸开的金色射线（秒，-1 = 无）
+var super_c := Vector2.ZERO
+var super_t0 := 0             # 用真实时间推进（顿帧/慢动作时射线照样炸开）
 var danger := 0.0
 var last_tick := 0
 
@@ -73,6 +76,11 @@ func trig(id: String, s: String) -> void:
 func flash_red(a: float) -> void:
 	red = maxf(red, a)
 
+func super_burst(center: Vector2) -> void:
+	superfx = 0.0
+	super_t0 = Time.get_ticks_usec()
+	super_c = center
+
 func flash_lock() -> void:
 	lockfx = 1.0
 
@@ -95,6 +103,10 @@ func _process(dt: float) -> void:
 	tip_v = lerpf(tip_v, 1.0 if not tip_lines.is_empty() else 0.0, 1.0 - exp(-18.0 * dt))
 	red = maxf(0.0, red - dt * 2.2)
 	lockfx = maxf(0.0, lockfx - dt * 1.2)
+	if superfx >= 0.0:
+		superfx = (Time.get_ticks_usec() - super_t0) / 1e6
+		if superfx > 1.6:
+			superfx = -1.0
 	for p in pops:
 		p.t += dt
 	pops = pops.filter(func(p): return p.t < 0.9)
@@ -114,6 +126,7 @@ func _draw() -> void:
 	if main == null or main.run == null:
 		return
 	var vp := get_viewport_rect().size
+	_super(vp)
 	_edges(vp)
 	_strip(vp)
 	_pops(vp)
@@ -132,6 +145,32 @@ func _draw() -> void:
 		draw_rect(rr, Color(Pal.c("paper"), a))
 		draw_rect(rr, Color(Pal.equip_line(), a), false, 1.4)
 		Ink.text(self, toast, Vector2(vp.x * 0.5, 102), 18, Color(Pal.c("text"), a), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+
+## 超级同步：金色/纸色相间的射线从观测舱中心转着炸开，三道墨圈依次扩散（哑光平涂，不发光）
+func _super(vp: Vector2) -> void:
+	if superfx < 0.0:
+		return
+	var k := superfx
+	var a := clampf(k / 0.08, 0.0, 1.0) * clampf((1.5 - k) / 0.6, 0.0, 1.0)
+	var c := super_c
+	var L := vp.length() * 0.6
+	var open := Ink.ease_out_cubic(clampf(k / 0.35, 0.0, 1.0))
+	for i in 24:
+		var ang := i * TAU / 24.0 + k * 0.35
+		var col: Color = Pal.c("gold") if i % 2 == 0 else Pal.c("paper")
+		var r0 := 120.0 + 60.0 * k
+		var dir := Vector2.from_angle(ang)
+		# 分三段画，越往外越宽越淡（线段比多边形稳，不会三角化失败）
+		for seg in 3:
+			var f0 := lerpf(r0, L, seg / 3.0)
+			var f1 := lerpf(r0, L, (seg + 1) / 3.0)
+			var wd := (8.0 + seg * 22.0) * open * (1.0 + (i % 2) * 0.4)
+			draw_line(c + dir * f0, c + dir * f1, Color(col, (0.55 - seg * 0.12) * a), wd)
+	for ri in 3:
+		var kk := clampf((k - ri * 0.12) / 0.7, 0.0, 1.0)
+		if kk > 0.0 and kk < 1.0:
+			var rr := 160.0 + 900.0 * Ink.ease_out_cubic(kk)
+			draw_arc(c, rr, 0, TAU, 96, Color(Pal.c("gold").darkened(0.2 * ri), 0.9 * (1.0 - kk)), 10.0 * (1.0 - kk) + 1.0, true)
 
 ## 顶部：一条贴在镜头上的纸胶带
 func _strip(vp: Vector2) -> void:
@@ -238,6 +277,8 @@ func _edges(vp: Vector2) -> void:
 		_edge_band(vp, Pal.c("red"), a)
 	if lockfx > 0.01:
 		_edge_band(vp, Pal.c("lock"), lockfx * 0.5)
+	if superfx >= 0.0:
+		_edge_band(vp, Pal.c("gold"), clampf(1.0 - superfx / 1.4, 0.0, 1.0) * 0.8)
 
 func _edge_band(vp: Vector2, col: Color, a: float) -> void:
 	var w := 140.0

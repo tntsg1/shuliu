@@ -231,7 +231,7 @@ func _fire(f: Dictionary, el: Color) -> void:
 				var ang := i * TAU / 12.0 + k * 0.9
 				var col: Color = rc if i % 2 == 0 else Pal.c("gold")
 				var pts := PackedVector2Array([p + Vector2.from_angle(ang - 0.07) * 58.0, p + Vector2.from_angle(ang) * (L + (i % 2) * 30.0), p + Vector2.from_angle(ang + 0.07) * 58.0])
-				draw_primitive(pts, PackedColorArray([Color(col, 0.75 * ra), Color(col, 0.75 * ra), Color(col, 0.75 * ra)]), PackedVector2Array())
+				draw_colored_polygon(pts, Color(col, 0.75 * ra))
 		# 墨圈（两道，前后错开）
 		for ri in 2:
 			var kk := clampf((k - ri * 0.1) / 0.45, 0.0, 1.0)
