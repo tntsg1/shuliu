@@ -388,5 +388,45 @@ func _initialize() -> void:
 	b4l.start_experiment(); b4l.beam.energy = 6
 	check(b4l.extract().triggers.is_empty(), "推荐信本阶段只一次")
 
+	# —— M3 第 5 批：金属 ——
+	var b5 := Run.new(81)
+	b5.relics.append("wrench")
+	check(b5.slot_count("device") == Items.device_slots(0) + 1, "扳手：设备槽 +1")
+	b5.relics = ["coin", "eraser", "screw"]
+	check(b5.slot_used("relic") == 2 and b5.slots_free("relic", "screw"), "螺丝不占槽")
+	var b5e := Run.new(82)
+	b5e.relics.append("extinguisher")
+	b5e.dev_force = Odds.LOSS
+	b5e.start_experiment(); b5e.beam.energy = 5
+	var re5 := b5e.accelerate()
+	check(re5.outcome == Odds.STABLE and re5.raw == Odds.LOSS, "灭火器：能级 ≤6 丢失 → 稳定")
+	b5e.dev_force = Odds.LOSS
+	check(b5e.accelerate().lost, "灭火器：本阶段只一次")
+	var b5d := Run.new(83)
+	b5d.devices.append("beam_dump")
+	b5d.dev_force = Odds.LOSS
+	b5d.start_experiment(); b5d.beam.energy = 7
+	var m5 := b5d.money
+	var rd5 := b5d.accelerate()
+	check(rd5.money >= 14, "收集靶返还 能级×2")
+	var b5r := Run.new(84)
+	b5r.devices.append("rf_cavity")
+	b5r.dev_force = Odds.PERFECT
+	b5r.start_experiment(); b5r.beam.energy = 3
+	b5r.accelerate()
+	check(b5r.beam.energy == 6, "射频腔：完美 +3")
+	var b5c := Run.new(85)
+	b5c.devices.append("cryo_magnet")
+	b5c.start_experiment(); b5c.beam.energy = 11
+	check(absf(b5c.odds()[Odds.LOSS] - (Odds.table(11)[Odds.LOSS] - 0.08)) < 1e-9, "低温磁体 -8pp")
+	var b5k := Run.new(86)
+	b5k.relics.append("lab8_key")
+	var free_n := 0
+	for i in 300:
+		b5k.roll_shop()
+		for o in b5k.offers:
+			if o.get("free", false): free_n += 1
+	check(free_n > 10 and free_n < 60, "钥匙 10%% 免费（%d/300）" % free_n)
+
 	print("core tests: ", "OK" if fails == 0 else "%d FAIL" % fails)
 	quit(1 if fails else 0)

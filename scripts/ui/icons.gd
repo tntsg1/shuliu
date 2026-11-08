@@ -327,6 +327,73 @@ static func draw(ci: CanvasItem, id: String, c: Vector2, size: float, rot := 0.0
 			ci.draw_arc(Vector2.ZERO, 17.0, 0, TAU, 40, Color(Pal.c("red"), 0.6), 1.0, true)
 			_star(ci, Vector2(0, -2), 8.0, Pal.c("red"))
 			ci.draw_line(Vector2(-10, 10), Vector2(10, 10), Pal.c("red"), 2.0)
+		# —— M3 第 5 批：金属 ——
+		"screw":
+			# 一颗粗螺丝，螺纹斜线，十字槽头
+			ci.draw_set_transform(c, rot - 0.5, Vector2(s, s))
+			_box(ci, Rect2(-6, -8, 12, 34), Color("#b8bcc0"), ink)
+			for i in 6:
+				ci.draw_line(Vector2(-6, -4 + i * 5), Vector2(6, -1 + i * 5), Color(ink, 0.5), 1.2)
+			_box(ci, Rect2(-14, -18, 28, 10), Color("#9aa0a6"), ink)
+			ci.draw_line(Vector2(-6, -13), Vector2(6, -13), ink, 2.0)
+		"lab8_key":
+			# 旧铜钥匙，挂着写着“8”的塑料牌
+			ci.draw_circle(Vector2(-12, -8), 11.0, Pal.c("gold"))
+			ci.draw_arc(Vector2(-12, -8), 11.0, 0, TAU, 24, ink, 1.8, true)
+			ci.draw_circle(Vector2(-12, -8), 4.0, paper)
+			_box(ci, Rect2(-2, -11, 28, 6), Pal.c("gold"), ink)
+			_box(ci, Rect2(16, -5, 4, 7), Pal.c("gold"), ink)
+			_box(ci, Rect2(22, -5, 4, 5), Pal.c("gold"), ink)
+			_box(ci, Rect2(-22, 6, 18, 20), Pal.c("red"), ink)
+			Ink.text(ci, "8", Vector2(-13, 22), 13, paper, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"extinguisher":
+			# 红色灭火器，检查卡上一个问号
+			_box(ci, Rect2(-11, -14, 22, 40), Pal.c("red"), ink)
+			ci.draw_circle(Vector2(0, -14), 11.0, Pal.c("red"))
+			ci.draw_arc(Vector2(0, -14), 11.0, PI, TAU, 16, ink, 1.8, true)
+			_box(ci, Rect2(-4, -28, 8, 6), Color("#2b2a28"), ink)
+			ci.draw_polyline(PackedVector2Array([Vector2(4, -26), Vector2(16, -26), Vector2(20, -18)]), ink, 2.4, true)
+			_box(ci, Rect2(-8, 2, 16, 14), paper, ink)
+			Ink.text(ci, "?", Vector2(0, 14), 11, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		"wrench":
+			# 活动扳手，柄上贴着隔壁组的名字条
+			ci.draw_set_transform(c, rot - 0.7, Vector2(s, s))
+			_box(ci, Rect2(-24, -5, 38, 10), Color("#9aa0a6"), ink)
+			_poly(ci, [Vector2(12, -12), Vector2(26, -12), Vector2(26, -4), Vector2(20, -4), Vector2(20, 4), Vector2(26, 4), Vector2(26, 12), Vector2(12, 12)], Color("#b8bcc0"), ink)
+			ci.draw_rect(Rect2(-18, -5, 14, 10), paper)
+			ci.draw_line(Vector2(-16, 0), Vector2(-7, 0), Pal.c("blue"), 1.6)
+		"rf_cavity":
+			# 一节铜色射频腔：几个鼓起的腔室
+			for i in 3:
+				ci.draw_circle(Vector2(-16 + i * 16, 0), 12.0, Color("#c98a4a"))
+				ci.draw_arc(Vector2(-16 + i * 16, 0), 12.0, 0, TAU, 24, ink, 1.8, true)
+			ci.draw_line(Vector2(-30, 0), Vector2(30, 0), Pal.c("ramp2"), 3.0)
+			for i in 3:
+				ci.draw_line(Vector2(-16 + i * 16, -12), Vector2(-16 + i * 16, -18), ink, 2.0)
+			_box(ci, Rect2(-24, -24, 48, 6), Pal.c("equip"), ink)
+		"extractor":
+			# 引出器：一节管道把束流拐出去，出口一个箭头
+			_box(ci, Rect2(-26, -8, 30, 16), Pal.c("equip"), ink)
+			_poly(ci, [Vector2(4, -8), Vector2(18, -22), Vector2(26, -14), Vector2(12, 0), Vector2(4, 8)], Pal.c("equip"), ink)
+			ci.draw_line(Vector2(-26, 0), Vector2(6, 0), Pal.c("ramp2"), 3.0)
+			ci.draw_line(Vector2(6, 0), Vector2(20, -16), Pal.c("ramp2"), 3.0)
+			_poly(ci, [Vector2(20, -24), Vector2(28, -26), Vector2(26, -18)], Pal.c("red"), ink)
+		"cryo_magnet":
+			# 低温磁体：白霜包着的磁铁 + 一片雪花
+			_box(ci, Rect2(-22, -16, 44, 32), Color("#dfe8f0"), ink)
+			ci.draw_rect(Rect2(-16, -10, 32, 20), Pal.c("dip_b"))
+			for i in 5:
+				ci.draw_circle(Vector2(-18 + i * 9, -16), 3.0, Color("#f6f9fb"))
+			for i in 3:
+				var a := i * PI / 3.0
+				ci.draw_line(Vector2.from_angle(a) * -7.0, Vector2.from_angle(a) * 7.0, Color("#f6f9fb"), 2.0)
+		"beam_dump":
+			# 收集靶：一块厚铁块，正面一个被打出来的坑
+			_box(ci, Rect2(-20, -20, 40, 40), Color("#6f747a"), ink)
+			_box(ci, Rect2(-14, -14, 28, 28), Color("#878c92"), ink)
+			ci.draw_circle(Vector2.ZERO, 7.0, Color("#3a3d42"))
+			ci.draw_line(Vector2(-30, 0), Vector2(-14, 0), Pal.c("ramp2"), 3.0)
+			Ink.text(ci, "$", Vector2(14, 26), 12, Pal.c("green"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		_:
 			_box(ci, Rect2(-20, -20, 40, 40), paper, ink)
 			Ink.text(ci, "?", Vector2(0, 8), 20, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

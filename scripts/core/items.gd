@@ -20,6 +20,15 @@ const ALL := {
 		"desc": "完美同步概率提高 4 个百分点。", "lore": "主控制器坏掉的那天，大家才发现还有个备用的。"},
 	"diagnostic": {"kind": "device", "name": "快速束流诊断仪", "rarity": UNCOMMON, "price": 22,
 		"desc": "每次实验首次失谐转化为保持稳定。", "lore": "它总能比你早半秒知道哪里不对。"},
+	# —— M3 第 5 批：金属设备 ——
+	"rf_cavity": {"kind": "device", "name": "高频射频腔", "rarity": RARE, "price": 36,
+		"desc": "完美同步额外 +1 能级。", "lore": "共振的时候，整层楼的窗户都在嗡嗡响。"},
+	"extractor": {"kind": "device", "name": "高效束流引出器", "rarity": COMMON, "price": 16,
+		"desc": "主动引出时最终科研价值 +20%。", "lore": "送束流出门的时候，比谁都利索。"},
+	"cryo_magnet": {"kind": "device", "name": "低温磁体升级", "rarity": RARE, "price": 34,
+		"desc": "能级 ≥ 10 时束流丢失概率 -8 个百分点。", "lore": "零下二百六十九度，比财务处还冷。"},
+	"beam_dump": {"kind": "device", "name": "束流收集靶", "rarity": COMMON, "price": 14,
+		"desc": "束流丢失时返还 $（能级 × 2）。", "lore": "所有失败的束流，最后都来到这里。"},
 	# —— 饰品 ——
 	"dean_paper": {"kind": "relic", "name": "校长几年前用过的实验稿纸", "rarity": RARE, "price": 42,
 		"desc": "每局首次发生无法被其他效果阻止的束流丢失时，保留当前科研价值的 80%，随后实验结束。",
@@ -133,6 +142,19 @@ const ALL := {
 	"crooked_seal": {"kind": "relic", "name": "盖歪了的公章", "rarity": RARE, "price": 36,
 		"desc": "过阶段奖金 ×2。",
 		"lore": "盖上去之前谁都不知道它会歪向哪边。"},
+	# —— M3 第 5 批：金属 ——
+	"screw": {"kind": "relic", "name": "隔壁实验室的螺丝", "rarity": UNCOMMON, "price": 22,
+		"desc": "不占饰品槽，整局只能持有一个。每次加速 3% 概率潜在成果翻倍，2% 概率额外触发一次束流丢失判定。",
+		"lore": "装不上去，但扔了又觉得可惜。"},
+	"lab8_key": {"kind": "relic", "name": "第八号实验室的钥匙", "rarity": RARE, "price": 36,
+		"desc": "每次刷新商店，10% 概率额外出现一件免费饰品。",
+		"lore": "我们学校没有八号实验室。"},
+	"extinguisher": {"kind": "relic", "name": "检查日期写着“待定”的灭火器", "rarity": COMMON, "price": 14,
+		"desc": "每阶段首次束流丢失时，若能级 ≤ 6，改为保持稳定。",
+		"lore": "领导检查之前填写日期。"},
+	"wrench": {"kind": "relic", "name": "隔壁组借走没还的扳手", "rarity": RARE, "price": 38,
+		"desc": "设备槽 +1。",
+		"lore": "我借扳手是为了用，我都用到扳手了我还什么。"},
 }
 
 ## 污染标签（只改画面，不进数值；DECISIONS 视觉硬规则）
@@ -148,11 +170,13 @@ const TAG := {
 	"bandaid": "文具", "marker": "文具", "wipes": "文具", "tape_roll": "文具",
 	"rec_letter": "证章", "grad_promise": "证章", "phd_cert": "证章", "dose_card": "证章",
 	"meal_card": "证章", "red_flag": "证章", "crooked_seal": "证章",
+	"rf_cavity": "金属", "extractor": "金属", "cryo_magnet": "金属", "beam_dump": "金属",
+	"screw": "金属", "lab8_key": "金属", "extinguisher": "金属", "wrench": "金属",
 }
 ## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
 const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
 	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
-	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card"]
+	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card", "extractor", "beam_dump", "extinguisher"]
 
 static func tag_of(id: String) -> String:
 	return TAG.get(id, "")

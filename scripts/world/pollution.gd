@@ -17,6 +17,7 @@ func _ready() -> void:
 	_init_stains()
 	_init_doodles()
 	_init_seals()
+	_init_bits()
 	for i in 14:
 		scraps.append({"ph": randf() * TAU, "sp": randf_range(0.35, 0.6) * (1.0 if i % 3 else -1.0),
 			"r": randf_range(0.55, 0.95), "w": randf_range(13, 21), "h": randf_range(9, 15),
@@ -40,6 +41,7 @@ var stains: Array = []
 var doodles: Array = []     # 文具：铅笔涂鸦 [{pts, k}]
 var crumbs: Array = []
 var seals: Array = []      # 证章：舱玻璃上的红章
+var bits: Array = []       # 金属：螺丝螺母
 
 func _process(dt: float) -> void:
 	t += dt
@@ -68,6 +70,12 @@ func _draw() -> void:
 	var cf := level("咖啡")
 	if cf > 0.01:
 		_coffee(h, cf)
+	var ph := level("照片")
+	if ph > 0.01:
+		_photos(h, ph)
+	var mt := level("金属")
+	if mt > 0.01:
+		_metal(h, mt)
 	var sl := level("证章")
 	if sl > 0.01:
 		_seals(h, sl)
@@ -305,4 +313,90 @@ func _seals(h: Vector2, p: float) -> void:
 			var w := r * 2.2
 			draw_rect(Rect2(-w * 0.5, -r * 0.55, w, r * 1.1), col, false, 2.4)
 			Ink.text(self, sd.word, Vector2(0, 6), 14, col, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	draw_set_transform(Vector2.ZERO)
+
+func _init_bits() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31
+	for i in 10:
+		bits.append({"kind": i % 3, "ph": rng.randf() * TAU, "sp": rng.randf_range(0.2, 0.45) * (1.0 if i % 2 else -1.0),
+			"r": rng.randf_range(0.3, 0.75), "spin": rng.randf_range(-2.5, 2.5), "sz": rng.randf_range(0.8, 1.2),
+			"rest": Vector2(rng.randf_range(-210, 210), rng.randf_range(124, 132)), "k": i / 10.0})
+
+## 金属：小螺丝、螺母、垫圈在束流边慢慢漂、自己转；舱空时落在舱底
+func _metal(h: Vector2, p: float) -> void:
+	var ink := Pal.equip_line()
+	var steel := Color("#9aa0a6")
+	var live: float = clampf(chamber.appear, 0.0, 1.0)
+	for bt in bits:
+		var a := clampf((p - bt.k * 0.9) / 0.1, 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		var ang: float = bt.ph + t * bt.sp
+		var orbit := Vector2(cos(ang) * h.x * 0.6 * bt.r, sin(ang) * h.y * 0.55 * bt.r + sin(t * 1.3 + bt.ph) * 6.0)
+		var pos: Vector2 = bt.rest.lerp(orbit, live)
+		var rot: float = lerpf(bt.ph, t * bt.spin, live)
+		draw_set_transform(pos, rot, Vector2.ONE * bt.sz)
+		var col := Color(steel, a)
+		var lc := Color(ink, a * 0.8)
+		match bt.kind:
+			0:
+				# 六角螺母
+				var pts := PackedVector2Array()
+				for i in 6:
+					pts.append(Vector2.from_angle(i * TAU / 6.0) * 7.0)
+				draw_colored_polygon(pts, col)
+				pts.append(pts[0])
+				draw_polyline(pts, lc, 1.2, true)
+				draw_circle(Vector2.ZERO, 2.6, Pal.c("paper2"))
+				draw_arc(Vector2.ZERO, 2.6, 0, TAU, 12, lc, 1.0, true)
+			1:
+				# 小螺丝
+				draw_rect(Rect2(-2, -2, 4, 12), col)
+				draw_rect(Rect2(-2, -2, 4, 12), lc, false, 1.0)
+				draw_rect(Rect2(-5, -5, 10, 4), col)
+				draw_rect(Rect2(-5, -5, 10, 4), lc, false, 1.0)
+				for k in 3:
+					draw_line(Vector2(-2, 1 + k * 3), Vector2(2, 2 + k * 3), Color(ink, a * 0.5), 0.8)
+			2:
+				# 垫圈
+				draw_arc(Vector2.ZERO, 5.0, 0, TAU, 18, col, 3.2, true)
+				draw_arc(Vector2.ZERO, 6.6, 0, TAU, 18, lc, 1.0, true)
+	draw_set_transform(Vector2.ZERO)
+
+## 照片：玻璃角上用胶带贴着褪色照片（锦鲤只有半截），按浓度 1–3 张
+func _photos(h: Vector2, p: float) -> void:
+	var ink := Pal.equip_line()
+	var shots := [
+		{"p": Vector2(h.x - 70, -h.y + 52), "r": 0.12, "k": 0.0, "kind": 0},
+		{"p": Vector2(-h.x + 64, h.y - 66), "r": -0.1, "k": 0.5, "kind": 1},
+		{"p": Vector2(40, -h.y + 40), "r": -0.05, "k": 0.8, "kind": 2},
+	]
+	for sh in shots:
+		var a := clampf((p - sh.k) / 0.2, 0.0, 1.0)
+		if a <= 0.0:
+			continue
+		draw_set_transform(sh.p, sh.r, Vector2.ONE * (0.7 + 0.3 * a))
+		var r := Rect2(-24, -19, 48, 38)
+		draw_rect(Rect2(r.position + Vector2(2, 3), r.size), Color(0, 0, 0, 0.12 * a))
+		draw_rect(r, Color(Color("#f2ede0"), a))
+		var img := Rect2(-20, -15, 40, 26)
+		draw_rect(img, Color(Color("#c8d6d2"), a * 0.85))
+		match sh.kind:
+			0:
+				# 半截锦鲤（打印机没墨了）
+				draw_colored_polygon(PackedVector2Array([Vector2(-14, 0), Vector2(-4, -6), Vector2(4, -4), Vector2(4, 4), Vector2(-4, 6)]), Color(Color("#d9a07a"), a))
+				draw_rect(Rect2(4, -15, 16, 26), Color(Color("#f2ede0"), a))
+			1:
+				# 合影：几个小人头
+				for i in 4:
+					draw_circle(Vector2(-12 + i * 8, -3), 3.2, Color(Color("#8a8f96"), a))
+					draw_rect(Rect2(-15 + i * 8, 1, 6, 9), Color(Color("#8a8f96"), a))
+			2:
+				# 加速器的老照片：一个环
+				draw_arc(Vector2(0, -2), 9.0, 0, TAU, 24, Color(Color("#6f747a"), a), 2.0, true)
+		draw_rect(r, Color(ink, 0.5 * a), false, 1.0)
+		# 胶带
+		draw_set_transform(sh.p + Vector2(0, -19).rotated(sh.r), sh.r - 0.2, Vector2.ONE)
+		draw_rect(Rect2(-12, -5, 24, 10), Color(Color("#e9e2c8"), 0.75 * a))
 	draw_set_transform(Vector2.ZERO)

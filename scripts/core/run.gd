@@ -37,6 +37,7 @@ var stage_lost_data_used := false
 var stage_letter_used := false   # 推荐信：本阶段已经加成过
 var stage_had_loss := false      # 流动红旗：本阶段出现过束流丢失
 var promise := 0                 # 毕业承诺：攒给下一次锁相的额外次数（0..4）
+var stage_ext_used := false      # 灭火器：本阶段已经用过
 # —— 商店 ——
 var offers: Array = []        # [{id, sold}]
 var refresh_cost := REFRESH_BASE
@@ -110,6 +111,7 @@ func odds() -> PackedFloat64Array:
 	if has("duty_roster") and b.presses == 0: d[Odds.SUCCESS] += 0.15
 	if b.wipes: d[Odds.LOSS] -= 0.06
 	if has("dose_card") and b.energy >= 10: d[Odds.PERFECT] += 0.06
+	if has("cryo_magnet") and b.energy >= 10: d[Odds.LOSS] -= 0.08
 	var q := Odds.apply_mods(p, d)
 	if b.locked():
 		q[Odds.LOSS] = 0.0
@@ -143,6 +145,8 @@ func multiplier() -> float:
 	if beam != null and has("third_draft"): m *= 1.0 + beam.draft
 	if beam != null and has("marker") and not beam.had_detune: m *= 1.15
 	if has("red_flag") and not stage_had_loss: m *= 1.4
+	if has("extractor"): m *= 1.2
+	if beam != null: m *= beam.screw_mult
 	if beam != null and has("phd_cert") and experiments_left == 1 and total < line(): m *= 2.0
 	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
 	if has("budget"): m *= 1.0 + minf(0.5, floor(money / 10.0) * 0.05)
@@ -199,7 +203,17 @@ func accelerate() -> Dictionary:
 			k = Odds.SUCCESS
 	if k == Odds.DETUNE:
 		b.had_detune = true
+	# 螺丝：2% 概率额外来一次束流丢失判定（锁相时不判）
+	if k != Odds.LOSS and has("screw") and not b.locked() and rng.randf() < 0.02:
+		var lost2 := _hit(p[Odds.LOSS])
+		trig.append(["screw", "螺丝松了：束流丢失！" if lost2 else "螺丝松了，还好没事", {"p": p[Odds.LOSS], "hit": lost2}])
+		if lost2:
+			k = Odds.LOSS
 	# 破碎抵挡
+	if k == Odds.LOSS and has("extinguisher") and not stage_ext_used and b.energy <= 6:
+		stage_ext_used = true
+		k = Odds.STABLE
+		trig.append(["extinguisher", "灭火器喷上了"])
 	if k == Odds.LOSS and has("coin") and not b.coin_used:
 		b.coin_used = true
 		if _hit(0.5):
@@ -226,6 +240,11 @@ func accelerate() -> Dictionary:
 			keep = int(floor(potential() * 0.8))
 			trig.append(["dean_paper", "稿纸抢救 80%"])
 		res.salvaged = keep
+		if has("beam_dump"):
+			var back := b.energy * 2
+			money += back
+			res.money += back
+			trig.append(["beam_dump", "收集靶返还 $%d" % back])
 		if has("reimburse"):
 			money += 8
 			res.money += 8
@@ -243,6 +262,9 @@ func accelerate() -> Dictionary:
 	# 执行结果
 	var was_locked := b.locked()
 	var delta: int = Odds.DELTA[k]
+	if k == Odds.PERFECT and has("rf_cavity"):
+		delta += 1
+		trig.append(["rf_cavity", "完美同步再 +1"])
 	if Odds.is_good(k) and has("rejected") and rejected_stacks >= 5:
 		delta += 3
 		rejected_stacks = 0
@@ -269,6 +291,9 @@ func accelerate() -> Dictionary:
 			b.chair = 0.0
 			trig.append(["chair", "椅子被抢了"])
 		b.cat_last = false
+	if has("screw") and rng.randf() < 0.03:
+		b.screw_mult *= 2.0
+		trig.append(["screw", "潜在成果翻倍！", {"p": 0.03, "hit": true}])
 	if k == Odds.STABLE and has("third_draft") and b.draft < 1.0:
 		b.draft = minf(1.0, b.draft + 0.1)
 		trig.append(["third_draft", "倍率 +%.1f" % b.draft])
@@ -387,6 +412,7 @@ func submit() -> Dictionary:
 		stage_pen_used = false
 		stage_lost_data_used = false
 		stage_letter_used = false
+		stage_ext_used = false
 		stage_had_loss = false
 		var bonus := 15 + 5 * s
 		if has("crooked_seal"):
@@ -397,10 +423,21 @@ func submit() -> Dictionary:
 	return {"passed": false, "stage": stage, "won": false, "bonus": 0}
 
 # —— 商店 ——
-func slots_free(kind: String) -> bool:
+## 槽位数（扳手 +1 设备槽）；螺丝不占饰品槽
+func slot_count(kind: String) -> int:
 	if kind == "device":
-		return devices.size() < Items.device_slots(stage)
-	return relics.size() < Items.relic_slots(stage)
+		return Items.device_slots(stage) + (1 if has("wrench") else 0)
+	return Items.relic_slots(stage)
+
+func slot_used(kind: String) -> int:
+	if kind == "device":
+		return devices.size()
+	return relics.size() - (1 if has("screw") else 0)
+
+func slots_free(kind: String, id := "") -> bool:
+	if id == "screw":
+		return true
+	return slot_used(kind) < slot_count(kind)
 
 func _pick(kind: String, exclude: Array) -> String:
 	var pool: Array = []
@@ -429,6 +466,16 @@ func _fill_offers() -> void:
 			if offers.is_empty() and has("applications"):
 				price = int(ceil(price * 0.5))
 			offers.append({"id": id, "sold": false, "price": price})
+	# 第八号实验室的钥匙：10% 概率把一件饰品变成免费
+	if has("lab8_key") and shop_rng.randf() < 0.1:
+		var rel: Array = []
+		for i in offers.size():
+			if Items.ALL[offers[i].id].kind == "relic":
+				rel.append(i)
+		if not rel.is_empty():
+			var fi: int = rel[shop_rng.randi() % rel.size()]
+			offers[fi].price = 0
+			offers[fi]["free"] = true
 
 func refresh() -> bool:
 	if money < refresh_cost:
@@ -450,7 +497,7 @@ func buy(i: int) -> String:
 	var price: int = o.get("price", def.price)
 	if money < price:
 		return "经费不够"
-	if not slots_free(def.kind):
+	if not slots_free(def.kind, o.id):
 		return ("设备" if def.kind == "device" else "饰品") + "槽已满，先卖掉一件"
 	money -= price
 	o.sold = true

@@ -440,7 +440,7 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 		var op := tag.position + Vector2(-58, 24)
 		Ink.text(self, "$%d" % d.price, op, 15, Pal.c("text2"), Pal.mono)
 		draw_line(op + Vector2(-2, -6), op + Vector2(36, -6), Pal.c("red"), 2.0)
-		Ink.text(self, "半价", tag.position + Vector2(-8, -8), 14, Pal.c("red"), Pal.bold)
+		Ink.text(self, "免费" if price == 0 else "半价", tag.position + Vector2(-8, -8), 14, Pal.c("red"), Pal.bold)
 	if hot and not o.sold:
 		var can2: bool = main.run.money >= price
 		Ink.text(self, ("点击购买" if can2 else "经费不够"), o2 + Vector2(16, cr.size.y - 22), 15, Pal.c("red") if not can2 else Pal.c("green"), Pal.bold)
@@ -473,11 +473,11 @@ func _draw_inventory(pr: Rect2, el: Color, ink: Color) -> void:
 		want_kind = Items.ALL[run.offers[hc].id].kind
 	for kind in ["device", "relic"]:
 		var list: Array = run.devices if kind == "device" else run.relics
-		var slots := Items.device_slots(run.stage) if kind == "device" else Items.relic_slots(run.stage)
+		var slots: int = run.slot_count(kind) + (1 if kind == "relic" and run.has("screw") else 0)
 		var hx := pr.position.x + (48.0 if kind == "device" else 760.0)
 		var ff: float = full_flash[kind]
-		var full := list.size() >= slots
-		var title := ("已安装设备  %d/%d" if kind == "device" else "护身符架  %d/%d") % [list.size(), slots]
+		var full: bool = run.slot_used(kind) >= run.slot_count(kind)
+		var title := ("已安装设备  %d/%d" if kind == "device" else "护身符架  %d/%d") % [run.slot_used(kind), run.slot_count(kind)]
 		Ink.text(self, title, Vector2(hx + sin(t * 50.0) * 4.0 * ff, iy), 17, ink.lerp(Pal.c("red"), ff), Pal.bold)
 		for j in slots:
 			var r := _slot_rect(kind, j)
