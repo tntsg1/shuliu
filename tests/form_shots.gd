@@ -94,6 +94,22 @@ func _go() -> void:
 	await RenderingServer.frame_post_draw
 	root.get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/form_card.png"))
 	print("shot form_card")
+	await until(func(): return main.overlay.bloom_v > 2.6)
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/form_card2.png"))
+	# 另两条路线的探测屏
+	for r in [[[], "std"], [["lucky_cat", "plant"], "cat"]]:
+		await until(func(): return main.mode == main.M.CONSOLE and main.run.beam == null)
+		await frames(20)
+		main.run.experiments_left = 5
+		await setup(r[0], 15, 15, {"crowned": true} if r[1] == "cat" else {})
+		main.e_guard = 0.0
+		main.cooldown = 0.0
+		main.extract()
+		await until(func(): return main.mode == main.M.BLOOM and main.overlay.bloom_v > 2.4)
+		await RenderingServer.frame_post_draw
+		root.get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/form_det_%s.png" % r[1]))
+		print("shot det ", r[1])
 	quit(0)
 
 func _sheet(name: String, cols: int) -> void:

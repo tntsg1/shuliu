@@ -8,6 +8,8 @@ var progress := 0.0         # 0..1 绘制进度
 var playing := false
 var style := "precise"
 var idle_t := 0.0
+var form := {}              # 这一束的形态：探测屏按它“重建成像”（和成果卡同一画法）
+var art := FormArt.new()
 
 func _ready() -> void:
 	Pal.changed.connect(queue_redraw)
@@ -83,7 +85,7 @@ func bloom(energy: int, kind: String, meme_id := "") -> void:
 func _process(dt: float) -> void:
 	idle_t += dt
 	meme_t += dt
-	if meme != "":
+	if meme != "" or not form.is_empty():
 		queue_redraw()
 	if playing:
 		progress = minf(1.0, progress + dt / 1.35)
@@ -111,6 +113,9 @@ func _draw() -> void:
 		draw_string(Pal.mono, Vector2(s.position.x + 20, s.end.y - 9), "DET-A READY", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(ink, 0.6))
 		return
 	var e := Ink.ease_out_cubic(progress)
+	if meme == "" and not form.is_empty():
+		_form_view(s, c, R, ink, e)
+		return
 	# 量能器塔
 	for i in towers.size():
 		var ang := TAU * i / towers.size()
@@ -330,3 +335,59 @@ func _meme_extras(s: Rect2, c: Vector2, R: float, ink: Color) -> void:
 			var beat := 1.0 + 0.08 * maxf(0.0, sin(meme_t * 7.0))
 			draw_arc(c, R * 0.95 * beat, 0, TAU, 48, Color(Pal.c("red"), 0.25), 1.0, true)
 	draw_set_transform(Vector2.ZERO)
+
+## 形态成像：淡淡的径迹打底，扫描线从左往右扫过去，扫过的地方显出这一束长成的样子；细刻度环代替粗量能器塔
+func _form_view(s: Rect2, c: Vector2, R: float, ink: Color, e: float) -> void:
+	var col: Color = Pal.ramp(clampf((form.peak - 1) / 12.0, 0.0, 1.0))
+	# 底：细网格
+	for i in range(1, 16):
+		var x := s.position.x + i * s.size.x / 16.0
+		draw_line(Vector2(x, s.position.y), Vector2(x, s.end.y), Color(ink, 0.06), 0.5)
+	for i in range(1, 9):
+		var y := s.position.y + i * s.size.y / 9.0
+		draw_line(Vector2(s.position.x, y), Vector2(s.end.x, y), Color(ink, 0.06), 0.5)
+	# 径迹打底（很淡）
+	for tr in tracks:
+		var pts: PackedVector2Array = tr.pts
+		var m := int(pts.size() * e)
+		if m < 2:
+			continue
+		var sub := PackedVector2Array()
+		for i in m:
+			sub.append(c + pts[i] * 1.25)
+		draw_polyline(sub, Color(col, 0.16), 0.5, true)
+	# 刻度环：48 根细刻度，跟着能量分布起伏
+	for i in towers.size():
+		var ang := TAU * i / towers.size()
+		var r1 := R * 1.42
+		var h: float = R * (0.06 + 0.22 * clampf(towers[i], 0.0, 1.0)) * e
+		var hot: bool = towers[i] > 0.5
+		draw_line(c + Vector2(cos(ang), sin(ang) * 0.92) * r1, c + Vector2(cos(ang), sin(ang) * 0.92) * (r1 + h), Color(col if hot else ink, 0.75 if hot else 0.35), 1.2 if hot else 0.7)
+	draw_arc(c, R * 1.4, 0, TAU, 96, Color(ink, 0.25), 0.6, true)
+	# 成像：扫描线扫过的部分才显出来（左 → 右），之后一直轻轻动着
+	var sweep := s.position.x + s.size.x * clampf(progress * 1.25, 0.0, 1.0)
+	var st := form.duplicate()
+	st["g"] = float(form.peak)
+	st["t"] = idle_t
+	st["dmg"] = 0.6 if form.damaged else 0.0
+	st["col"] = col
+	st["core_r"] = 9.0 + clampf((form.peak - 1) / 12.0, 0.0, 1.0) * 16.0
+	st["card"] = true
+	st["omen"] = 0.0
+	st["grow"] = 0.85 + 0.15 * e
+	var clip := Rect2(s.position, Vector2(sweep - s.position.x, s.size.y))
+	if clip.size.x > 1.0:
+		art.draw(self, c + Vector2(0, 4), 0.36, st)
+	# 扫描线没到的地方盖回屏幕底色（只在扫描过程中）
+	if sweep < s.end.x:
+		var bg := Pal.c("screen") if Pal.dark else Pal.c("paper")
+		draw_rect(Rect2(Vector2(sweep, s.position.y), Vector2(s.end.x - sweep, s.size.y)), bg)
+		draw_line(Vector2(sweep, s.position.y), Vector2(sweep, s.end.y), Color(col, 0.9), 1.4)
+	# 角标：重建结果
+	var a := clampf((progress - 0.75) / 0.2, 0.0, 1.0)
+	draw_string(Pal.mono, Vector2(s.position.x + 8, s.position.y + 12), "RECON · E%d" % form.energy, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, 0.6))
+	if a > 0.0:
+		draw_string(Pal.bold, Vector2(s.position.x + 8, s.end.y - 8), form.name, HORIZONTAL_ALIGNMENT_LEFT, s.size.x * 0.6, 11, Color(ink, a))
+	draw_string(Pal.mono, Vector2(s.end.x - 60, s.end.y - 6), "EVT %05d" % (int(idle_t * 7) % 99999), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, 0.5))
+	if progress >= 1.0:
+		playing = false

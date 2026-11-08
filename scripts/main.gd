@@ -575,6 +575,7 @@ func _on_shot_arrived() -> void:
 	if dev_meme_force != "":
 		mm = dev_meme_force
 		dev_meme_force = ""
+	detector.form = bloom_form
 	detector.bloom(bloom_energy, detector.get_meta("kind", "precise"), mm)
 	overlay.bloom_meme = {}
 	if mm != "":
