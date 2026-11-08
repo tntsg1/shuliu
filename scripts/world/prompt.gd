@@ -26,8 +26,8 @@ func _draw() -> void:
 		return
 	var a := clampf(v, 0.0, 1.0)
 	var fnt: Font = Pal.font
-	var tw := fnt.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-	var kw := maxf(28.0, fnt.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 14)
+	var tw := Ink.size(fnt, text, 16).x
+	var kw := maxf(28.0, Ink.size(fnt, key, 13).x + 14)
 	var w := tw + kw + 26
 	var p := at + Vector2(-w * 0.5, -8.0 * (1.0 - v))
 	draw_set_transform(p + Vector2(w * 0.5, 18), 0.0, Vector2(lerpf(0.85, 1.0, a), lerpf(0.85, 1.0, a)))

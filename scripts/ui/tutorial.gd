@@ -201,7 +201,7 @@ func _draw() -> void:
 	var fs := 21
 	var w := 0.0
 	for l in lines:
-		w = maxf(w, Pal.hand.get_string_size(l, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+		w = maxf(w, Ink.size(Pal.hand, l, fs).x)
 	w += 44.0
 	var h := lines.size() * 30.0 + 40.0
 	np.x = clampf(np.x, w * 0.5 + 20, vp.x - w * 0.5 - 20)
@@ -232,8 +232,8 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2(-34, o.y - 10), Vector2(68, 22)), Color(Color("#ffffff"), 0.45 * a))
 	var y := o.y + 46.0
 	for l in lines:
-		draw_string(Pal.hand, Vector2(o.x + 22, y), l, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Color("#2b2a28"), a))
+		Ink.text(self, l, Vector2(o.x + 22, y), fs, Color(Color("#2b2a28"), a), Pal.hand, HORIZONTAL_ALIGNMENT_LEFT, -1)
 		y += 30.0
 	if done_t >= 0.0:
-		draw_string(Pal.bold, o + Vector2(w - 46, 44), "✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(Pal.c("red"), a))
+		Ink.text(self, "✓", o + Vector2(w - 46, 44), 40, Color(Pal.c("red"), a), Pal.bold, HORIZONTAL_ALIGNMENT_LEFT, -1)
 	draw_set_transform(Vector2.ZERO)

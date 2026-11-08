@@ -420,14 +420,14 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	# 名称
 	# 名字太长就缩小字号，别被截断
 	var nfs := 19
-	while nfs > 13 and Pal.bold.get_string_size(d.name, HORIZONTAL_ALIGNMENT_LEFT, -1, nfs).x > cr.size.x - 32:
+	while nfs > 13 and Ink.size(Pal.bold, d.name, nfs).x > cr.size.x - 32:
 		nfs -= 1
-	draw_string(Pal.bold, o2 + Vector2(16, 204), d.name, HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32, nfs, ink)
+	Ink.text(self, d.name, o2 + Vector2(16, 204), nfs, ink, Pal.bold, HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32)
 	# 效果
-	draw_multiline_string(Pal.font, o2 + Vector2(16, 236), d.desc, HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32, 15, 7, ink)
+	Ink.para(self, Pal.font, o2 + Vector2(16, 236), d.desc, cr.size.x - 32, 15, 7, ink)
 	# 物品故事
 	if d.lore != "":
-		draw_multiline_string(Pal.hand, o2 + Vector2(16, cr.size.y - 92), "“" + d.lore + "”", HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32, 15, 3, Pal.c("blue"))
+		Ink.para(self, Pal.hand, o2 + Vector2(16, cr.size.y - 92), "“" + d.lore + "”", cr.size.x - 32, 15, 3, Pal.c("blue"))
 	# 价签
 	var price: int = o.get("price", d.price)
 	var can: bool = main.run.money >= price
@@ -607,10 +607,10 @@ func _tip(id: String, c: Vector2, pr: Rect2, el: Color, ink: Color) -> void:
 	var d: Dictionary = Items.ALL[id]
 	var k := Ink.ease_out_back(tip_v)
 	var w := 470.0
-	var desc_h := Pal.font.get_multiline_string_size(d.desc, HORIZONTAL_ALIGNMENT_LEFT, w - 36, 15).y
+	var desc_h := Ink.para_size(Pal.font, d.desc, w - 36, 15).y
 	var lore_h := 0.0
 	if d.lore != "":
-		lore_h = Pal.hand.get_multiline_string_size("“" + d.lore + "”", HORIZONTAL_ALIGNMENT_LEFT, w - 36, 14).y + 6
+		lore_h = Ink.para_size(Pal.hand, "“" + d.lore + "”", w - 36, 14).y + 6
 	var h := 44.0 + desc_h + lore_h + 40.0
 	# 放在物件旁边（右边放不下就放左边），从物件那侧横向“唰”地展开
 	var right_side := c.x + 64.0 + w < pr.end.x - 30.0
@@ -633,9 +633,9 @@ func _tip(id: String, c: Vector2, pr: Rect2, el: Color, ink: Color) -> void:
 		var a := clampf((tip_v - 0.35) / 0.4, 0.0, 1.0)
 		Ink.text(self, d.name, Vector2(20, 30), 19, Color(ink, a), Pal.bold)
 		Ink.text(self, ("设备" if d.kind == "device" else "饰品") + " · " + Items.RARITY_NAME[d.rarity], Vector2(w - 18, 28), 14, Color(Icons.rarity_col(d.rarity), a), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
-		draw_multiline_string(Pal.font, Vector2(20, 56), d.desc, HORIZONTAL_ALIGNMENT_LEFT, w - 36, 15, -1, Color(ink, a))
+		Ink.para(self, Pal.font, Vector2(20, 56), d.desc, w - 36, 15, -1, Color(ink, a))
 		if d.lore != "":
-			draw_multiline_string(Pal.hand, Vector2(20, 56 + desc_h + 6), "“" + d.lore + "”", HORIZONTAL_ALIGNMENT_LEFT, w - 36, 14, -1, Color(Pal.c("blue"), a))
+			Ink.para(self, Pal.hand, Vector2(20, 56 + desc_h + 6), "“" + d.lore + "”", w - 36, 14, -1, Color(Pal.c("blue"), a))
 		var hint := "按住鼠标卖出"
 		if kb:
 			hint = "再按 E 确认卖出" if confirm_id == id and confirm_t > 0.0 else "E 卖出（按两次）"

@@ -123,7 +123,7 @@ func _morph_fx() -> void:
 	var sc := lerpf(2.2, 1.0, Ink.ease_out_back(clampf(k / 0.18, 0.0, 1.0)))
 	var red := Pal.c("gold").darkened(0.2) if info.legend != "" else Pal.c("red")
 	draw_set_transform(Vector2(190, -112), -0.18, Vector2(sc, sc))
-	var w := Pal.bold.get_string_size(morph_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 28.0
+	var w := Ink.size(Pal.bold, morph_label, 26).x + 28.0
 	draw_rect(Rect2(-w * 0.5, -22, w, 40), Color(Pal.c("paper"), 0.9 * sa))
 	draw_rect(Rect2(-w * 0.5, -22, w, 40), Color(red, sa), false, 3.0)
 	Ink.text(self, morph_label, Vector2(0, 8), 26, Color(red, sa), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)

@@ -180,19 +180,19 @@ func _card(i: int, vp: Vector2) -> void:
 	draw_rect(r.grow(-8), Color(el, 0.25), false, 1.0)
 	# 名称
 	var nfs := 34
-	while nfs > 20 and Pal.bold.get_string_size(d.name, HORIZONTAL_ALIGNMENT_LEFT, -1, nfs).x > CW - 48:
+	while nfs > 20 and Ink.size(Pal.bold, d.name, nfs).x > CW - 48:
 		nfs -= 1
 	Ink.text(self, d.name, Vector2(0, r.position.y + 112), nfs, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_line(Vector2(r.position.x + 30, r.position.y + 134), Vector2(r.end.x - 30, r.position.y + 134), Color(el, 0.4), 1.0)
 	# 增益
 	var y := r.position.y + 176.0
 	Ink.text(self, "▲ 增益", Vector2(r.position.x + 28, y), 18, Pal.c("green"), Pal.bold)
-	draw_multiline_string(Pal.font, Vector2(r.position.x + 28, y + 30), d.good, HORIZONTAL_ALIGNMENT_LEFT, CW - 56, 20, -1, ink)
+	Ink.para(self, Pal.font, Vector2(r.position.x + 28, y + 30), d.good, CW - 56, 20, -1, ink)
 	y += 116.0
 	Ink.text(self, "▼ 代价", Vector2(r.position.x + 28, y), 18, Pal.c("red"), Pal.bold)
-	draw_multiline_string(Pal.font, Vector2(r.position.x + 28, y + 30), d.bad, HORIZONTAL_ALIGNMENT_LEFT, CW - 56, 20, -1, ink)
+	Ink.para(self, Pal.font, Vector2(r.position.x + 28, y + 30), d.bad, CW - 56, 20, -1, ink)
 	# 一句闲话
-	draw_multiline_string(Pal.hand, Vector2(r.position.x + 28, r.end.y - 118), "“" + d.lore + "”", HORIZONTAL_ALIGNMENT_LEFT, CW - 56, 17, -1, Pal.c("blue"))
+	Ink.para(self, Pal.hand, Vector2(r.position.x + 28, r.end.y - 118), "“" + d.lore + "”", CW - 56, 17, -1, Pal.c("blue"))
 	# 签字栏
 	var sy := r.end.y - 46.0
 	Ink.text(self, "负责人签字：", Vector2(r.position.x + 28, sy), 16, Pal.c("text2"))

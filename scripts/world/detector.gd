@@ -110,7 +110,7 @@ func _draw() -> void:
 		draw_line(Vector2(s.position.x, y), Vector2(s.end.x, y), Color(ink, 0.12), 0.6)
 		if int(idle_t * 2.0) % 2 == 0:
 			draw_rect(Rect2(s.position.x + 10, s.end.y - 18, 6, 9), Color(ink, 0.6))
-		draw_string(Pal.mono, Vector2(s.position.x + 20, s.end.y - 9), "DET-A READY", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(ink, 0.6))
+		Ink.text(self, "DET-A READY", Vector2(s.position.x + 20, s.end.y - 9), 9, Color(ink, 0.6), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 		return
 	var e := Ink.ease_out_cubic(progress)
 	if meme == "" and not form.is_empty():
@@ -141,7 +141,7 @@ func _draw() -> void:
 	draw_circle(c, 3.0 + 3.0 * (1.0 - e), ink)
 	if meme != "":
 		_meme_extras(s, c, R, ink)
-	draw_string(Pal.mono, Vector2(s.end.x - 92, s.end.y - 6), "EVT %05d" % (int(idle_t * 7) % 99999), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, 0.6))
+	Ink.text(self, "EVT %05d" % (int(idle_t * 7) % 99999), Vector2(s.end.x - 92, s.end.y - 6), 8, Color(ink, 0.6), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 	if progress >= 1.0:
 		playing = false
 
@@ -311,16 +311,16 @@ func _meme_extras(s: Rect2, c: Vector2, R: float, ink: Color) -> void:
 	# 左上角像终端一样打字：“奇葩事件 · ……”
 	var full: String = m.name
 	var n := clampi(int((meme_t - 1.0) * 10.0), 0, full.length())
-	draw_string(Pal.mono, s.position + Vector2(6, 12), "ANOMALY", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(Pal.c("red"), 0.9))
+	Ink.text(self, "ANOMALY", s.position + Vector2(6, 12), 8, Color(Pal.c("red"), 0.9), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 	if n > 0:
-		draw_string(Pal.bold, s.position + Vector2(6, 26), full.substr(0, n), HORIZONTAL_ALIGNMENT_LEFT, s.size.x - 12, 12, ink)
+		Ink.text(self, full.substr(0, n), s.position + Vector2(6, 26), 12, ink, Pal.bold, HORIZONTAL_ALIGNMENT_LEFT, s.size.x - 12)
 	match meme:
 		"woodfish":
 			# 每敲一下飘一个“功德+1”
 			if progress >= 1.0:
 				for k in 3:
 					var ph := fmod(meme_t * 0.9 + k / 3.0, 1.0)
-					draw_string(Pal.bold, c + Vector2(-R * 0.6 + k * 6.0, -R * 0.2 - ph * R * 0.9), "功德+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(Pal.c("gold"), 1.0 - ph))
+					Ink.text(self, "功德+1", c + Vector2(-R * 0.6 + k * 6.0, -R * 0.2 - ph * R * 0.9), 9, Color(Pal.c("gold"), 1.0 - ph), Pal.bold, HORIZONTAL_ALIGNMENT_LEFT, -1)
 				var hit := absf(sin(meme_t * PI * 0.9 * 2.0))
 				draw_line(c + Vector2(R * 0.95, -R * 0.85), c + Vector2(R * 0.35, -R * 0.2) + Vector2(0, -6.0 * hit), Color(Pal.c("gold"), 0.6), 1.0)
 		"champagne":
@@ -385,9 +385,9 @@ func _form_view(s: Rect2, c: Vector2, R: float, ink: Color, e: float) -> void:
 		draw_line(Vector2(sweep, s.position.y), Vector2(sweep, s.end.y), Color(col, 0.9), 1.4)
 	# 角标：重建结果
 	var a := clampf((progress - 0.75) / 0.2, 0.0, 1.0)
-	draw_string(Pal.mono, Vector2(s.position.x + 8, s.position.y + 12), "RECON · E%d" % form.energy, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, 0.6))
+	Ink.text(self, "RECON · E%d" % form.energy, Vector2(s.position.x + 8, s.position.y + 12), 8, Color(ink, 0.6), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 	if a > 0.0:
-		draw_string(Pal.bold, Vector2(s.position.x + 8, s.end.y - 8), form.name, HORIZONTAL_ALIGNMENT_LEFT, s.size.x * 0.6, 11, Color(ink, a))
-	draw_string(Pal.mono, Vector2(s.end.x - 60, s.end.y - 6), "EVT %05d" % (int(idle_t * 7) % 99999), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, 0.5))
+		Ink.text(self, form.name, Vector2(s.position.x + 8, s.end.y - 8), 11, Color(ink, a), Pal.bold, HORIZONTAL_ALIGNMENT_LEFT, s.size.x * 0.6)
+	Ink.text(self, "EVT %05d" % (int(idle_t * 7) % 99999), Vector2(s.end.x - 60, s.end.y - 6), 8, Color(ink, 0.5), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 	if progress >= 1.0:
 		playing = false

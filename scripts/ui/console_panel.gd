@@ -234,7 +234,7 @@ func _draw() -> void:
 		_decision(Rect2(64, y0 + 180, 412, 76))
 	elif hint != "":
 		draw_set_transform(Vector2(76, y0 + 222), -0.02)
-		draw_string(Pal.hand, Vector2.ZERO, hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Pal.c("red"))
+		Ink.text(self, hint, Vector2.ZERO, 22, Pal.c("red"), Pal.hand, HORIZONTAL_ALIGNMENT_LEFT, -1)
 		draw_set_transform(Vector2.ZERO)
 	# —— 中：概率纸带 + 锁相灯 ——
 	Ink.text(self, "下一次加速", Vector2(556, y0 + 82), 17, Pal.c("text2"))
@@ -597,6 +597,6 @@ func _decision(r: Rect2) -> void:
 	var prot: Array = dec.prot
 	var ps := "保护：" + ("、".join(prot) if not prot.is_empty() else "无")
 	var fs := 15
-	while fs > 11 and Pal.font.get_string_size(ps, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > r.size.x - 140:
+	while fs > 11 and Ink.size(Pal.font, ps, fs).x > r.size.x - 140:
 		fs -= 1
 	Ink.text(self, ps, Vector2(r.end.x, y), fs, Pal.c("green") if not prot.is_empty() else Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)

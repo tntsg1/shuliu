@@ -443,8 +443,8 @@ func _scope(h: Vector2, p: float) -> void:
 		var box := Rect2(h.x - 150, -h.y + 26, 98, 34)
 		draw_rect(box, Color(Color("#e9e6da"), 0.75 * a3))
 		draw_rect(box, Color(green, 0.6 * a3), false, 1.0)
-		draw_string(Pal.mono, box.position + Vector2(6, 14), "CH1  2.00V", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(green, a3))
-		draw_string(Pal.mono, box.position + Vector2(6, 28), "CH2  %.2fV" % (0.5 + 0.3 * sin(t)), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(amber, a3))
+		Ink.text(self, "CH1  2.00V", box.position + Vector2(6, 14), 10, Color(green, a3), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
+		Ink.text(self, "CH2  %.2fV" % (0.5 + 0.3 * sin(t)), box.position + Vector2(6, 28), 10, Color(amber, a3), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 
 const FORMULAS := ["E=mc²", "ψ(x,t)", "∇·B=0", "ħω", "ΔxΔp≥ħ/2", "F=qv×B", "β≈0.9999", "σ=?", "∮E·dl", "p<0.05?"]
 
@@ -459,7 +459,7 @@ func _formulas(h: Vector2, p: float) -> void:
 		var edge := clampf(1.0 - absf(x) / (h.x * 0.95), 0.0, 1.0)
 		var a := clampf(p * 1.4, 0.0, 1.0) * clampf(edge * 3.0, 0.0, 1.0) * 0.55
 		draw_set_transform(Vector2(x, y + sin(t * 0.8 + i) * 4.0), sin(i * 1.3) * 0.12)
-		draw_string(Pal.hand, Vector2.ZERO, FORMULAS[i % FORMULAS.size()], HORIZONTAL_ALIGNMENT_CENTER, -1, 16 + (i % 2) * 4, Color(ink, a))
+		Ink.text(self, FORMULAS[i % FORMULAS.size()], Vector2.ZERO, 16 + (i % 2) * 4, Color(ink, a), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER, -1)
 	draw_set_transform(Vector2.ZERO)
 
 ## 吉祥物：一只橘猫隔一会儿从舱底走过（走到一半会停下来舔爪子）；浓度高了角上还摆一盆绿植

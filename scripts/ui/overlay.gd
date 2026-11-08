@@ -191,7 +191,7 @@ func _draw() -> void:
 		_card(vp)
 	if toast_t > 0.0:
 		var a := clampf(toast_t / 0.3, 0.0, 1.0)
-		var w := Pal.font.get_string_size(toast, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x + 40
+		var w := Ink.size(Pal.font, toast, 18).x + 40
 		var rr := Rect2(vp.x * 0.5 - w * 0.5, 76, w, 40)
 		draw_rect(rr, Color(Pal.c("paper"), a))
 		draw_rect(rr, Color(Pal.equip_line(), a), false, 1.4)
@@ -251,7 +251,7 @@ func _stamp(vp: Vector2) -> void:
 	var c := Vector2(vp.x * 0.5, 210 if not st_big else 330)
 	var fs := 34 if not st_big else 72
 	draw_set_transform(c, st_rot, Vector2(sc, sc))
-	var w := Pal.bold.get_string_size(st_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 48
+	var w := Ink.size(Pal.bold, st_text, fs).x + 48
 	var h := fs + 34.0
 	var col := Color(st_col, a * 0.92)
 	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.c("paper"), a * 0.55))
@@ -296,7 +296,7 @@ func _prev_stamp(vp: Vector2) -> void:
 	var sc := lerpf(1.0, 0.72, mv)
 	var fs := 34
 	draw_set_transform(c, prev.rot - 0.1 * mv, Vector2(sc, sc))
-	var w := Pal.bold.get_string_size(prev.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 48
+	var w := Ink.size(Pal.bold, prev.text, fs).x + 48
 	var h := fs + 34.0
 	var col := Color(prev.col, a * 0.6)
 	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.c("paper"), a * 0.5))
@@ -363,7 +363,7 @@ func _card(vp: Vector2) -> void:
 	for i in btns.size():
 		var b: Dictionary = btns[i]
 		var label: String = b.label
-		var bw := Pal.bold.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x + Pal.mono.get_string_size(b.key, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 52
+		var bw := Ink.size(Pal.bold, label, 18).x + Ink.size(Pal.mono, b.key, 13).x + 52
 		var br := Rect2(bx, o.y + h - 54, bw, 40)
 		var hot := hover_btn == i
 		draw_rect(br.grow(2) if hot else br, Pal.c("gold") if hot else Pal.c("paper2"))
@@ -417,7 +417,7 @@ func _trigs(vp: Vector2) -> void:
 		var t: float = tg.t
 		var k := Ink.ease_out_back(minf(1.0, t / 0.25))
 		var a := clampf((2.2 - t) / 0.4, 0.0, 1.0)
-		var w := Pal.font.get_string_size(tg.s, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x + 84
+		var w := Ink.size(Pal.font, tg.s, 18).x + 84
 		var p := Vector2(lerpf(-w, 470.0, k), 120.0 + i * 64)
 		draw_set_transform(p, -0.02)
 		draw_rect(Rect2(4, 5, w, 54), Color(0, 0, 0, 0.15 * a))
@@ -457,11 +457,11 @@ func _tip(vp: Vector2) -> void:
 	var w := 0.0
 	for i in tip_lines.size():
 		var f: Font = Pal.bold if i == 0 else Pal.font
-		w = maxf(w, f.get_string_size(tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 17 if i == 0 else 15).x)
+		w = maxf(w, Ink.size(f, tip_lines[i], 17 if i == 0 else 15).x)
 	w = minf(w + 32, 460.0)
 	var h := 0.0
 	for i in tip_lines.size():
-		h += 30.0 if i == 0 else Pal.font.get_multiline_string_size(tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15).y + 6
+		h += 30.0 if i == 0 else Ink.para_size(Pal.font, tip_lines[i], w - 32, 15).y + 6
 	h += 22.0
 	var p := tip_pos + Vector2(22, 18)
 	if p.x + w > vp.x - 10: p.x = tip_pos.x - w - 16
@@ -476,8 +476,8 @@ func _tip(vp: Vector2) -> void:
 			Ink.text(self, tip_lines[i], Vector2(p.x + 16, y), 17, Color(Pal.c("text"), a), Pal.bold)
 			y += 10.0
 		else:
-			draw_multiline_string(Pal.font, Vector2(p.x + 16, y + 14), tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15, -1, Color(Pal.c("text") if i == 1 else Pal.c("blue"), a))
-			y += Pal.font.get_multiline_string_size(tip_lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 32, 15).y + 6
+			Ink.para(self, Pal.font, Vector2(p.x + 16, y + 14), tip_lines[i], w - 32, 15, -1, Color(Pal.c("text") if i == 1 else Pal.c("blue"), a))
+			y += Ink.para_size(Pal.font, tip_lines[i], w - 32, 15).y + 6
 
 ## 阶段通过：大红“通过”章砸下来 → 横幅展开“恭喜通过第 N 阶段审核” → 两边礼炮喷纸屑 → 章盖到横幅角上
 func celebrate(stage_no: int, quip: String) -> void:
@@ -527,7 +527,7 @@ func _celebrate(vp: Vector2) -> void:
 	# 手写的一句“劫后余生”
 	var qa := clampf((k - 1.0) / 0.4, 0.0, 1.0) * fade
 	if qa > 0.0 and cel_quip != "":
-		var qw := Pal.hand.get_string_size(cel_quip, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 60.0
+		var qw := Ink.size(Pal.hand, cel_quip, 26).x + 60.0
 		draw_rect(Rect2(vp.x * 0.5 - qw * 0.5, 232.0, qw, 44.0), Color(Pal.c("paper"), 0.92 * qa))
 		draw_rect(Rect2(vp.x * 0.5 - qw * 0.5, 232.0, qw, 44.0), Color(Pal.equip_line(), 0.5 * qa), false, 1.2)
 		Ink.text(self, cel_quip, Vector2(vp.x * 0.5, 263.0), 26, Color(Pal.c("blue"), qa), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
@@ -603,7 +603,7 @@ func _form_card(vp: Vector2) -> void:
 	# 名字（太长就缩）
 	var name: String = d.name
 	var fs := 34
-	while fs > 18 and Pal.bold.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > W - 48:
+	while fs > 18 and Ink.size(Pal.bold, name, fs).x > W - 48:
 		fs -= 1
 	Ink.text(self, name, Vector2(0, r.position.y + 346), fs, Pal.c("text"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	var y := r.position.y + 374.0
@@ -621,7 +621,7 @@ func _form_card(vp: Vector2) -> void:
 		Ink.text(self, d.rank, Vector2(0, 8), 20, head, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		draw_set_transform(c, rot)
 	y += 62.0
-	draw_multiline_string(Pal.hand, Vector2(r.position.x + 28, y), d.desc, HORIZONTAL_ALIGNMENT_LEFT, W - 56, 18, -1, Pal.c("blue"))
+	Ink.para(self, Pal.hand, Vector2(r.position.x + 28, y), d.desc, W - 56, 18, -1, Pal.c("blue"))
 	y += 52.0
 	if d.damaged:
 		Ink.text(self, "受损：引出时掉回了 E%d，加成按%s档算" % [d.energy, Forms.TIER_NAMES[Forms.tier_of(d.energy)]], Vector2(r.position.x + 28, y), 14, Pal.c("red"))

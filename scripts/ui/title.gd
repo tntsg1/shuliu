@@ -218,7 +218,7 @@ func _draw() -> void:
 		if demo_text != "":
 			# 读数纸签：挂在镜圈右下
 			var tp := lens_c + Vector2(lr * 0.42, lr * 0.86)
-			var tw := Pal.mono.get_string_size(demo_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x + 28.0
+			var tw := Ink.size(Pal.mono, demo_text, 17).x + 28.0
 			var tr := Rect2(tp, Vector2(tw, 34))
 			draw_rect(Rect2(tr.position + Vector2(4, 5), tr.size), Color(0, 0, 0, 0.2 * ra))
 			draw_rect(tr, Color(paper, ra))
@@ -270,7 +270,7 @@ func _draw() -> void:
 		if page == "main":
 			Ink.text(self, it[0], Vector2(ix, y), 16, Color(Pal.c("text2"), a), Pal.mono)
 			Ink.text(self, it[1], Vector2(ix + 44, y + 6), 36, Color(ink, a), Pal.bold)
-			var w := Pal.bold.get_string_size(it[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
+			var w := Ink.size(Pal.bold, it[1], 36).x
 			Ink.text(self, it[2], Vector2(ix + 58 + w, y + 2), 14, Color(Pal.c("text2"), a), Pal.mono)
 		else:
 			Ink.text(self, it[1], Vector2(ix, y + 4), 24, Color(ink, a), Pal.bold)

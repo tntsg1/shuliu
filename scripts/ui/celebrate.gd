@@ -220,13 +220,13 @@ func _draw() -> void:
 	var sa := clampf((t - 1.7) / 0.3, 0.0, 1.0) * fade
 	if sa > 0.0:
 		var sub := "第 %d 阶段审核 · 评审委员会一致通过" % stage_no
-		var sw := Pal.bold.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 60.0
+		var sw := Ink.size(Pal.bold, sub, 26).x + 60.0
 		draw_rect(Rect2(vp.x * 0.5 - sw * 0.5, 292.0, sw, 46.0), Color(Pal.c("paper"), 0.95 * sa))
 		draw_rect(Rect2(vp.x * 0.5 - sw * 0.5, 292.0, sw, 46.0), Color(el, 0.6 * sa), false, 1.4)
 		Ink.text(self, sub, Vector2(vp.x * 0.5, 324.0), 26, Color(Pal.c("red"), sa), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	var qa := clampf((t - 2.1) / 0.4, 0.0, 1.0) * fade
 	if qa > 0.0 and quip != "":
-		var qw := Pal.hand.get_string_size(quip, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 60.0
+		var qw := Ink.size(Pal.hand, quip, 26).x + 60.0
 		draw_rect(Rect2(vp.x * 0.5 - qw * 0.5, 350.0, qw, 44.0), Color(Pal.c("paper"), 0.9 * qa))
 		Ink.text(self, quip, Vector2(vp.x * 0.5, 381.0), 26, Color(Pal.c("blue"), qa), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 	# 大红“通过”章：砸在中间，之后缩到标题右上角

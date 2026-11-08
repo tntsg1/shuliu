@@ -381,7 +381,7 @@ func _verdict(f: Dictionary, c: Vector2, k: float) -> void:
 		txt = f.roll.segs[f.roll.pick][1] + "！"
 	var col := Pal.c("gold").darkened(0.15) if f.hit else Pal.c("text2")
 	draw_set_transform(c + Vector2(0, -150), -0.06, Vector2(sc, sc))
-	var w := Pal.bold.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x + 36.0
+	var w := Ink.size(Pal.bold, txt, 40).x + 36.0
 	draw_rect(Rect2(-w * 0.5, -32, w, 58), Color(Pal.c("paper"), 0.85 * a))
 	draw_rect(Rect2(-w * 0.5, -32, w, 58), Color(col, a), false, 4.0)
 	Ink.text(self, txt, Vector2(0, 12), 40, Color(col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
@@ -393,7 +393,7 @@ func _banner(f: Dictionary, p: Vector2, k: float, rc: Color, el: Color) -> void:
 	var d: Dictionary = Items.ALL[f.id]
 	var title: String = d.name
 	var sub: String = f.text
-	var w := maxf(Pal.bold.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x, Pal.bold.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x) + 56.0
+	var w := maxf(Ink.size(Pal.bold, title, 20).x, Ink.size(Pal.bold, sub, 26).x) + 56.0
 	var open := Ink.ease_out_back(clampf((k - 0.05) / 0.22, 0.0, 1.0))
 	var close := clampf((k - 0.7) / 0.18, 0.0, 1.0)
 	var ww := w * open * (1.0 - Ink.ease_in_out(close))

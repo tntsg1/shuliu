@@ -205,7 +205,7 @@ func _draw() -> void:
 	if hover_item != "":
 		var d: Dictionary = Items.ALL[hover_item]
 		name = d.name + "：" + d.desc
-	draw_multiline_string(Pal.font, Vector2(x, y + 14), name if name != "" else "（鼠标停在图标上看名字）", HORIZONTAL_ALIGNMENT_LEFT, W - 48, 14, 2, Pal.c("text2"))
+	Ink.para(self, Pal.font, Vector2(x, y + 14), name if name != "" else "（鼠标停在图标上看名字）", W - 48, 14, 2, Pal.c("text2"))
 	y += 48.0
 	# —— 数值 ——
 	draw_line(Vector2(x, y), Vector2(pr.end.x - 24, y), Color(el, 0.4), 1.0)

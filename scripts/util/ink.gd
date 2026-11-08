@@ -76,25 +76,70 @@ static func rivet(ci: CanvasItem, p: Vector2, r := 2.6) -> void:
 	ci.draw_circle(p, r, Pal.equip_line().lerp(Pal.c("equip"), 0.45))
 	ci.draw_circle(p + Vector2(-0.7, -0.7), r * 0.45, Pal.c("paper").lerp(Pal.c("equip"), 0.3))
 
+# —— 文字排版缓存 ——
+# Godot 每个字体只缓存很少几条排好版的字；我们一帧画的不同文字远超这个数，
+# 缓存来回挤掉 → 每帧把所有字重排一遍（新字 0.13 ms/条，排好的 0.002 ms/条）。这里自己缓存。
+static var _lines := {}
+static var _paras := {}
+
+static func _line(fnt: Font, s: String, size: int) -> TextLine:
+	var key := [fnt.get_instance_id(), size, s]
+	var tl: TextLine = _lines.get(key)
+	if tl == null:
+		if _lines.size() > 4000:
+			_lines.clear()
+		tl = TextLine.new()
+		tl.add_string(s, fnt, size)
+		_lines[key] = tl
+	return tl
+
+static func _para(fnt: Font, s: String, size: int, width: float, max_lines: int) -> TextParagraph:
+	var key := [fnt.get_instance_id(), size, s, width, max_lines]
+	var tp: TextParagraph = _paras.get(key)
+	if tp == null:
+		if _paras.size() > 600:
+			_paras.clear()
+		tp = TextParagraph.new()
+		tp.add_string(s, fnt, size)
+		tp.width = width
+		tp.max_lines_visible = max_lines
+		_paras[key] = tp
+	return tp
+
+## 量字：等同 font.get_string_size(s, LEFT, -1, size)
+static func size(fnt: Font, s: String, sz: int) -> Vector2:
+	return _line(fnt, s, sz).get_size()
+
 static func text(ci: CanvasItem, s: String, pos: Vector2, size: int, col: Color, font: Font = null, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
+	if s == "" or col.a <= 0.0:
+		return
 	var fnt: Font = font if font != null else Pal.font
-	if align != HORIZONTAL_ALIGNMENT_LEFT and width < 0.0:
-		var w := fnt.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		if align == HORIZONTAL_ALIGNMENT_CENTER:
-			pos.x -= w * 0.5
-		else:
-			pos.x -= w
-		align = HORIZONTAL_ALIGNMENT_LEFT
-	ci.draw_string(fnt, pos, s, align, width, size, col)
+	var tl := _line(fnt, s, size)
+	var w := tl.get_size().x
+	if align == HORIZONTAL_ALIGNMENT_CENTER:
+		pos.x += (width - w) * 0.5 if width >= 0.0 else -w * 0.5
+	elif align == HORIZONTAL_ALIGNMENT_RIGHT:
+		pos.x += (width - w) if width >= 0.0 else -w
+	tl.draw(ci.get_canvas_item(), Vector2(pos.x, pos.y - tl.get_line_ascent()), col)
+
+## 多行：等同 draw_multiline_string(font, pos, s, LEFT, width, size, max_lines, col)（pos 是首行基线）
+static func para(ci: CanvasItem, fnt: Font, pos: Vector2, s: String, width: float, sz: int, max_lines: int, col: Color) -> void:
+	if s == "" or col.a <= 0.0:
+		return
+	var tp := _para(fnt, s, sz, width, max_lines)
+	tp.draw(ci.get_canvas_item(), Vector2(pos.x, pos.y - tp.get_line_ascent(0)), col)
+
+static func para_size(fnt: Font, s: String, width: float, sz: int, max_lines := -1) -> Vector2:
+	return _para(fnt, s, sz, width, max_lines).get_size()
 
 ## 贴纸标签（白底、墨线框、编号）
 static func sticker(ci: CanvasItem, s: String, center: Vector2, rot := 0.0, size := 13, bg := Color.TRANSPARENT) -> void:
 	var fnt: Font = Pal.mono
-	var w := fnt.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 12.0
+	var w := Ink.size(fnt, s, size).x + 12.0
 	var h := size + 8.0
 	ci.draw_set_transform(center, rot)
 	var b := bg if bg.a > 0.0 else Pal.c("paper")
 	ci.draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), b)
 	ci.draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Pal.equip_line(), false, 1.0)
-	ci.draw_string(fnt, Vector2(-w * 0.5 + 6, h * 0.5 - 6), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Pal.equip_line())
+	Ink.text(ci, s, Vector2(-w * 0.5 + 6, h * 0.5 - 6), size, Pal.equip_line(), fnt)
 	ci.draw_set_transform(Vector2.ZERO)
