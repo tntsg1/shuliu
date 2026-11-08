@@ -8,6 +8,7 @@ func _draw() -> void:
 	_office()
 	_storage()
 	_main_room()
+	_main_ring()
 	_injector()
 	_pipes()
 	_magnets()
@@ -138,19 +139,10 @@ func _main_room() -> void:
 			var cone := PackedVector2Array([Vector2(lx + 4, Geo.CEIL + 21), Vector2(lx + 76, Geo.CEIL + 21), Vector2(lx + 170, Geo.FLOOR), Vector2(lx - 90, Geo.FLOOR)])
 			draw_colored_polygon(cone, Color(Pal.c("lamp"), 0.045))
 	# 辐射警示牌 + 安全标语
-	_trefoil(Vector2(760, 300), 26.0)
-	Ink.text(self, "辐射控制区", Vector2(760, 352), 15, Pal.c("ink"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
-	Ink.box(self, Rect2(1232, 250, 176, 40), Pal.c("paper"), Pal.equip_line(), 1.2, 21)
-	Ink.text(self, "束流运行中 · 勿开舱", Vector2(1320, 276), 15, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
-	# 白板：手绘曲线
-	Ink.box(self, Rect2(560, 600, 150, 110), Pal.c("paper"), Pal.equip_line(), 1.4, 23)
-	var curve := PackedVector2Array()
-	for i in 13:
-		curve.append(Vector2(574 + i * 10, 690 - pow(i / 12.0, 2.2) * 70 + sin(i * 1.7) * 3))
-	draw_polyline(curve, Pal.c("blue"), 1.6, true)
-	Ink.text(self, "RP?", Vector2(672, 626), 14, Pal.c("red"), Pal.hand)
-	draw_line(Vector2(574, 696), Vector2(700, 696), Pal.c("ink"), 1.0)
-	draw_line(Vector2(574, 696), Vector2(574, 614), Pal.c("ink"), 1.0)
+	_trefoil(Vector2(770, 356), 26.0)
+	Ink.text(self, "辐射控制区", Vector2(770, 408), 15, Pal.c("ink"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	Ink.box(self, Rect2(1232, 312, 176, 40), Pal.c("paper"), Pal.equip_line(), 1.2, 21)
+	Ink.text(self, "束流运行中 · 勿开舱", Vector2(1320, 338), 15, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	# 灭火器
 	Ink.box(self, Rect2(1468, 712, 20, 46), Pal.c("red"), Pal.equip_line(), 1.2, 25)
 	draw_rect(Rect2(1471, 704, 14, 8), Pal.equip_line())
@@ -205,7 +197,7 @@ func _injector() -> void:
 		Ink.rivet(self, p)
 	Ink.sticker(self, "INJ-1", Vector2(300, Geo.BEAMY - 101), -0.04, 11)
 	Ink.box(self, Rect2(190, Geo.BEAMY + 110, 110, Geo.FLOOR - Geo.BEAMY - 110), Pal.c("equip_dark"), Pal.equip_line(), 1.6, 36)
-	Ink.text(self, "注入器", Vector2(245, Geo.BEAMY - 124), 17, Pal.c("ink2"), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+	Ink.text(self, "注入器", Vector2(185, Geo.BEAMY - 124), 17, Pal.c("ink2"), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _flange(x: float) -> void:
 	Ink.box(self, Rect2(x - 5, Geo.BEAMY - 22, 10, 44), Pal.c("equip_dark"), Pal.equip_line(), 1.2, int(x))
@@ -309,3 +301,48 @@ func _stairs() -> void:
 		Ink.box(self, Rect2(26 + i * 8, y - 6, 52, 6), Pal.c("equip_dark"), Pal.equip_line(), 1.0, 80 + i)
 	Ink.line(self, Vector2(40, Geo.FLOOR - 40), Vector2(128, Geo.FLOOR - 340), Pal.equip_line(), 2.0, 91)
 	Ink.line(self, Vector2(40, Geo.FLOOR - 40), Vector2(40, Geo.FLOOR), Pal.equip_line(), 2.0, 92)
+
+# —— 主环：一根更粗的管道从房间顶部横穿两侧墙壁，这间实验室只是 26.7 km 环上的一个站 ——
+const RING_Y := 258.0
+func _main_ring() -> void:
+	var el := Pal.equip_line()
+	var y := RING_Y
+	# 墙洞套环
+	for x in [0.0, Geo.W]:
+		draw_rect(Rect2(x - 22, y - 34, 44, 68), Pal.c("slab"))
+		draw_rect(Rect2(x - 22, y - 34, 44, 68), el, false, 1.6)
+	Ink.box(self, Rect2(-10, y - 18, Geo.W + 20, 36), Pal.c("pipe").lerp(Pal.c("equip_dark"), 0.3), el, 1.8, 501)
+	draw_rect(Rect2(0, y - 13, Geo.W, 4), Color(1, 1, 1, 0.22))
+	draw_rect(Rect2(0, y + 9, Geo.W, 5), Color(0, 0, 0, 0.08))
+	var fx := 60.0
+	while fx < Geo.W:
+		Ink.box(self, Rect2(fx - 6, y - 26, 12, 52), Pal.c("equip_dark"), el, 1.2, int(fx))
+		Ink.rivet(self, Vector2(fx, y - 20), 1.8)
+		Ink.rivet(self, Vector2(fx, y + 20), 1.8)
+		fx += 240.0
+	# 主环二极铁（长、蓝）与四极铁（短、红）
+	for mx in [520.0, 1260.0]:
+		var r := Rect2(mx - 90, y - 30, 180, 60)
+		Ink.box(self, r, Pal.c("dip_b"), el, 1.8, int(mx))
+		Ink.box(self, Rect2(r.position + Vector2(6, 5), Vector2(168, 14)), Pal.c("dip_a"), el, 1.0, int(mx) + 1)
+		Ink.box(self, Rect2(r.position + Vector2(6, 41), Vector2(168, 14)), Pal.c("dip_a"), el, 1.0, int(mx) + 2)
+		Ink.sticker(self, "MB-%d" % (1847 if mx < 900.0 else 1848), Vector2(mx, y), 0.0, 10)
+	for mx in [900.0, 1700.0]:
+		Ink.box(self, Rect2(mx - 22, y - 34, 44, 68), Pal.c("quad_b"), el, 1.6, int(mx))
+		Ink.box(self, Rect2(mx - 18, y - 30, 36, 14), Pal.c("quad_a"), el, 1.0, int(mx) + 1)
+		Ink.box(self, Rect2(mx - 18, y + 16, 36, 14), Pal.c("quad_a"), el, 1.0, int(mx) + 2)
+	# 吊架
+	for hx in [300.0, 760.0, 1100.0, 1500.0]:
+		draw_line(Vector2(hx, Geo.CEIL + 14), Vector2(hx, y - 18), el, 2.0)
+		draw_line(Vector2(hx - 24, y - 18), Vector2(hx + 24, y - 18), el, 2.0)
+	# 方向与里程
+	var tc := Pal.c("ink2")
+	Ink.text(self, "◄ 主环 MAIN RING · 周长 26.7 km · 二极铁 1232 块", Vector2(300, y + 46), 14, tc, Pal.bold)
+	Ink.text(self, "距下一个实验站 EXP-8 · 3.3 km ►", Vector2(1540, y + 46), 14, tc, Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+	Ink.text(self, "km 18.42", Vector2(1010, y - 24), 12, tc, Pal.mono)
+	# 引出支线：从主环拐下来接到本站注入器
+	var bx := 245.0
+	Ink.box(self, Rect2(bx - 9, y + 18, 18, Geo.BEAMY - 110 - y - 18), Pal.c("pipe"), el, 1.6, 511)
+	Ink.box(self, Rect2(bx - 34, y + 14, 68, 30), Pal.c("equip"), el, 1.6, 512)
+	Ink.sticker(self, "SEPTUM 引出", Vector2(bx, y + 29), 0.0, 10)
+	Ink.text(self, "本站支线", Vector2(bx + 18, y + 86), 13, tc, Pal.hand)

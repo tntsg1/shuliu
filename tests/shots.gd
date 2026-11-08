@@ -7,6 +7,7 @@ var out := "res://shots/"
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 	main = load("res://main.tscn").instantiate()
+	main.play_intro = OS.get_cmdline_user_args().has("--intro")
 	root.add_child(main)
 	_go()
 

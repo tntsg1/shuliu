@@ -19,6 +19,9 @@ var clip_l: Control
 var clip_r: Control
 var overlay: Control
 var grain: ColorRect
+var ringmap: Node2D
+var intro: Control
+var play_intro := true
 
 var cam_pos := Vector2(960, 540)
 var cam_vel := Vector2.ZERO
@@ -43,6 +46,8 @@ func _ready() -> void:
 	world = Node2D.new()
 	add_child(world)
 	lab = _node("res://scripts/world/lab.gd", world)
+	ringmap = _node("res://scripts/world/ringmap.gd", world)
+	ringmap.set("main", self)
 	detector = _node("res://scripts/world/detector.gd", world)
 	chamber = _node("res://scripts/world/chamber.gd", world)
 	shot = _node("res://scripts/world/shot.gd", world)
@@ -65,6 +70,11 @@ func _ready() -> void:
 	overlay = _ctrl("res://scripts/ui/overlay.gd", ui)
 	for c in [clip_l, clip_r, panel, overlay]:
 		c.set("main", self)
+	var il := CanvasLayer.new()
+	il.layer = 30
+	add_child(il)
+	intro = _ctrl("res://scripts/ui/intro.gd", il)
+	intro.finished.connect(_on_intro_done)
 	var gl := CanvasLayer.new()
 	gl.layer = 50
 	add_child(gl)
@@ -79,6 +89,15 @@ func _ready() -> void:
 	Pal.changed.connect(_apply_theme)
 	_apply_theme()
 	chamber.empty()
+	if play_intro:
+		intro.play()
+		player.input_enabled = false
+		cam_pos = Vector2(1000, 520)
+		cam_zoom = 1.6
+
+func _on_intro_done() -> void:
+	player.input_enabled = true
+	cam_omega = 2.2
 
 func _node(path: String, parent: Node) -> Node2D:
 	var n := Node2D.new()
@@ -126,6 +145,9 @@ func fmt(v: int) -> String:
 # —— 输入 ——
 func _unhandled_input(ev: InputEvent) -> void:
 	if ev.is_echo() or not ev.is_pressed():
+		return
+	if intro.active:
+		intro.skip()
 		return
 	if ev.is_action("theme"):
 		Pal.set_dark(not Pal.dark)
@@ -198,6 +220,7 @@ func accelerate() -> void:
 		return
 	cooldown = 0.15
 	panel.press()
+	ringmap.lap()
 	var r := run.accelerate()
 	var k: int = r.outcome
 	if r.lost:
@@ -333,6 +356,9 @@ func _process(dt: float) -> void:
 		M.WALK:
 			cam_target = Vector2(960 + clampf((player.position.x - 960) * 0.05, -36, 36), 540)
 			zoom_target = 1.04
+			if intro.active:
+				cam_target = Vector2(1000, 520)
+				zoom_target = 1.6
 			if _near_console():
 				prompt.show_at(Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "E", "开始实验")
 			elif _near_terminal():
