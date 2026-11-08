@@ -127,7 +127,7 @@ func _left(pr: Rect2) -> void:
 			draw_circle(c, 9.0, Pal.c("ramp2"))
 		draw_arc(c, 9.0, 0, TAU, 20, ink, 1.6, true)
 	if run.total >= run.line() and not run.won():
-		Ink.text(self, "已够线：可随时提交（F）", pr.position + Vector2(52, 410), 18, Pal.c("green"), Pal.bold)
+		Ink.text(self, "已够线：可去审核台提交", pr.position + Vector2(52, 410), 18, Pal.c("green"), Pal.bold)
 		Ink.text(self, "次数用完会强制提交。", pr.position + Vector2(52, 438), 16, Pal.c("text2"), Pal.hand)
 	else:
 		Ink.text(self, "次数用完会强制提交考核。", pr.position + Vector2(52, 410), 17, Pal.c("blue"), Pal.hand)

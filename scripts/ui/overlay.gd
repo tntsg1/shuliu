@@ -44,6 +44,12 @@ func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
 	Pal.changed.connect(queue_redraw)
 
+var tl := {}               # 一次实验结束的小纸条 {title, value, sub, col, t}
+
+## 一次实验结束：纸条从上方落下，报出这一束加了多少，然后飞进左边的考核夹板
+func tally(title: String, value: String, sub: String, col: Color) -> void:
+	tl = {"title": title, "value": value, "sub": sub, "col": col, "t": 0.0}
+
 var strike_next := false   # 下一次盖章前，把当前章划掉（饰品改写结果）
 var prev := {}             # 被划掉的旧章 {text, col, rot, t}
 
@@ -99,6 +105,10 @@ func say(s: String) -> void:
 
 func _process(dt: float) -> void:
 	t += dt
+	if not tl.is_empty():
+		tl.t += dt
+		if tl.t > 2.6:
+			tl = {}
 	if not prev.is_empty():
 		prev.t += dt
 		if prev.t > 1.1:
@@ -147,6 +157,8 @@ func _draw() -> void:
 	_tip(vp)
 	if bloom_v >= 0.0:
 		_bloom(vp)
+	if not tl.is_empty():
+		_tally(vp)
 	if not prev.is_empty():
 		_prev_stamp(vp)
 	if st_t >= 0.0:
@@ -228,6 +240,27 @@ func _stamp(vp: Vector2) -> void:
 	for i in 26:
 		var p := Vector2(rng.randf_range(-w * 0.5, w * 0.5), rng.randf_range(-h * 0.5, h * 0.5))
 		draw_circle(p, rng.randf_range(0.8, 2.4), Color(Pal.c("paper"), a * 0.7))
+	draw_set_transform(Vector2.ZERO)
+
+func _tally(vp: Vector2) -> void:
+	var k: float = tl.t
+	var drop := Ink.ease_out_back(clampf(k / 0.35, 0.0, 1.0))
+	var fly := Ink.ease_in_out(clampf((k - 2.0) / 0.5, 0.0, 1.0))
+	var home := Vector2(vp.x * 0.5, 150.0)
+	var dest := Vector2(230.0, 250.0)
+	var p := Vector2(home.x, lerpf(-80.0, home.y, drop)).lerp(dest, fly)
+	var sc := lerpf(1.0, 0.35, fly)
+	var a := 1.0 - clampf((k - 2.35) / 0.25, 0.0, 1.0)
+	draw_set_transform(p, -0.03 + 0.1 * fly, Vector2(sc, sc))
+	var w := 430.0
+	var h := 112.0
+	draw_rect(Rect2(-w * 0.5 + 5, -h * 0.5 + 7, w, h), Color(0, 0, 0, 0.14 * a))
+	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.c("paper"), a))
+	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, 10), Color(tl.col, a))
+	draw_rect(Rect2(-w * 0.5, -h * 0.5, w, h), Color(Pal.equip_line(), a), false, 1.6)
+	Ink.text(self, tl.title, Vector2(-w * 0.5 + 20, -h * 0.5 + 36), 16, Color(Pal.c("text2"), a), Pal.bold)
+	Ink.text(self, tl.sub, Vector2(w * 0.5 - 20, -h * 0.5 + 36), 15, Color(Pal.c("green"), a), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+	Ink.text(self, tl.value, Vector2(0, h * 0.5 - 20), 40, Color(tl.col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 
 ## 被饰品改写的旧章：往上让开、变小，一道红笔划掉，然后淡出

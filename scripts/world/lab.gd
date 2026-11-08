@@ -144,8 +144,8 @@ func _main_room() -> void:
 	Ink.box(self, Rect2(1232, 312, 176, 40), Pal.c("paper"), Pal.equip_line(), 1.2, 21)
 	Ink.text(self, "束流运行中 · 勿开舱", Vector2(1320, 338), 15, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	# 灭火器
-	Ink.box(self, Rect2(1468, 712, 20, 46), Pal.c("red"), Pal.equip_line(), 1.2, 25)
-	draw_rect(Rect2(1471, 704, 14, 8), Pal.equip_line())
+	Ink.box(self, Rect2(1568, 712, 20, 46), Pal.c("red"), Pal.equip_line(), 1.2, 25)
+	draw_rect(Rect2(1571, 704, 14, 8), Pal.equip_line())
 	# 地板
 	draw_rect(Rect2(0, Geo.FLOOR - 4, Geo.W, 4), Color(Pal.c("ink"), 0.12))
 	_section(Rect2(0, Geo.FLOOR, Geo.W, 22))

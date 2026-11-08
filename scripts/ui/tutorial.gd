@@ -68,24 +68,27 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam != null and main.run.beam.energy >= 4,
 			"done": func(): return main.run.experiment_no > 1 or main.run.beam == null,
 			"at": func(): return _panel(Vector2(1760, 110)), "note": func(): return _panel(Vector2(1530, -200))},
-		{"id": "clips", "text": "左边夹板：考核进度和累计分。\n右边夹板：实验日志，\n还有“显示概率 / 实际频率”，\n不信可以自己查账。",
-			"show": func(): return main.mode == main.M.RESULT,
-			"done": func(): return main.mode != main.M.RESULT or step_t > 7.0,
+		{"id": "clips", "text": "左边夹板：考核进度和累计分。
+右边夹板：实验日志，
+还有“显示概率 / 实际频率”，
+不信可以自己查账。",
+			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
+			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > 7.0,
 			"at": func(): return Vector2(400, 300), "note": func(): return Vector2(440, 120)},
-		{"id": "submit", "text": "累计分够本阶段的线，
-可以点“提交考核”，也可以接着攒；
-3 次实验用完会强制提交。
-多攒的分会带到下一阶段。",
-			"show": func(): return main.mode == main.M.RESULT and shown.has("clips"),
-			"done": func(): return main.mode != main.M.RESULT or step_t > 9.0,
-			"at": null, "note": func(): return Vector2(1520, 560)},
+		{"id": "submit", "text": "提交考核在右边的审核台。
+累计分够线就能去交，
+也可以接着攒；本阶段 3 束
+用完了，就必须去交。",
+			"show": func(): return (main.mode == main.M.CONSOLE and main.run.beam == null or main.mode == main.M.WALK) and main.run.experiment_no >= 1 and shown.has("clips"),
+			"done": func(): return main.mode == main.M.REVIEW or main.run.beam != null or step_t > 9.0,
+			"at": func(): return _w(Vector2(main.review.STAND, Geo.FLOOR - 180)), "note": func(): return _w(Vector2(main.review.STAND - 200, Geo.FLOOR - 480))},
 		{"id": "rebuy", "text": "每做完一次实验，
 采购终端都会进新货。
-点“离开（去采购）”就能去逛。
-设备和饰品都能悬停看说明。",
-			"show": func(): return (main.mode == main.M.RESULT or main.mode == main.M.WALK) and main.run.experiment_no >= 1 and shown.has("submit"),
+点面板左上的纸签就能去逛，
+实验做到一半也能去。",
+			"show": func(): return (main.mode == main.M.CONSOLE or main.mode == main.M.WALK) and main.run.experiment_no >= 1 and shown.has("submit"),
 			"done": func(): return main.mode == main.M.SHOP or main.run.experiment_no >= 2 or step_t > 12.0,
-			"at": null, "note": func(): return Vector2(1520, 300)},
+			"at": func(): return main.panel.leave_rect.get_center() if main.panel.leave_rect.size.x > 0 else Vector2(178, 760), "note": func(): return Vector2(520, 560)},
 		# —— 第一局后半段：饰品与超级同步 ——
 		{"id": "sell", "text": "想换掉旧东西？
 按住它不放，
@@ -107,7 +110,7 @@ func _ready() -> void:
 纸条上写着它做了什么。
 构筑就靠这些凑出来。",
 			"show": func(): return main.charms.fired > 0 and (main.mode == main.M.CONSOLE or main.mode == main.M.SPIN),
-			"done": func(): return step_t > 6.0 or main.mode == main.M.RESULT,
+			"done": func(): return step_t > 6.0 or main.run.beam == null,
 			"at": null, "note": func(): return Vector2(560, 300)},
 		{"id": "super", "text": "锁相时，纸带最左边
 多出一段金色：超级同步！

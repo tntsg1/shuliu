@@ -10,6 +10,7 @@ var show_leave := false     # 实验进行中可以离开去采购（由主逻�
 var leave_v := 0.0
 var leave_rect := Rect2()
 var hover_leave := false
+var leave_label := "← 先去采购"
 var _vs := 0.0
 # 计数器（滚轮）
 var val_disp := 0.0
@@ -503,5 +504,5 @@ func _leave_tab(y0: float) -> void:
 	draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.12))
 	draw_rect(r, Pal.c("gold") if hover_leave else Pal.c("paper"))
 	draw_rect(r, Pal.c("red") if hover_leave else el, false, 2.0 if hover_leave else 1.4)
-	Ink.text(self, "← 先去采购", r.position + Vector2(16, 28), 18, Pal.c("text"), Pal.bold)
+	Ink.text(self, leave_label, r.position + Vector2(16, 28), 18, Pal.c("text"), Pal.bold)
 	Ink.text(self, "Esc · 右键", r.position + Vector2(r.size.x - 14, 27), 13, Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)

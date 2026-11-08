@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW }
 
 var run: Run
 var mode := M.WALK
@@ -11,6 +11,8 @@ var chamber: Node2D
 var pollution: Node2D
 var detector: Node2D
 var desk: Node2D
+var review: Node2D
+var review_passed := false   # 审核台：刚通过一个阶段，卡片只剩“好的”
 var player: Node2D
 var shot: Node2D
 var prompt: Node2D
@@ -81,6 +83,8 @@ func _ready() -> void:
 	gear.set("main", self)
 	desk = _node("res://scripts/world/desk.gd", world)
 	desk.set("main", self)
+	review = _node("res://scripts/world/review.gd", world)
+	review.set("main", self)
 	player = _node("res://scripts/world/player.gd", world)
 	prompt = _node("res://scripts/world/prompt.gd", world)
 	cam = Camera2D.new()
@@ -218,14 +222,30 @@ func _unhandled_input(ev: InputEvent) -> void:
 					enter_console()
 				elif _near_terminal():
 					open_shop()
+				elif _near_review():
+					open_review()
+		M.REVIEW:
+			if ev.is_action("back"):
+				close_review()
+			elif ev.is_action("submit") or ev.is_action("interact") or ev.is_action("accelerate"):
+				if review_passed:
+					close_review()
+				elif _review_can_submit():
+					submit()
 		M.SPIN:
 			if ev.is_action("accelerate"):
 				panel.skip()
 		M.CONSOLE:
 			if ev.is_action("accelerate"):
-				accelerate()
+				if run.beam == null:
+					_next_beam()
+				else:
+					accelerate()
 			elif ev.is_action("interact") and e_guard <= 0.0:
-				extract()
+				if run.beam == null:
+					_next_beam()
+				else:
+					extract()
 			elif ev.is_action("back"):
 				leave_console()
 		M.BLOOM:
@@ -250,11 +270,18 @@ func _unhandled_input(ev: InputEvent) -> void:
 func _near_console() -> bool:
 	return absf(player.position.x - Geo.CONSOLE_STAND) < 70.0
 
+func _near_review() -> bool:
+	return absf(player.position.x - review.STAND) < 60.0
+
 func _near_terminal() -> bool:
 	return absf(player.position.x - (Geo.TERMINAL_X + 35)) < 60.0
 
 # —— 流程 ——
 func enter_console() -> void:
+	if run.beam == null and not run.can_start() and not run.won() and not run.failed:
+		overlay.say("本阶段的束流用完了——去右边的审核台提交考核")
+		Sfx.play("hit_low", -10.0, 1.3)
+		return
 	mode = M.ENTER
 	player.input_enabled = false
 	player.auto_target = Geo.CONSOLE_STAND
@@ -452,7 +479,49 @@ func _finish_bloom() -> void:
 	clip_r.show_t = 1.0
 	_show_result()
 
+## 一次实验结束：不弹结算卡，只让一张纸条报出这一束加了多少，然后留在控制台
+func _after_experiment() -> void:
+	var fin: Dictionary = last_result.fin
+	Sfx.play("paper", -8.0)
+	panel.reset_beam()
+	panel.val_target = 0
+	chamber.set_state(1, 0.0, false)
+	chamber.empty()
+	mode = M.CONSOLE
+	e_guard = 0.35
+	var g: int = fin.get("gained", 0)
+	if last_result.lost:
+		overlay.tally("实验 #%d · 束流丢失" % run.experiment_no, ("+%d RP（稿纸抢救）" % g) if g > 0 else "+0 RP", "经费 +$%d" % fin.get("income", 0), Pal.c("red"))
+	else:
+		overlay.tally("实验 #%d · E%d 引出" % [run.experiment_no, last_result.energy], "+%s RP" % fmt(g), "经费 +$%d" % fin.get("income", 0), Pal.c("green"))
+	_idle_hint()
+
+## 控制台空着（没有束流）时面板上的提示
+func _idle_hint() -> void:
+	panel.enabled = false
+	if run.won() or run.failed:
+		panel.hint = ""
+	elif run.experiments_left <= 0:
+		panel.hint = "本阶段束流用完了 → 去审核台提交考核"
+	elif run.can_submit():
+		panel.hint = "已够线：可以去审核台提交，也可以按加速再来一束（剩 %d 束）" % run.experiments_left
+	else:
+		panel.hint = "按加速注入下一束（本阶段还剩 %d 束）" % run.experiments_left
+
+## 控制台里没有束流时按加速：注入下一束；用完了就提示去审核台
+func _next_beam() -> void:
+	if cooldown > 0.0:
+		return
+	if run.can_start():
+		_new_beam()
+	elif not run.won() and not run.failed:
+		overlay.say("本阶段的束流用完了——去审核台提交考核")
+		Sfx.play("hit_low", -10.0, 1.3)
+		cooldown = 0.4
+
 func _show_result() -> void:
+	_after_experiment()
+	return
 	var fin: Dictionary = last_result.fin
 	Sfx.play("paper", -8.0)
 	panel.reset_beam()
@@ -483,9 +552,10 @@ func _result_keys() -> String:
 
 ## 提交考核：够线进入下一阶段，不够则资助终止
 func submit() -> void:
-	if not (run.can_submit() or run.must_submit()):
+	if not _review_can_submit():
 		return
 	var res := run.submit()
+	review.bump = 1.0
 	if res.passed:
 		clip_l.stamp("阶段 %d 通过" % (res.stage + 1))
 		Sfx.play("btn", 0.0, 0.6)
@@ -498,17 +568,55 @@ func submit() -> void:
 			overlay.show_card({"title": "科研资助续期！", "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
 				"sub": "三个阶段全部通过 · 共 %d 次实验" % run.experiment_no, "lines": ["实验室保住了。至少保住到下一个财年。"], "keys": "R  重新开始"})
 			return
-		mode = M.RESULT
-		var lines: Array = ["实验次数重置为 %d 次。阶段奖金 +$%d。" % [Run.PER_STAGE, res.bonus]]
+		mode = M.REVIEW
+		review_passed = true
+		var lines: Array = ["束流重新配给 %d 束。阶段奖金 +$%d。" % [Run.PER_STAGE, res.bonus]]
 		if run.can_submit():
-			lines.append("攒下的分已经够下一阶段了，想交也可以直接交。")
+			lines.append("攒下的分已经够下一阶段了，想交可以马上再交。")
 		overlay.show_card({"title": "第 %d 阶段考核通过" % (res.stage + 1), "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
-			"sub": "进入第 %d 阶段 · 考核线 %s" % [run.stage + 1, fmt(run.line())], "lines": lines, "keys": _result_keys()})
+			"sub": "进入第 %d 阶段 · 考核线 %s" % [run.stage + 1, fmt(run.line())], "lines": lines, "keys": ""})
 	else:
 		mode = M.END
 		Sfx.play("boom", -3.0, 0.7)
 		overlay.show_card({"title": "科研资助终止", "title_col": Pal.c("red"), "value": fmt(run.total) + " / " + fmt(run.line()),
 			"sub": "第 %d 阶段考核未达标" % (run.stage + 1), "lines": ["“经费的事，明年再说吧。” —— 校长"], "keys": "R  重新开始"})
+
+## 审核台：查看本阶段进度，够线（或束流用完）时提交
+func _review_can_submit() -> bool:
+	return run.beam == null and (run.can_submit() or run.must_submit())
+
+func open_review() -> void:
+	mode = M.REVIEW
+	review_passed = false
+	player.input_enabled = false
+	prompt.hide_now()
+	Sfx.play("paper", -4.0, 0.9)
+	_review_card()
+
+func _review_card() -> void:
+	var lines: Array = []
+	var title_col := Pal.c("text")
+	if run.beam != null:
+		lines.append("控制台那边还有一束没结束——先回去引出（或者让它丢了）才能提交。")
+	elif run.can_submit():
+		lines.append("累计已经够线。现在提交就进入下一阶段，多出来的分会带过去。")
+		if run.experiments_left > 0:
+			lines.append("也可以先不交：还剩 %d 束，接着攒分。" % run.experiments_left)
+		title_col = Pal.c("green")
+	elif run.must_submit():
+		lines.append("束流用完了，还差 %s RP。只能提交——结果可能不太好看。" % fmt(run.line() - run.total))
+		title_col = Pal.c("red")
+	else:
+		lines.append("还差 %s RP 才够线。本阶段还剩 %d 束。" % [fmt(run.line() - run.total), run.experiments_left])
+	overlay.show_card({"title": "第 %d 阶段考核" % (run.stage + 1), "title_col": title_col, "value": "%s / %s RP" % [fmt(run.total), fmt(run.line())],
+		"sub": "已做 %d 次实验 · 剩余束流 %d" % [run.experiment_no - (1 if run.beam != null else 0), run.experiments_left], "lines": lines, "keys": ""})
+
+func close_review() -> void:
+	overlay.hide_card()
+	review_passed = false
+	mode = M.WALK
+	player.input_enabled = true
+	Sfx.play("paper", -8.0, 1.1)
 
 func leave_console() -> void:
 	mode = M.WALK
@@ -557,7 +665,8 @@ func _process(dt: float) -> void:
 	if now >= stop_until:
 		Engine.time_scale = (slow_scale if now < slow_until else 1.0) * dev_speed
 	var dang := 0.0
-	panel.show_leave = mode == M.CONSOLE and run.beam != null
+	panel.show_leave = mode == M.CONSOLE
+	panel.leave_label = "← 去审核台" if (run.beam == null and (run.experiments_left <= 0 or run.can_submit())) else "← 先去采购"
 	if mode == M.CONSOLE or mode == M.SPIN:
 		dang = shown_dang
 		Sfx.set_hum(true, shown_e, clampf(dang / 0.35, 0.0, 1.0), shown_lock)
@@ -587,6 +696,8 @@ func _process(dt: float) -> void:
 				prompt.show_at(Vector2(Geo.CONSOLE_STAND, Geo.FLOOR - 205), "E", "继续实验" if run.beam != null else "开始实验")
 			elif _near_terminal():
 				prompt.show_at(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 225), "E", "采购终端")
+			elif _near_review():
+				prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "E", "考核审核台")
 			elif not hover_interact:
 				prompt.hide_now()
 		M.ENTER:
@@ -733,6 +844,14 @@ func _triggers(r: Dictionary) -> void:
 func card_buttons() -> Array:
 	if mode == M.END:
 		return [{"label": "重新开始", "key": "R", "action": "restart"}]
+	if mode == M.REVIEW:
+		if review_passed:
+			return [{"label": "好的", "key": "E", "action": "close_review"}]
+		var rb: Array = []
+		if _review_can_submit():
+			rb.append({"label": "提交考核" if run.can_submit() else "提交（未达标）", "key": "F / E", "action": "submit"})
+		rb.append({"label": "先不交" if _review_can_submit() else "离开", "key": "Esc", "action": "close_review"})
+		return rb
 	if mode != M.RESULT:
 		return []
 	if run.must_submit():
@@ -751,6 +870,7 @@ func _card_action(a: String) -> void:
 		"new":
 			if run.can_start(): _new_beam()
 		"leave": leave_console()
+		"close_review": close_review()
 
 # —— 鼠标 ——
 func _mouse(ev: InputEventMouse) -> void:
@@ -778,23 +898,26 @@ func _mouse(ev: InputEventMouse) -> void:
 	if mb.button_index == MOUSE_BUTTON_RIGHT:
 		if mode == M.RESULT and not run.must_submit():
 			leave_console()
-		elif mode == M.CONSOLE and run.beam != null:
-			leave_console()
-			_walk_to(Geo.TERMINAL_X + 35, "shop")
+		elif mode == M.CONSOLE:
+			_leave_tab_go()
+		elif mode == M.REVIEW:
+			close_review()
 		return
 	if mb.button_index != MOUSE_BUTTON_LEFT:
 		return
 	match mode:
-		M.RESULT, M.END:
+		M.RESULT, M.END, M.REVIEW:
 			var a: String = overlay.button_at(sp)
 			if a != "":
 				_card_action(a)
 		M.CONSOLE:
 			if panel.leave_rect.has_point(sp):
-				leave_console()
-				_walk_to(Geo.TERMINAL_X + 35, "shop")
+				_leave_tab_go()
 			elif panel.hit_button(sp):
-				accelerate()
+				if run.beam == null:
+					_next_beam()
+				else:
+					accelerate()
 			elif panel.hit_knob(sp) and e_guard <= 0.0:
 				panel.start_drag()
 		M.SPIN:
@@ -806,10 +929,21 @@ func _mouse(ev: InputEventMouse) -> void:
 			var wp := _to_world(sp)
 			if _terminal_rect().has_point(wp):
 				_walk_to(Geo.TERMINAL_X + 35, "shop")
+			elif review.rect().has_point(wp):
+				_walk_to(review.STAND, "review")
 			elif _console_rect().has_point(wp):
 				_walk_to(Geo.CONSOLE_STAND, "console")
 			elif wp.y > Geo.CEIL and wp.y < Geo.FLOOR + 30:
 				_walk_to(wp.x, "")
+
+## 面板纸签：束流用完 → 去审核台；否则 → 去采购
+func _leave_tab_go() -> void:
+	var to_review: bool = run.beam == null and (run.experiments_left <= 0 or run.can_submit())
+	leave_console()
+	if to_review:
+		_walk_to(review.STAND, "review")
+	else:
+		_walk_to(Geo.TERMINAL_X + 35, "shop")
 
 func _terminal_rect() -> Rect2:
 	return Rect2(Geo.TERMINAL_X - 10, Geo.FLOOR - 200, 90, 200)
@@ -832,9 +966,14 @@ func _hover() -> void:
 	panel.hover_btn = false
 	panel.hover_knob = false
 	overlay.hover_btn = -1
+	review.hot = lerpf(review.hot, 1.0 if (mode == M.WALK and (review.rect().has_point(wp) or _near_review())) else 0.0, 0.25)
 	match mode:
 		M.WALK:
-			if _terminal_rect().has_point(wp) or _console_rect().has_point(wp):
+			if review.rect().has_point(wp):
+				hand = true
+				hover_interact = true
+				prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "点击", "考核审核台")
+			elif _terminal_rect().has_point(wp) or _console_rect().has_point(wp):
 				hand = true
 				hover_interact = true
 				var is_term := _terminal_rect().has_point(wp)
@@ -842,15 +981,13 @@ func _hover() -> void:
 		M.CONSOLE, M.SPIN:
 			panel.hover_btn = mode == M.CONSOLE and panel.hit_button(sp)
 			panel.hover_leave = mode == M.CONSOLE and panel.leave_rect.has_point(sp)
-			if panel.hover_leave:
-				hand = true
 			panel.hover_knob = mode == M.CONSOLE and panel.hit_knob(sp)
-			hand = panel.hover_btn or panel.hover_knob or panel.dragging or mode == M.SPIN
+			hand = panel.hover_btn or panel.hover_knob or panel.hover_leave or panel.dragging or mode == M.SPIN
 			var k: int = panel.seg_at(sp)
 			if k >= 0 and run.beam != null:
 				var p := run.odds()
 				tip = PackedStringArray([Odds.NAMES[k], "下一次加速出现这个结果的真实概率：%.1f%%" % (p[k] * 100.0)])
-		M.RESULT, M.END:
+		M.RESULT, M.END, M.REVIEW:
 			overlay.hover_btn = overlay.hover_at(sp)
 			hand = overlay.hover_btn >= 0
 	if tip.is_empty() and mode != M.SHOP:
@@ -884,6 +1021,8 @@ func _hover() -> void:
 			open_shop()
 		elif g == "console":
 			enter_console()
+		elif g == "review":
+			open_review()
 	elif mode == M.WALK and player.auto_target < 0.0:
 		walk_goal = ""
 
