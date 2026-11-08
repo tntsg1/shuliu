@@ -728,3 +728,19 @@ func choose_plan(id: String) -> Dictionary:
 				if not o.sold and not o.get("free", false):
 					o.price = price_of(o.id)
 	return out
+
+## 这一束现在还剩哪些“丢失时能保住”的东西（控制台决策条用）
+func protections() -> Array:
+	var out: Array = []
+	var b := beam
+	if b == null:
+		return out
+	if has("lab_cat") and not b.cat_used: out.append("猫 50%")
+	if has("emergency_call") and not stage_call_used: out.append("紧急电话")
+	if has("extinguisher") and not stage_ext_used and b.energy <= 6: out.append("灭火器")
+	if has("coin") and not b.coin_used: out.append("硬币 50%")
+	if has("schrodinger") and not stage_sch_used: out.append("薛定谔")
+	if has("dean_paper") and not paper_used: out.append("稿纸保 80%")
+	if plan == "safety" and not stage_safety_used: out.append("安全整改保 50%")
+	if has("protect_sys") and not stage_protect_used: out.append("保护系统保 30%")
+	return out

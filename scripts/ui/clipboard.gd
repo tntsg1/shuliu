@@ -10,6 +10,9 @@ var stamp_t := 0.0      # 通过阶段时的印章动画
 var stamp_text := ""
 var total_disp := 0.0
 var _vt := 0.0
+var freq_open := false   # 右夹板：显示概率 / 实际频率默认收起，点开才看
+var _xf := Transform2D()
+var freq_rect := Rect2()
 
 const W := 400.0
 const HGT := 560.0
@@ -42,6 +45,7 @@ func _draw() -> void:
 	var y := 90.0
 	var rot := -0.018 if side < 0 else 0.022
 	draw_set_transform(Vector2(x + W * 0.5, y + HGT * 0.5), rot)
+	_xf = Transform2D(rot, Vector2(x + W * 0.5, y + HGT * 0.5))
 	var o := Vector2(-W * 0.5, -HGT * 0.5)
 	var el := Pal.equip_line()
 	# 硬纸板
@@ -149,7 +153,7 @@ func _right(pr: Rect2) -> void:
 	var p := pr.position + Vector2(52, 40)
 	Ink.text(self, "实验日志", p, 24, ink, Pal.bold)
 	Ink.text(self, "种子 " + run.seed_text(), p + Vector2(150, 0), 14, Pal.c("text2"), Pal.mono)
-	var n := mini(run.log.size(), 9)
+	var n := mini(run.log.size(), 9 if freq_open else 15)
 	for i in n:
 		var e: Dictionary = run.log[i]
 		var yy := p.y + 40 + i * 26
@@ -160,10 +164,17 @@ func _right(pr: Rect2) -> void:
 		var tx := "E%d→E%d" % [e.from, e.to] if e.outcome != Odds.LOSS else "E%d ✕" % e.from
 		Ink.text(self, tx, Vector2(p.x + 120, yy), 15, Color(Pal.c("text2"), a), Pal.mono)
 		Ink.text(self, "#%d" % e.exp, Vector2(pr.end.x - 24, yy), 13, Color(Pal.c("text2"), a * 0.8), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
-	# 显示概率 vs 实际频率
+	# 显示概率 vs 实际频率：默认收成底部一张折角纸签，点开才展开
+	if not freq_open:
+		freq_rect = Rect2(pr.position.x + 20, pr.end.y - 40, pr.size.x - 40, 30)
+		draw_rect(freq_rect, Pal.c("paper2"))
+		draw_rect(freq_rect, Color(ink, 0.35), false, 1.0)
+		Ink.text(self, "▸ 概率核对：显示概率 vs 实际频率（点开）", freq_rect.position + Vector2(12, 21), 14, Pal.c("text2"))
+		return
 	var q := pr.position + Vector2(20, 300)
+	freq_rect = Rect2(q + Vector2(0, -2), Vector2(pr.size.x - 40, 28))
 	draw_line(q + Vector2(0, -8), q + Vector2(pr.size.x - 40, -8), Color(ink, 0.4), 1.0)
-	Ink.text(self, "显示概率 · 实际频率（本局）", q + Vector2(32, 18), 15, Pal.c("text2"))
+	Ink.text(self, "▾ 显示概率 · 实际频率（本局，点击收起）", q + Vector2(12, 18), 15, Pal.c("text2"))
 	var tot := 0
 	for k in Odds.N:
 		tot += run.actual[k]
@@ -197,3 +208,14 @@ static func _fmt(v: int) -> String:
 		out = "," + s.substr(s.length() - 3) + out
 		s = s.substr(0, s.length() - 3)
 	return ("-" if v < 0 else "") + s + out
+
+## 点到概率核对纸签就展开/收起（返回是否点中）
+func toggle_at(p: Vector2) -> bool:
+	if side < 0 or show_v < 0.9 or freq_rect.size == Vector2.ZERO:
+		return false
+	if freq_rect.has_point(_xf.affine_inverse() * p):
+		freq_open = not freq_open
+		Sfx.play("paper", -8.0, 1.2)
+		queue_redraw()
+		return true
+	return false

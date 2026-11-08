@@ -42,6 +42,7 @@ var _vlv := 0.0
 var lever_target := 0.0
 var enabled := false
 var hint := ""
+var dec := {}           # 决策条：{total, pot, line, loss, prot:[], lock_left}；空 = 舱里没束流
 var t := 0.0
 var jolt := 0.0
 var btn_c := Vector2.ZERO      # 按钮中心（屏幕坐标）
@@ -229,7 +230,9 @@ func _draw() -> void:
 	if unit != "":
 		Ink.text(self, unit, Vector2(446, y0 + 132), 20, Pal.c("red"), Pal.bold)
 	Ink.text(self, "RP", Vector2(446, y0 + 170), 16, Pal.c("text2"), Pal.mono)
-	if hint != "":
+	if not dec.is_empty():
+		_decision(Rect2(64, y0 + 180, 412, 76))
+	elif hint != "":
 		draw_set_transform(Vector2(76, y0 + 222), -0.02)
 		draw_string(Pal.hand, Vector2.ZERO, hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Pal.c("red"))
 		draw_set_transform(Vector2.ZERO)
@@ -561,3 +564,39 @@ func _red_box(y0: float) -> void:
 	Ink.text(self, "已按过" if red_used else "B 键", Vector2(r.position.x + 70, r.position.y + 46), 12, Color("#2b2a28"), Pal.mono)
 	if hover_red and not red_used:
 		draw_rect(r.grow(3), Pal.c("red"), false, 2.0)
+
+## 决策条（左面板下半）：现在引出累计多少 / 离考核线还差多少；下一次丢失风险；还剩什么保护或锁相
+func _decision(r: Rect2) -> void:
+	var ink := Pal.c("text")
+	var after: int = dec.total + dec.pot
+	var ln: int = dec.line
+	var ok := after >= ln
+	# 第一行：引出后累计 + 够线进度条
+	var y := r.position.y + 18.0
+	Ink.text(self, "现在引出", Vector2(r.position.x, y), 15, Pal.c("text2"))
+	var s1 := ("累计 %s / %s" % [main.fmt(after), main.fmt(ln)])
+	Ink.text(self, s1, Vector2(r.position.x + 70, y), 17, ink, Pal.mono)
+	var tag := "够线 ✓" if ok else "还差 %s" % main.fmt(ln - after)
+	Ink.text(self, tag, Vector2(r.end.x, y), 17, Pal.c("green") if ok else Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+	var bar := Rect2(r.position.x, y + 8, r.size.x, 7)
+	draw_rect(bar, Color(Pal.equip_line(), 0.15))
+	var f0 := clampf(float(dec.total) / maxf(1.0, ln), 0.0, 1.0)
+	var f1 := clampf(float(after) / maxf(1.0, ln), 0.0, 1.0)
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * f0, bar.size.y)), Pal.c("ink2"))
+	draw_rect(Rect2(bar.position + Vector2(bar.size.x * f0, 0), Vector2(bar.size.x * (f1 - f0), bar.size.y)), Pal.c("green") if ok else Pal.c("gold"))
+	draw_rect(bar, Pal.equip_line(), false, 1.0)
+	# 第二行：风险 + 保护 / 锁相
+	y += 44.0
+	if dec.lock_left > 0:
+		Ink.text(self, "锁相中 · 还剩 %d 次 · 这几下不会丢失" % dec.lock_left, Vector2(r.position.x, y), 17, Pal.c("lock"), Pal.bold)
+		return
+	var lp: float = dec.loss
+	var rc := Pal.c("red") if lp >= 0.2 else (Pal.c("orange") if lp >= 0.08 else Pal.c("text2"))
+	Ink.text(self, "丢失风险", Vector2(r.position.x, y), 15, Pal.c("text2"))
+	Ink.text(self, "%.0f%%" % (lp * 100.0) if lp >= 0.1 else "%.1f%%" % (lp * 100.0), Vector2(r.position.x + 70, y), 20, rc, Pal.bold)
+	var prot: Array = dec.prot
+	var ps := "保护：" + ("、".join(prot) if not prot.is_empty() else "无")
+	var fs := 15
+	while fs > 11 and Pal.font.get_string_size(ps, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > r.size.x - 140:
+		fs -= 1
+	Ink.text(self, ps, Vector2(r.end.x, y), fs, Pal.c("green") if not prot.is_empty() else Pal.c("text2"), Pal.font, HORIZONTAL_ALIGNMENT_RIGHT)

@@ -628,6 +628,7 @@ func _after_experiment() -> void:
 ## 控制台空着（没有束流）时面板上的提示
 func _idle_hint() -> void:
 	panel.enabled = false
+	panel.dec = {}
 	if run.won() or run.failed:
 		panel.hint = ""
 	elif run.experiments_left <= 0:
@@ -833,12 +834,9 @@ func _sync() -> void:
 	shown_dang = 0.0 if shown_lock else p[Odds.LOSS]
 	panel.enabled = true
 	chamber.set_state(b.energy, p[Odds.LOSS], b.locked())
-	if run.total + run.potential() >= run.line():
-		panel.hint = "现在引出，累计就够线了……还要再按吗？"
-	elif p[Odds.LOSS] >= 0.2:
-		panel.hint = "丢失概率已经很高了。"
-	else:
-		panel.hint = ""
+	panel.hint = ""
+	panel.dec = {"total": run.total, "pot": run.potential(), "line": run.line(), "loss": 0.0 if b.locked() else p[Odds.LOSS],
+		"prot": run.protections(), "lock_left": b.lock_left}
 
 # —— 每帧 ——
 func _process(dt: float) -> void:
@@ -1106,7 +1104,9 @@ func _mouse(ev: InputEventMouse) -> void:
 			if a != "":
 				_card_action(a)
 		M.CONSOLE:
-			if panel.red_rect.has_point(sp):
+			if clip_r.toggle_at(sp):
+				pass
+			elif panel.red_rect.has_point(sp):
 				press_red()
 			elif panel.leave_rect.has_point(sp):
 				_leave_tab_go()
