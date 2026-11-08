@@ -29,6 +29,10 @@ var flash := 0.0
 var waves: Array = []   # {t, col, w}
 var sparks: Array = []  # {p, v, life, col}
 var cracks := 0.0       # 0..1 裂纹显现
+var charge := 0.0
+var t_charge := 0.0
+var _vch := 0.0
+var collide := -1.0     # 对撞动画进度 0..1，<0 不显示
 var flick := 0.0
 
 func _ready() -> void:
@@ -131,6 +135,8 @@ func _process(dt: float) -> void:
 	mat.set_shader_parameter("pulse", pulse)
 	mat.set_shader_parameter("dissolve", dissolve)
 	mat.set_shader_parameter("flash", flash)
+	var cr := Ink.spring(charge, _vch, t_charge, 14.0, dt); charge = cr[0]; _vch = cr[1]
+	mat.set_shader_parameter("charge", clampf(charge, 0.0, 1.2))
 	mat.set_shader_parameter("flash_col", Pal.c("paper") if not dissolving else Pal.c("red"))
 	mat.set_shader_parameter("appear", clampf(appear, 0.0, 1.2))
 	var want := int(round(value * 6.0 * clampf(appear, 0.0, 1.0)))

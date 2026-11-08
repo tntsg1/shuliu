@@ -66,6 +66,17 @@ func _draw() -> void:
 	for s in chamber.sparks:
 		var a: float = clampf(s.life / 0.3, 0.0, 1.0)
 		draw_line(s.p, s.p - s.v * 0.035, Color(s.col, a), 2.2, true)
+	# 对撞：两团束流从舱两端相向冲向核心
+	if chamber.collide >= 0.0:
+		var e: float = pow(clampf(chamber.collide, 0.0, 1.0), 2.2)
+		var bc := Pal.ramp(chamber.value)
+		for sgn in [-1.0, 1.0]:
+			var x: float = sgn * h.x * 0.92 * (1.0 - e)
+			for i in 10:
+				var tx: float = x + sgn * i * 9.0 * (0.4 + e)
+				draw_circle(Vector2(tx, 0), (9.0 - i * 0.7) * (0.8 + e * 0.4), Color(bc, 0.85 - i * 0.08))
+			draw_circle(Vector2(x, 0), 10.0 + e * 4.0, bc)
+			draw_arc(Vector2(x, 0), 10.0 + e * 4.0, 0, TAU, 24, el, 2.0, true)
 	# 丢失：玻璃裂纹
 	if chamber.cracks > 0.0:
 		var rng := RandomNumberGenerator.new()

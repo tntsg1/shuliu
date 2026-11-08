@@ -34,6 +34,17 @@ var enabled := false
 var hint := ""
 var t := 0.0
 var jolt := 0.0
+# 概率指针：沿纸带循环滑动、减速、停在结果段
+var spinning := false
+var spin_done := false
+var spin_t := 0.0
+var spin_T := 1.0
+var spin_from := 0.0
+var spin_total := 0.0
+var ptr_abs := 0.08
+var ptr_speed := 0.0
+var _ptr_seg := -1
+var ptr_vis := 0.0
 var _vj := 0.0
 var flash_val := 0.0
 var _tick_n := 0
@@ -68,6 +79,40 @@ func press() -> void:
 	_vj += 260.0
 	flash_val = 1.0
 
+## 开始揭晓：target_u 为结果在纸带上的落点（0..1），T 秒，绕 laps 圈
+func spin(target_u: float, T: float, laps: int) -> void:
+	spin_from = ptr_abs
+	spin_total = laps + fposmod(target_u - ptr_abs, 1.0)
+	spin_t = 0.0
+	spin_T = T
+	spinning = true
+	spin_done = false
+	btn_target = 0.8
+
+## 等不及：剩余路程压缩到 0.14 秒（落点不变）
+func skip() -> void:
+	if not spinning:
+		return
+	var end_u := spin_from + spin_total
+	spin_from = ptr_abs
+	spin_total = end_u - ptr_abs
+	spin_t = 0.0
+	spin_T = 0.14
+
+func progress() -> float:
+	return clampf(spin_t / spin_T, 0.0, 1.0) if spinning else 1.0
+
+func _seg_at(u: float) -> int:
+	var tot := 0.0
+	for k in 5:
+		tot += seg[k]
+	var acc := 0.0
+	for k in 5:
+		acc += seg[k] / maxf(tot, 1e-5)
+		if u < acc:
+			return k
+	return 4
+
 func pull() -> void:
 	_vlv = 9.0
 
@@ -82,6 +127,23 @@ func _process(dt: float) -> void:
 		lamp_pop[i] = maxf(0.0, lamp_pop[i] - dt * 3.0)
 	r = Ink.spring(btn_depth, _vb, btn_target, 26.0, dt); btn_depth = r[0]; _vb = r[1]
 	r = Ink.spring(jolt, _vj, 0.0, 22.0, dt); jolt = r[0]; _vj = r[1]
+	ptr_vis = lerpf(ptr_vis, 1.0 if (spinning or show_t > 0.0) else 0.0, 1.0 - exp(-10.0 * dt))
+	if spinning:
+		spin_t += dt
+		var x := clampf(spin_t / spin_T, 0.0, 1.0)
+		var e := 1.0 - pow(1.0 - x, 4.2)
+		var prev := ptr_abs
+		ptr_abs = spin_from + spin_total * e
+		ptr_speed = (ptr_abs - prev) / maxf(dt, 1e-4)
+		var sg := _seg_at(fposmod(ptr_abs, 1.0))
+		if sg != _ptr_seg:
+			_ptr_seg = sg
+			Sfx.play("tick", -7.0 + minf(4.0, 1.0 / maxf(ptr_speed, 0.3)), 0.8 + sg * 0.12, 0.03, 0.02)
+		if x >= 1.0:
+			spinning = false
+			spin_done = true
+			ptr_speed = 0.0
+			btn_target = 0.0
 	flash_val = maxf(0.0, flash_val - dt * 3.0)
 	# 滚轮计数器每滚过一格“咔”一声
 	var n := int(val_disp / maxf(1.0, val_target / 16.0))
@@ -238,6 +300,27 @@ func _tape(r: Rect2) -> void:
 			draw_line(Vector2(centers[k], r.end.y + 2), Vector2(lab[k], r.end.y + 8), Color(el, 0.5), 1.0, true)
 		Ink.text(self, Odds.NAMES[k], Vector2(lab[k], r.end.y + 24), 15, col, Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
 		Ink.text(self, "%.1f%%" % pct, Vector2(lab[k], r.end.y + 44), 17, col, Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+	# 指针：墨线三角 + 贯穿纸带的竖线；滑动时拖出残影
+	if ptr_vis > 0.01:
+		var u := fposmod(ptr_abs, 1.0)
+		var px := r.position.x + u * r.size.x
+		var ink := Pal.c("text")
+		if spinning:
+			var sg := _seg_at(u)
+			var x0 := r.position.x
+			for k in sg:
+				x0 += r.size.x * seg[k] / maxf(total, 1e-5)
+			var sw := r.size.x * seg[sg] / maxf(total, 1e-5)
+			draw_rect(Rect2(x0, r.position.y - 2, sw, r.size.y + 4), ink, false, 3.0)
+			var ghosts := clampf(ptr_speed * 0.8, 0.0, 6.0)
+			for g in int(ghosts):
+				var gx := px - (g + 1) * 14.0
+				if gx > r.position.x:
+					draw_line(Vector2(gx, r.position.y - 16), Vector2(gx, r.end.y + 4), Color(ink, 0.18 - g * 0.025), 2.0)
+		var a := ptr_vis
+		draw_line(Vector2(px, r.position.y - 14), Vector2(px, r.end.y + 6), Color(ink, a), 2.6)
+		draw_colored_polygon(PackedVector2Array([Vector2(px - 12, r.position.y - 30), Vector2(px + 12, r.position.y - 30), Vector2(px, r.position.y - 10)]), Color(Pal.c("gold"), a))
+		draw_polyline(PackedVector2Array([Vector2(px - 12, r.position.y - 30), Vector2(px + 12, r.position.y - 30), Vector2(px, r.position.y - 10), Vector2(px - 12, r.position.y - 30)]), Color(ink, a), 2.0, true)
 	# 丢失段：红色圈注（像拿红笔圈出来）
 	var lw := r.size.x * seg[Odds.LOSS] / maxf(total, 1e-5)
 	if seg[Odds.LOSS] >= 0.12:

@@ -52,6 +52,10 @@ func key(action: String, hold := 0.0) -> void:
 	up.pressed = false
 	Input.parse_input_event(up)
 
+func idle() -> void:
+	while main.mode == main.M.SPIN:
+		await process_frame
+
 func w(s: float) -> void:
 	await create_timer(s).timeout
 
@@ -75,7 +79,8 @@ func _go() -> void:
 	# 实验 1：稳健
 	while main.run.beam != null and main.run.beam.energy < 8:
 		await key("accelerate")
-		await w(randf_range(0.42, 0.62))
+		await idle()
+		await w(randf_range(0.25, 0.45))
 	await w(0.7)
 	await key("interact")
 	await w(4.4)
@@ -84,7 +89,8 @@ func _go() -> void:
 	# 实验 2：锁相冲高
 	while main.run.beam != null and (main.run.beam.energy < 11 or main.run.beam.locked()) and main.run.beam.presses < 18:
 		await key("accelerate")
-		await w(0.3 if main.run.beam != null and main.run.beam.locked() else randf_range(0.42, 0.6))
+		await idle()
+		await w(0.15 if main.run.beam != null and main.run.beam.locked() else randf_range(0.25, 0.45))
 	await w(0.9)
 	await key("interact")
 	await w(4.6)
@@ -93,8 +99,9 @@ func _go() -> void:
 	# 实验 3：贪心到丢失
 	while main.run.beam != null and main.run.beam.presses < 20:
 		await key("accelerate")
+		await idle()
 		var p: float = 0.0 if main.run.beam == null else main.run.beam.odds()[Odds.LOSS]
-		await w(0.5 + p * 1.6)
+		await w(0.3 + p * 1.4)
 	await w(3.4)
 	# 切换暗色，离开控制台走两步
 	await key("theme")

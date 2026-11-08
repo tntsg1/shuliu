@@ -8,7 +8,8 @@ uniform float lockf = 0.0;      // 锁相 0..1
 uniform float pulse = 0.0;      // 每次加速的冲击 1→0
 uniform float dissolve = 0.0;   // 丢失消散 0..1
 uniform float appear = 1.0;
-uniform float flash = 0.0;       // 冲击闪白 1→0
+uniform float flash = 0.0;
+uniform float charge = 0.0;      // 蓄力 0..1：轨道收紧、束团加速、核心膨胀       // 冲击闪白 1→0
 uniform vec4 flash_col : source_color = vec4(1.0);     // 注入出现 0..1
 uniform float seed = 1.0;
 uniform vec4 ink : source_color;
@@ -89,7 +90,7 @@ void fragment() {
 	for (int i = 0; i < 6; i++) {
 		if (i >= n) { break; }
 		float fi = float(i);
-		float rx = size.x * 0.5 * (0.26 + 0.12 * fi) * (1.0 + pulse * 0.05) * A;
+		float rx = size.x * 0.5 * (0.26 + 0.12 * fi) * (1.0 + pulse * 0.05) * A * (1.0 - 0.17 * charge);
 		float asp = mix(0.30 + 0.12 * sin(fi * 2.1 + seed), 0.34, lockf);
 		float ry = min(rx * asp, size.y * 0.44);
 		float ang = mix(fi * 0.62 + seed + t * 0.05 * (1.0 + fi * 0.3), fi * 3.14159 / 6.0, lockf);
@@ -105,7 +106,7 @@ void fragment() {
 
 		int kN = lockf > 0.5 ? 6 : 2 + int(value * 4.0);
 		float dir = mod(fi, 2.0) < 1.0 ? 1.0 : -1.0;
-		float speed = (0.55 + value * 1.4 + lockf * 2.4) * dir;
+		float speed = (0.55 + value * 1.4 + lockf * 2.4) * dir * (1.0 + charge * 3.0);
 		float trail = 0.35 + value * 0.55 + lockf * 0.5;
 		float on_ring = 1.0 - smoothstep(wl * 0.5, wl * 0.5 + 2.6 + value * 2.0, abs(d));
 		for (int k = 0; k < 6; k++) {
@@ -126,7 +127,7 @@ void fragment() {
 
 	// —— 核心：网点晕 + 实心芯 + 墨线 ——
 	float cd = length(p);
-	float cr = (9.0 + value * 22.0) * (1.0 + pulse * 0.35) * A;
+	float cr = (9.0 + value * 22.0) * (1.0 + pulse * 0.35 + charge * 0.45) * A;
 	float halo = cr * (2.4 + value * 0.8);
 	vec2 cell = mod(px, 6.0) - 3.0;
 	float dotr = clamp(1.0 - cd / halo, 0.0, 1.0) * 2.9;

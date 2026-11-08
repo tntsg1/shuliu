@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SHOT, BLOOM, LOSING, RESULT, END }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END }
 
 var run: Run
 var mode := M.WALK
@@ -44,6 +44,11 @@ var slow_until := 0.0
 var slow_scale := 1.0
 var beat_t := 0.0
 var count_tick := 0
+var pending := {}          # 已抽定、等待揭晓的结果
+var charge_snd: AudioStreamPlayer
+var shown_e := 1            # 画面上正在显示的能级/危险（揭晓前不泄露新结果）
+var shown_dang := 0.0
+var shown_lock := false
 
 func _ready() -> void:
 	_inputs()
@@ -165,6 +170,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 					enter_console()
 				elif _near_terminal():
 					overlay.say("采购终端暂停营业（下个版本开放）")
+		M.SPIN:
+			if ev.is_action("accelerate"):
+				panel.skip()
 		M.CONSOLE:
 			if ev.is_action("accelerate"):
 				accelerate()
@@ -228,11 +236,41 @@ func accelerate() -> void:
 	if cooldown > 0.0 or run.beam == null:
 		return
 	cooldown = 0.15
+	var b: Beam = run.beam
+	var was_locked := b.locked()
+	var p := b.odds()
+	var danger := p[Odds.LOSS]
 	panel.press()
 	player.press()
+	var r := run.accelerate()        # 结果在按下瞬间按真实概率抽定；下面只是揭晓
+	pending = r
+	# 指针落点：结果所在色段内的随机位置
+	var acc := 0.0
+	for k in r.outcome:
+		acc += p[k]
+	var target := acc + p[r.outcome] * randf_range(0.18, 0.82)
+	var T := 0.45 if was_locked else 0.95 + clampf(danger / 0.35, 0.0, 1.0) * 0.65
+	var laps := 1 if was_locked else 2 + int(danger * 4.0)
+	panel.spin(target, T, laps)
+	mode = M.SPIN
+	timer = 0.0
+	chamber.t_charge = 1.0
+	Sfx.charge_boost = 0.35
+	charge_snd = Sfx.play("arc", -9.0, 1.0 / T * 0.9 + (0.4 if was_locked else 0.0), 0.02)
+	Sfx.play("btn", -4.0, 0.9)
+	cam_zv += 0.08
+
+## 指针停稳：对撞 → 揭晓
+func _reveal() -> void:
+	var r := pending
+	pending = {}
+	chamber.t_charge = 0.0
+	chamber.collide = -1.0
+	Sfx.charge_boost = 0.0
+	if charge_snd and charge_snd.playing:
+		charge_snd.stop()
 	ringmap.lap()
-	var r := run.accelerate()
-	var k: int = r.outcome
+	mode = M.CONSOLE
 	if r.lost:
 		_lose(r)
 		return
@@ -362,6 +400,9 @@ func _sync() -> void:
 		return
 	var p := b.odds()
 	panel.set_beam(b.energy, b.value(), p, b.charge, b.lock_left)
+	shown_e = b.energy
+	shown_lock = b.locked()
+	shown_dang = 0.0 if shown_lock else p[Odds.LOSS]
 	panel.enabled = true
 	chamber.set_state(b.energy, p[Odds.LOSS], b.locked())
 	if run.total + b.value() >= run.line():
@@ -376,11 +417,10 @@ func _process(dt: float) -> void:
 	var now := Time.get_ticks_usec() / 1e6
 	if now >= stop_until:
 		Engine.time_scale = slow_scale if now < slow_until else 1.0
-	var b: Beam = run.beam
 	var dang := 0.0
-	if b != null and mode == M.CONSOLE:
-		dang = 0.0 if b.locked() else b.odds()[Odds.LOSS]
-		Sfx.set_hum(true, b.energy, clampf(dang / 0.35, 0.0, 1.0), b.locked())
+	if mode == M.CONSOLE or mode == M.SPIN:
+		dang = shown_dang
+		Sfx.set_hum(true, shown_e, clampf(dang / 0.35, 0.0, 1.0), shown_lock)
 		# 危险心跳：丢失概率越高越快、越重
 		if dang >= 0.12:
 			beat_t -= dt
@@ -412,6 +452,12 @@ func _process(dt: float) -> void:
 		M.ENTER:
 			if absf(player.position.x - Geo.CONSOLE_STAND) < 3.0 or timer > 1.6:
 				_console_ready()
+		M.SPIN:
+			var pg: float = panel.progress()
+			chamber.collide = clampf((pg - 0.62) / 0.38, 0.0, 1.0) if pg > 0.62 else -1.0
+			if panel.spin_done:
+				panel.spin_done = false
+				_reveal()
 		M.LOSING:
 			if timer > 1.5:
 				overlay.st_t = -1.0

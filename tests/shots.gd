@@ -39,7 +39,9 @@ func _go() -> void:
 			break
 		run.beam.lock_used = true   # 先关掉锁相，保证截到常态
 		main.accelerate()
-		await wait(0.2)
+		while main.mode == main.M.SPIN:
+			await process_frame
+		await wait(0.1)
 	if run.beam != null:
 		run.beam.energy = 9
 		run.beam.charge = 0

@@ -33,12 +33,12 @@ func _ready() -> void:
 		hum.play()
 
 ## 播放：vol 分贝，pitch 音高，rand 随机音高幅度，gap 同名最小间隔（秒）
-func play(n: String, vol := 0.0, pitch := 1.0, rand := 0.05, gap := 0.0) -> void:
+func play(n: String, vol := 0.0, pitch := 1.0, rand := 0.05, gap := 0.0) -> AudioStreamPlayer:
 	if not streams.has(n):
-		return
+		return null
 	var now := Time.get_ticks_msec() / 1000.0
 	if gap > 0.0 and now - float(last.get(n, -10.0)) < gap:
-		return
+		return null
 	last[n] = now
 	var p: AudioStreamPlayer = null
 	for q in pool:
@@ -52,11 +52,14 @@ func play(n: String, vol := 0.0, pitch := 1.0, rand := 0.05, gap := 0.0) -> void
 	p.volume_db = vol
 	p.pitch_scale = maxf(0.05, pitch * (1.0 + randf_range(-rand, rand)))
 	p.play()
+	return p
 
 ## 嗡鸣：舱内有束流时响，能级越高越尖，危险越高越响
 func set_hum(on: bool, energy := 1, danger := 0.0, locked := false) -> void:
 	hum_target = (-17.0 + danger * 7.0 + (3.0 if locked else 0.0)) if on else -60.0
-	hum_pitch_target = 0.82 + energy * 0.035 + (0.25 if locked else 0.0)
+	hum_pitch_target = 0.82 + energy * 0.035 + (0.25 if locked else 0.0) + charge_boost
+
+var charge_boost := 0.0
 
 func _process(dt: float) -> void:
 	var rdt := dt / maxf(Engine.time_scale, 0.01)
