@@ -24,6 +24,7 @@ var _vst := 0.0
 var strip_t := 1.0
 var toast := ""
 var toast_t := 0.0
+var trigs: Array = []     # 饰品触发纸签 {id, s, t}
 var pops: Array = []      # 飞字 {s, col, big, t}
 var red := 0.0            # 红色边缘闪
 var lockfx := 0.0
@@ -61,6 +62,9 @@ func hide_bloom() -> void:
 func pop(s: String, col: Color, big: bool) -> void:
 	pops.append({"s": s, "col": col, "big": big, "t": 0.0, "x": randf_range(-40, 40)})
 
+func trig(id: String, s: String) -> void:
+	trigs.append({"id": id, "s": s, "t": 0.0})
+
 func flash_red(a: float) -> void:
 	red = maxf(red, a)
 
@@ -88,6 +92,9 @@ func _process(dt: float) -> void:
 	for p in pops:
 		p.t += dt
 	pops = pops.filter(func(p): return p.t < 0.9)
+	for tg in trigs:
+		tg.t += dt
+	trigs = trigs.filter(func(tg): return tg.t < 2.2)
 	# 开花计数：滚动时咔哒作响
 	if bloom_v >= 0.0:
 		var step := maxi(1, bloom_target / 24)
@@ -104,6 +111,7 @@ func _draw() -> void:
 	_edges(vp)
 	_strip(vp)
 	_pops(vp)
+	_trigs(vp)
 	if bloom_v >= 0.0:
 		_bloom(vp)
 	if st_t >= 0.0:
@@ -135,7 +143,8 @@ func _strip(vp: Vector2) -> void:
 	Ink.text(self, stg, Vector2(230, 29), 17, Pal.c("text"))
 	Ink.text(self, "累计 %s / %s" % [main.fmt(run.total), main.fmt(run.line())], Vector2(350, 29), 17, Pal.c("text"), Pal.mono)
 	Ink.text(self, "剩余实验 %d" % run.experiments_left, Vector2(610, 29), 17, Pal.c("text"))
-	Ink.text(self, "F2 切换配色", Vector2(740, 29), 13, Pal.c("text2"))
+	Ink.text(self, "$%d" % run.money, Vector2(735, 29), 17, Pal.c("green"), Pal.mono)
+	Ink.text(self, "F2 配色", Vector2(800, 29), 13, Pal.c("text2"))
 	draw_set_transform(Vector2.ZERO)
 
 func _stamp(vp: Vector2) -> void:
@@ -231,3 +240,23 @@ func _pops(vp: Vector2) -> void:
 		Ink.text(self, p.s, Vector2(3, 4), fs, Color(0, 0, 0, 0.2 * a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		Ink.text(self, p.s, Vector2.ZERO, fs, Color(p.col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 		draw_set_transform(Vector2.ZERO)
+
+## 饰品触发：从左上方依次滑入的小纸签（图标 + 说明）
+func _trigs(vp: Vector2) -> void:
+	var i := 0
+	for tg in trigs:
+		var t: float = tg.t
+		var k := Ink.ease_out_back(minf(1.0, t / 0.25))
+		var a := clampf((2.2 - t) / 0.4, 0.0, 1.0)
+		var w := Pal.font.get_string_size(tg.s, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x + 84
+		var p := Vector2(lerpf(-w, 470.0, k), 120.0 + i * 64)
+		draw_set_transform(p, -0.02)
+		draw_rect(Rect2(4, 5, w, 54), Color(0, 0, 0, 0.15 * a))
+		draw_rect(Rect2(0, 0, w, 54), Color(Pal.c("paper"), a))
+		draw_rect(Rect2(0, 0, w, 54), Color(Pal.c("gold"), a), false, 3.0)
+		draw_set_transform(Vector2.ZERO)
+		Icons.draw(self, tg.id, p + Vector2(32, 27), 40.0)
+		draw_set_transform(p, -0.02)
+		Ink.text(self, tg.s, Vector2(62, 34), 18, Color(Pal.c("text"), a), Pal.bold)
+		draw_set_transform(Vector2.ZERO)
+		i += 1

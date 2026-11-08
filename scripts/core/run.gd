@@ -1,33 +1,52 @@
 class_name Run
 extends RefCounted
-## 一局：累计总分制考核（DECISIONS Q15）
-## 提交规则（用户 2026-11-07）：达标不自动过关。实验次数未用完时，累计分够线可以“爱交不交”；
-## 次数用完强制提交——够线过关，不够失败。
+## 一局：累计总分制考核 + 经费/商店 + 饰品与设备效果（纯逻辑，可无界面测试）
+## 提交规则（DECISIONS Q30）：够线可选提交；次数用完强制提交。
+## 结算顺序（GDD 4.6）：最终概率 → 抽取 → 重抽 → 结果转化 → 破碎抵挡 → 科研抢救 → 执行与后续效果
 
 const LINES := [580, 1410, 2370]
 const PER_STAGE := 3
+const START_MONEY := 30
+const REFRESH_BASE := 3
 
 var seed_value := 0
 var rng := RandomNumberGenerator.new()
-var stage := 0            # 0..LINES.size()；等于 size 即通关
+var shop_rng := RandomNumberGenerator.new()   # 商店单独一路随机，买不买东西都不影响实验结果序列
+var stage := 0
 var experiments_left := PER_STAGE
 var total := 0
 var beam: Beam = null
-var log: Array = []       # 每条 {outcome, from, to, exp}
+var log: Array = []
 var experiment_no := 0
 var failed := false
-## 显示概率 vs 实际频率：期望次数（概率累加）与实际次数
 var expected := PackedFloat64Array([0, 0, 0, 0, 0])
 var actual := PackedInt32Array([0, 0, 0, 0, 0])
 var best_value := 0
+# —— 经费与构筑 ——
+var money := START_MONEY
+var relics: Array = []        # 饰品 id
+var devices: Array = []       # 设备 id
+var uses := {}                # 有使用次数的饰品剩余次数
+var paper_used := false       # 校长稿纸：每局一次
+var stage_badge_used := false
+var stage_pen_used := false
+var rejected_stacks := 0
+# —— 商店 ——
+var offers: Array = []        # [{id, sold}]
+var refresh_cost := REFRESH_BASE
 
 func _init(s := 0) -> void:
 	seed_value = s if s != 0 else int(Time.get_unix_time_from_system() * 1000.0) % 2147483647
 	rng.seed = seed_value
+	shop_rng.seed = seed_value ^ 0x5bd1e995
+	roll_shop()
 
 func seed_text() -> String:
 	var h := "%08X" % (seed_value & 0xFFFFFFFF)
 	return h.substr(0, 4) + "-" + h.substr(4, 4)
+
+func has(id: String) -> bool:
+	return relics.has(id) or devices.has(id)
 
 func won() -> bool:
 	return stage >= LINES.size()
@@ -38,11 +57,9 @@ func lost() -> bool:
 func line() -> int:
 	return LINES[mini(stage, LINES.size() - 1)]
 
-## 现在可以主动提交（够线且本阶段还有实验次数）
 func can_submit() -> bool:
 	return beam == null and not won() and not failed and total >= line()
 
-## 必须提交（次数用完）
 func must_submit() -> bool:
 	return beam == null and not won() and not failed and experiments_left <= 0
 
@@ -54,38 +71,271 @@ func start_experiment() -> void:
 	beam = Beam.new()
 	experiment_no += 1
 
+# —— 概率与价值 ——
+func odds() -> PackedFloat64Array:
+	var b := beam
+	var p := Odds.table(b.energy)
+	var d := PackedFloat64Array([0, 0, 0, 0, 0])
+	if has("magnet_sc"): d[Odds.LOSS] -= 0.05
+	if has("collimator"): d[Odds.LOSS] -= 0.04
+	if has("injector_hi"): d[Odds.LOSS] += 0.05
+	if has("quad_array"): d[Odds.SUCCESS] += 0.08
+	if has("rf_backup"): d[Odds.PERFECT] += 0.04
+	if has("koi") and b.koi > 0: d[Odds.LOSS] -= 0.02 * b.koi
+	if has("ultimatum") and b.presses >= 3: d[Odds.LOSS] += 0.10
+	if has("fast_clock") and b.presses == 0: d[Odds.LOSS] += 0.05
+	var q := Odds.apply_mods(p, d)
+	if b.locked():
+		q[Odds.LOSS] = 0.0
+		var s := 0.0
+		for k in 5: s += q[k]
+		for k in 5: q[k] /= s
+	return q
+
+## 本次是否必定至少普通成功
+func guaranteed() -> bool:
+	if beam == null:
+		return false
+	return beam.guaranteed_next or (has("ultimatum") and beam.presses < 3)
+
+## 当前倍率（显示与引出都用它，保证所见即所得）
+func multiplier() -> float:
+	var m := 1.0
+	if has("injector_hi"): m *= 1.5
+	if has("collimator"): m *= 0.9
+	if beam != null and has("chair"): m *= 1.0 + beam.chair
+	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
+	if has("budget"): m *= 1.0 + minf(0.5, floor(money / 10.0) * 0.05)
+	return m
+
+func potential() -> int:
+	return 0 if beam == null else int(floor(beam.value_base() * multiplier()))
+
+# —— 加速 ——
 func accelerate() -> Dictionary:
-	var r := beam.accelerate(rng)
-	for k in 5:
-		expected[k] += r.odds[k]
-	actual[r.outcome] += 1
-	log.push_front({"outcome": r.outcome, "from": r.from, "to": r.to, "exp": experiment_no})
+	var b := beam
+	var p := odds()
+	var g := guaranteed()
+	var k := Odds.roll_at_least_success(p, rng) if g else Odds.roll(p, rng)
+	var trig: Array = []
+	var from := b.energy
+	if b.guaranteed_next:
+		b.guaranteed_next = false
+		trig.append(["note100", "必定成功"])
+	# 重抽
+	if k == Odds.DETUNE and has("eraser") and int(uses.get("eraser", 0)) > 0:
+		uses["eraser"] -= 1
+		k = Odds.roll(p, rng)
+		trig.append(["eraser", "橡皮重抽"])
+		if uses["eraser"] <= 0:
+			relics.erase("eraser")
+	# 结果转化
+	if k == Odds.DETUNE and has("diagnostic") and not b.diag_used:
+		b.diag_used = true
+		k = Odds.STABLE
+		trig.append(["diagnostic", "诊断仪拦下失谐"])
+	if k == Odds.DETUNE and has("badge") and not stage_badge_used:
+		stage_badge_used = true
+		k = Odds.STABLE
+		trig.append(["badge", "工牌刷开了"])
+	if k == Odds.DETUNE and has("wrong_answer") and rng.randf() < 0.2:
+		k = Odds.PERFECT
+		trig.append(["wrong_answer", "错得很对"])
+	# 破碎抵挡
+	if k == Odds.LOSS and has("coin") and not b.coin_used:
+		b.coin_used = true
+		if rng.randf() < 0.5:
+			k = Odds.STABLE
+			trig.append(["coin", "正面！挡住了"])
+		else:
+			trig.append(["coin", "反面……"])
+	for kk in 5:
+		expected[kk] += p[kk]
+	actual[k] += 1
+	b.presses += 1
+	var res := {"outcome": k, "from": from, "odds": p, "lock_started": false, "lock_ended": false,
+		"lost": false, "salvaged": 0, "money": 0, "triggers": trig}
+	# 束流丢失（可能被稿纸抢救）
+	if k == Odds.LOSS:
+		res.lost = true
+		res.to = from
+		var keep := 0
+		if has("dean_paper") and not paper_used:
+			paper_used = true
+			keep = int(floor(potential() * 0.8))
+			trig.append(["dean_paper", "稿纸抢救 80%"])
+		res.salvaged = keep
+		_log(k, from, from)
+		b.alive = false
+		res.merge(_finish(keep))
+		return res
+	# 执行结果
+	var was_locked := b.locked()
+	var delta: int = Odds.DELTA[k]
+	if (k == Odds.SUCCESS or k == Odds.PERFECT) and has("rejected") and rejected_stacks >= 5:
+		delta += 3
+		rejected_stacks = 0
+		trig.append(["rejected", "怨气爆发 +3"])
+	b.energy = clampi(b.energy + delta, 1, Odds.EMAX)
+	var good := k == Odds.SUCCESS or k == Odds.PERFECT
+	if good:
+		b.streak += 1
+		if has("chair"):
+			b.chair += 0.2
+		if has("lucky_cat") and rng.randf() < 0.08:
+			var gain := 6 if b.cat_last else 3
+			money += gain
+			res.money += gain
+			b.cat_last = true
+			trig.append(["lucky_cat", "+$%d" % gain])
+		else:
+			b.cat_last = false
+	else:
+		b.streak = 0
+		if has("chair") and b.chair > 0.0:
+			b.chair = 0.0
+			trig.append(["chair", "椅子被抢了"])
+		b.cat_last = false
+	if k == Odds.DETUNE and has("rejected"):
+		rejected_stacks = mini(5, rejected_stacks + 1)
+	if k == Odds.PERFECT and has("koi") and b.koi < 5:
+		b.koi += 1
+		trig.append(["koi", "好运 ×%d" % b.koi])
+	var lock_n := Odds.LOCK_PRESSES + (2 if has("fast_clock") else 0)
+	if was_locked:
+		b.lock_left -= 1
+		res.lock_ended = b.lock_left == 0
+	else:
+		if not b.lock_used:
+			b.charge = 0 if k == Odds.DETUNE else b.charge + Odds.CHARGE[k]
+			if b.charge >= Odds.LOCK_NEED:
+				b.charge = Odds.LOCK_NEED
+				b.lock_left = lock_n
+				b.lock_used = true
+				res.lock_started = true
+		if not res.lock_started and has("coffee") and not b.coffee_used and b.streak >= 3:
+			b.coffee_used = true
+			b.lock_left = 3 + (2 if has("fast_clock") else 0)
+			res.lock_started = true
+			trig.append(["coffee", "第七杯咖啡"])
+	if res.lock_started and has("fast_clock"):
+		trig.append(["fast_clock", "锁相 +2"])
+	# 便利贴：成功率够高时预备下一次必定成功
+	if has("note100") and not b.guaranteed_next:
+		var q := odds()
+		if q[Odds.SUCCESS] + q[Odds.PERFECT] >= 0.75:
+			b.guaranteed_next = true
+			relics.erase("note100")
+			trig.append(["note100", "贴上了"])
+	res.to = b.energy
+	_log(k, from, b.energy)
+	return res
+
+func _log(k: int, from: int, to: int) -> void:
+	log.push_front({"outcome": k, "from": from, "to": to, "exp": experiment_no})
 	if log.size() > 40:
 		log.pop_back()
-	if r.lost:
-		r.merge(_finish(0))
-	return r
 
-## 引出：兑现当前价值
+## 引出：兑现当前价值（含全部倍率）
 func extract() -> Dictionary:
-	var v := beam.value()
+	var v := potential()
+	if has("dean_pen"):
+		stage_pen_used = true
 	best_value = maxi(best_value, v)
 	return _finish(v)
 
+## 实验结束：结算经费，刷新商店
 func _finish(v: int) -> Dictionary:
 	beam = null
 	total += v
 	experiments_left -= 1
-	return {"gained": v, "can_submit": can_submit(), "must_submit": must_submit()}
+	var income := int(floor(2.0 + 1.6 * sqrt(float(v))))
+	money += income
+	roll_shop()
+	return {"gained": v, "income": income, "can_submit": can_submit(), "must_submit": must_submit()}
 
-## 提交考核：够线进入下一阶段（实验次数重置），不够则失败
 func submit() -> Dictionary:
 	assert(beam == null and not won() and not failed)
-	var ln := line()
-	if total >= ln:
+	if total >= line():
 		var s := stage
 		stage += 1
 		experiments_left = PER_STAGE
-		return {"passed": true, "stage": s, "won": won()}
+		stage_badge_used = false
+		stage_pen_used = false
+		var bonus := 15 + 5 * s
+		money += bonus
+		return {"passed": true, "stage": s, "won": won(), "bonus": bonus}
 	failed = true
-	return {"passed": false, "stage": stage, "won": false}
+	return {"passed": false, "stage": stage, "won": false, "bonus": 0}
+
+# —— 商店 ——
+func slots_free(kind: String) -> bool:
+	if kind == "device":
+		return devices.size() < Items.device_slots(stage)
+	return relics.size() < Items.relic_slots(stage)
+
+func _pick(kind: String, exclude: Array) -> String:
+	var pool: Array = []
+	var weights := [55, 32, 13, 4]
+	for id in Items.ids(kind):
+		if has(id) or exclude.has(id):
+			continue
+		for i in weights[Items.ALL[id].rarity]:
+			pool.append(id)
+	if pool.is_empty():
+		return ""
+	return pool[shop_rng.randi() % pool.size()]
+
+func roll_shop() -> void:
+	offers.clear()
+	refresh_cost = REFRESH_BASE
+	_fill_offers()
+
+func _fill_offers() -> void:
+	var picked: Array = []
+	for kind in ["device", "device", "relic", "relic", "relic"]:
+		var id := _pick(kind, picked)
+		if id != "":
+			picked.append(id)
+			offers.append({"id": id, "sold": false})
+
+func refresh() -> bool:
+	if money < refresh_cost:
+		return false
+	money -= refresh_cost
+	refresh_cost *= 2
+	offers.clear()
+	_fill_offers()
+	return true
+
+## 购买：返回空字符串表示成功，否则为原因
+func buy(i: int) -> String:
+	if i < 0 or i >= offers.size():
+		return "没有这件商品"
+	var o: Dictionary = offers[i]
+	if o.sold:
+		return "已经卖掉了"
+	var def: Dictionary = Items.get_def(o.id)
+	if money < def.price:
+		return "经费不够"
+	if not slots_free(def.kind):
+		return ("设备" if def.kind == "device" else "饰品") + "槽已满，先卖掉一件"
+	money -= def.price
+	o.sold = true
+	if def.kind == "device":
+		devices.append(o.id)
+	else:
+		relics.append(o.id)
+		if def.has("uses"):
+			uses[o.id] = def.uses
+	return ""
+
+func sell(id: String) -> int:
+	if beam != null or not has(id):
+		return 0
+	var v: int = Items.sell_price(id)
+	relics.erase(id)
+	devices.erase(id)
+	uses.erase(id)
+	money += v
+	return v

@@ -64,3 +64,40 @@ static func roll(p: PackedFloat64Array, rng: RandomNumberGenerator) -> int:
 		if r < acc:
 			return k
 	return SUCCESS if p[LOSS] == 0.0 else LOSS
+
+## 概率分配器：在基础概率上叠加百分点修正（deltas，0..1 量纲）。
+## 被修正的结果按修正后取值（不小于 0），剩余概率按比例分给未被修正的结果；
+## 若修正后已超过 100%，再整体按比例压回。保证五项非负、总和为 1。
+static func apply_mods(p: PackedFloat64Array, d: PackedFloat64Array) -> PackedFloat64Array:
+	var q := PackedFloat64Array()
+	q.resize(5)
+	var mod_sum := 0.0
+	var unmod_sum := 0.0
+	for k in 5:
+		if d[k] != 0.0:
+			q[k] = maxf(0.0, p[k] + d[k])
+			mod_sum += q[k]
+		else:
+			q[k] = p[k]
+			unmod_sum += p[k]
+	var rest := 1.0 - mod_sum
+	if rest >= 0.0 and unmod_sum > 0.0:
+		for k in 5:
+			if d[k] == 0.0:
+				q[k] *= rest / unmod_sum
+	else:
+		var s := 0.0
+		for k in 5:
+			if d[k] == 0.0:
+				q[k] = 0.0
+			s += q[k]
+		for k in 5:
+			q[k] /= maxf(s, 1e-9)
+	return q
+
+## 只在“至少普通成功”的结果里按原比例抽
+static func roll_at_least_success(p: PackedFloat64Array, rng: RandomNumberGenerator) -> int:
+	var s := p[PERFECT] + p[SUCCESS]
+	if s <= 0.0:
+		return SUCCESS
+	return PERFECT if rng.randf() < p[PERFECT] / s else SUCCESS

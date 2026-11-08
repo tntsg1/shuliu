@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP }
 
 var run: Run
 var mode := M.WALK
@@ -22,6 +22,8 @@ var grain: ColorRect
 var ringmap: Node2D
 var intro: Control
 var play_intro := true
+var gear: Node2D
+var shop: Control
 
 var cam_pos := Vector2(960, 540)
 var cam_vel := Vector2.ZERO
@@ -61,6 +63,8 @@ func _ready() -> void:
 	detector = _node("res://scripts/world/detector.gd", world)
 	chamber = _node("res://scripts/world/chamber.gd", world)
 	shot = _node("res://scripts/world/shot.gd", world)
+	gear = _node("res://scripts/world/gear.gd", world)
+	gear.set("main", self)
 	desk = _node("res://scripts/world/desk.gd", world)
 	desk.set("main", self)
 	player = _node("res://scripts/world/player.gd", world)
@@ -78,7 +82,9 @@ func _ready() -> void:
 	clip_r.set("side", 1)
 	panel = _ctrl("res://scripts/ui/console_panel.gd", ui)
 	overlay = _ctrl("res://scripts/ui/overlay.gd", ui)
-	for c in [clip_l, clip_r, panel, overlay]:
+	shop = _ctrl("res://scripts/ui/shop.gd", ui)
+	shop.closed.connect(_on_shop_closed)
+	for c in [clip_l, clip_r, panel, overlay, shop]:
 		c.set("main", self)
 	var il := CanvasLayer.new()
 	il.layer = 30
@@ -147,7 +153,7 @@ func has_beam() -> bool:
 	return run.beam != null
 
 func danger_high() -> bool:
-	return run.beam != null and run.beam.odds()[Odds.LOSS] >= 0.2
+	return run.beam != null and run.odds()[Odds.LOSS] >= 0.2
 
 func fmt(v: int) -> String:
 	return preload("res://scripts/ui/clipboard.gd")._fmt(v)
@@ -164,12 +170,14 @@ func _unhandled_input(ev: InputEvent) -> void:
 		overlay.say("配色：" + ("七十年代实验室（暗）" if Pal.dark else "工程图纸（亮）"))
 		return
 	match mode:
+		M.SHOP:
+			shop.handle(ev)
 		M.WALK:
 			if ev.is_action("interact"):
 				if _near_console():
 					enter_console()
 				elif _near_terminal():
-					overlay.say("采购终端暂停营业（下个版本开放）")
+					open_shop()
 		M.SPIN:
 			if ev.is_action("accelerate"):
 				panel.skip()
@@ -243,7 +251,7 @@ func accelerate() -> void:
 	cooldown = 0.15
 	var b: Beam = run.beam
 	var was_locked := b.locked()
-	var p := b.odds()
+	var p := run.odds()
 	var danger := p[Odds.LOSS]
 	panel.press()
 	player.press()
@@ -276,6 +284,7 @@ func _reveal() -> void:
 		charge_snd.stop()
 	ringmap.lap()
 	mode = M.CONSOLE
+	_triggers(r)
 	if r.lost:
 		_lose(r)
 		return
@@ -363,8 +372,10 @@ func _show_result() -> void:
 		lines.append("本阶段实验次数用完了，必须提交考核。")
 	elif run.can_submit():
 		lines.append("累计已够本阶段考核线——可以现在提交，也可以接着做实验多攒分。")
+	lines.append("经费 +$%d（现有 $%d）" % [fin.get("income", 0), run.money])
 	if last_result.lost:
-		overlay.show_card({"title": "实验 #%d · 束流丢失" % run.experiment_no, "title_col": Pal.c("red"), "value": "0 RP",
+		var sv: int = fin.get("gained", 0)
+		overlay.show_card({"title": "实验 #%d · 束流丢失" % run.experiment_no, "title_col": Pal.c("red"), "value": ("+%s RP（稿纸抢救）" % fmt(sv)) if sv > 0 else "0 RP",
 			"sub": "在 E%d 丢失（当时丢失概率 %.1f%%）· 累计 %s / %s" % [last_result.energy, last_result.p * 100.0, fmt(run.total), fmt(run.line())], "lines": lines, "keys": keys})
 	else:
 		overlay.show_card({"title": "实验 #%d · 引出成功" % run.experiment_no, "value": "+" + fmt(fin.gained) + " RP",
@@ -374,8 +385,8 @@ func _result_keys() -> String:
 	if run.must_submit():
 		return "F / 空格  提交考核"
 	if run.can_submit():
-		return "E / 空格  继续实验      F  提交考核      Esc  离开"
-	return "E / 空格  注入新束流        Esc  离开控制台"
+		return "E / 空格  继续实验      F  提交考核      Esc  离开（去采购）"
+	return "E / 空格  注入新束流        Esc  离开控制台（去采购）"
 
 ## 提交考核：够线进入下一阶段，不够则资助终止
 func submit() -> void:
@@ -395,7 +406,7 @@ func submit() -> void:
 				"sub": "三个阶段全部通过 · 共 %d 次实验" % run.experiment_no, "lines": ["实验室保住了。至少保住到下一个财年。"], "keys": "R  重新开始"})
 			return
 		mode = M.RESULT
-		var lines: Array = ["实验次数重置为 %d 次。" % Run.PER_STAGE]
+		var lines: Array = ["实验次数重置为 %d 次。阶段奖金 +$%d。" % [Run.PER_STAGE, res.bonus]]
 		if run.can_submit():
 			lines.append("攒下的分已经够下一阶段了，想交也可以直接交。")
 		overlay.show_card({"title": "第 %d 阶段考核通过" % (res.stage + 1), "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
@@ -428,14 +439,14 @@ func _sync() -> void:
 	var b: Beam = run.beam
 	if b == null:
 		return
-	var p := b.odds()
-	panel.set_beam(b.energy, b.value(), p, b.charge, b.lock_left)
+	var p := run.odds()
+	panel.set_beam(b.energy, run.potential(), p, b.charge, b.lock_left)
 	shown_e = b.energy
 	shown_lock = b.locked()
 	shown_dang = 0.0 if shown_lock else p[Odds.LOSS]
 	panel.enabled = true
 	chamber.set_state(b.energy, p[Odds.LOSS], b.locked())
-	if run.total + b.value() >= run.line():
+	if run.total + run.potential() >= run.line():
 		panel.hint = "现在引出，累计就够线了……还要再按吗？"
 	elif p[Odds.LOSS] >= 0.2:
 		panel.hint = "丢失概率已经很高了。"
@@ -565,3 +576,29 @@ func _impact(r: Dictionary) -> void:
 	elif r.lock_ended:
 		Sfx.play("ring", -10.0, 0.7)
 	overlay.stamp(txt, Pal.c("lock") if r.lock_started else col)
+
+# —— 商店与构筑 ——
+func open_shop() -> void:
+	mode = M.SHOP
+	player.input_enabled = false
+	prompt.hide_now()
+	overlay.strip_t = 0.0
+	shop.show_shop()
+
+func _on_shop_closed() -> void:
+	mode = M.WALK
+	player.input_enabled = true
+	overlay.strip_t = 1.0
+
+func gear_bought() -> void:
+	for id in run.relics + run.devices:
+		gear.ping(id)
+
+## 饰品/设备触发：护身符架上对应物件弹起 + 屏幕上浮出纸签
+func _triggers(r: Dictionary) -> void:
+	for tr in r.get("triggers", []):
+		gear.ping(tr[0])
+		overlay.trig(tr[0], Items.ALL[tr[0]].name + " · " + tr[1])
+		Sfx.play("tick", -6.0, 1.6)
+	if r.get("money", 0) > 0:
+		Sfx.play("btn2", -8.0, 1.5)

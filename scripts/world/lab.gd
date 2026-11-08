@@ -286,13 +286,6 @@ func _terminal() -> void:
 	for i in 3:
 		Ink.box(self, Rect2(x + 12 + i * 17, Geo.FLOOR - 100, 12, 9), Pal.c("equip_dark"), Pal.equip_line(), 1.0, 73 + i)
 	draw_rect(Rect2(x + 14, Geo.FLOOR - 70, 42, 4), Pal.equip_line())
-	# 贴着的“暂停营业”
-	draw_set_transform(Vector2(x + 35, Geo.FLOOR - 128), -0.12)
-	draw_rect(Rect2(-34, -12, 68, 22), Pal.c("paper"))
-	draw_rect(Rect2(-34, -12, 68, 22), Pal.equip_line(), false, 0.8)
-	draw_rect(Rect2(-10, -16, 20, 6), Color(Pal.c("gold"), 0.6))
-	draw_string(Pal.hand, Vector2(-30, 5), "暂停营业", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Pal.c("red"))
-	draw_set_transform(Vector2.ZERO)
 	Ink.text(self, "采购终端", Vector2(x + 35, Geo.FLOOR - 182), 15, Pal.c("ink2"), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _stairs() -> void:

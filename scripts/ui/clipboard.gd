@@ -95,6 +95,7 @@ func _left(pr: Rect2) -> void:
 	Ink.text(self, "累计科研点数", p + Vector2(0, 46), 15, Pal.c("text2"))
 	Ink.text(self, "%s" % _fmt(int(round(total_disp))), p + Vector2(0, 86), 34, ink, Pal.mono)
 	Ink.text(self, "/ %s" % _fmt(run.line()), p + Vector2(180, 86), 20, Pal.c("text2"), Pal.mono)
+	Ink.text(self, "经费 $%d" % run.money, p + Vector2(240, 46), 17, Pal.c("green"), Pal.bold)
 	# 图：阶梯考核线 + 累计曲线
 	var g := Rect2(pr.position + Vector2(20, 150), Vector2(pr.size.x - 40, 170))
 	draw_rect(g, Color(Pal.c("paper2"), 0.5))

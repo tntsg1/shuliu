@@ -37,19 +37,100 @@ func _initialize() -> void:
 	check(a.total == b.total, "同种子总分一致")
 
 	# 锁相：充能 6 → 4 次安全加速，每束一次
-	var bm := Beam.new()
-	var rng := RandomNumberGenerator.new(); rng.seed = 7
+	var rl := Run.new(7)
+	rl.start_experiment()
 	var locks := 0
-	var safe_presses := 0
 	for i in 400:
-		if not bm.alive: break
-		var was := bm.locked()
-		var r := bm.accelerate(rng)
+		if rl.beam == null: break
+		var was := rl.beam.locked()
+		var r := rl.accelerate()
 		if r.lock_started: locks += 1
 		if was:
-			safe_presses += 1
 			check(not r.lost, "锁相内不丢失")
 	check(locks <= 1, "每束最多一次锁相")
+
+	# —— 概率分配器：任意修正都保持非负、总和 1 ——
+	var rr := RandomNumberGenerator.new(); rr.seed = 3
+	for i in 500:
+		var base := Odds.table(rr.randi_range(1, 20))
+		var d := PackedFloat64Array()
+		for k in 5: d.append(rr.randf_range(-0.3, 0.3) if rr.randf() < 0.5 else 0.0)
+		var q := Odds.apply_mods(base, d)
+		var sq := 0.0
+		for v in q:
+			check(v >= -1e-12, "修正后非负")
+			sq += v
+		check(absf(sq - 1.0) < 1e-9, "修正后和为 1")
+	# 超导磁铁：E9 丢失 16% → 11%
+	var rm := Run.new(5)
+	rm.devices.append("magnet_sc")
+	rm.start_experiment(); rm.beam.energy = 9
+	check(absf(rm.odds()[Odds.LOSS] - 0.11) < 1e-9, "超导磁铁 -5pp (%f)" % rm.odds()[Odds.LOSS])
+	# 导师的最后通牒：前 3 次必定至少成功；第 4 次起丢失 +10pp
+	for sd in 30:
+		var ru := Run.new(100 + sd)
+		ru.relics.append("ultimatum")
+		ru.start_experiment(); ru.beam.energy = 12
+		for i in 3:
+			var r := ru.accelerate()
+			check(r.outcome == Odds.SUCCESS or r.outcome == Odds.PERFECT, "通牒保底")
+		if ru.beam != null:
+			var before := Odds.table(ru.beam.energy)[Odds.LOSS]
+			check(ru.odds()[Odds.LOSS] > before + 0.09, "通牒第 4 次起 +10pp")
+	# 橡皮：3 次后消失
+	var re := Run.new(11)
+	re.relics.append("eraser"); re.uses["eraser"] = 3
+	var ne := 0
+	while re.has("eraser") and ne < 3000:
+		if re.beam == null:
+			if re.experiments_left <= 0: re.experiments_left = 3
+			re.start_experiment()
+		re.beam.energy = 5
+		re.accelerate()
+		ne += 1
+	check(not re.has("eraser"), "橡皮用完消失")
+	# 稿纸：丢失时保留 80%，每局一次
+	var rp := Run.new(21)
+	rp.relics.append("dean_paper")
+	rp.start_experiment()
+	var got := {}
+	for i in 200:
+		rp.beam.energy = 18
+		var pot := rp.potential()
+		var r := rp.accelerate()
+		if r.lost:
+			got = r
+			check(r.salvaged == int(floor(pot * 0.8)) and rp.total == r.salvaged, "稿纸抢救 80%")
+			break
+	check(not got.is_empty() and rp.paper_used, "稿纸触发")
+	# 签名笔：本阶段首次引出 ×3，之后 ×0.8
+	var rpn := Run.new(31)
+	rpn.relics.append("dean_pen")
+	rpn.start_experiment(); rpn.beam.energy = 5
+	check(rpn.potential() == int(floor(Odds.value_at(5) * 3.0)), "签名笔 ×3")
+	rpn.extract()
+	rpn.start_experiment(); rpn.beam.energy = 5
+	check(rpn.potential() == int(floor(Odds.value_at(5) * 0.8)), "签名笔之后 ×0.8")
+	# 商店：买、槽位上限、卖出半价、经费不够
+	var rs := Run.new(41)
+	rs.money = 1000
+	var bought := 0
+	for i in rs.offers.size():
+		if rs.buy(i) == "": bought += 1
+	check(rs.devices.size() <= Items.device_slots(0) and rs.relics.size() <= Items.relic_slots(0), "槽位上限")
+	var any_id: String = (rs.relics + rs.devices)[0]
+	var m0 := rs.money
+	rs.sell(any_id)
+	check(rs.money == m0 + Items.sell_price(any_id) and not rs.has(any_id), "卖出半价")
+	var rpoor := Run.new(42); rpoor.money = 0
+	check(rpoor.buy(0) == "经费不够", "经费不够")
+	# 商店随机不影响实验随机：刷不刷新，结果序列相同
+	var x1 := Run.new(77); var x2 := Run.new(77)
+	x2.money = 100; x2.refresh(); x2.refresh()
+	x1.start_experiment(); x2.start_experiment()
+	for i in 8:
+		if x1.beam == null or x2.beam == null: break
+		check(x1.accelerate().outcome == x2.accelerate().outcome, "商店不扰动实验随机")
 
 	# 提交规则：达标不自动过关；可主动提交；大爆分可连续提交多关
 	var run := Run.new(1)

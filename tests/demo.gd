@@ -9,10 +9,25 @@ func _initialize() -> void:
 	root.add_child(main)
 	_go()
 
+## 购买策略：买得起的商品里挑最便宜的一件（录像与种子筛选共用）
+static func pick(r: Run) -> int:
+	var best := -1
+	for i in r.offers.size():
+		var o: Dictionary = r.offers[i]
+		var d: Dictionary = Items.ALL[o.id]
+		if o.sold or d.price > r.money or not r.slots_free(d.kind):
+			continue
+		if best < 0 or d.price < Items.ALL[r.offers[best].id].price:
+			best = i
+	return best
+
 ## 用与游戏完全相同的随机消耗模拟三次实验
 func _good_seed() -> int:
 	for s in range(1, 20000):
 		var r := Run.new(s)
+		var pk := pick(r)
+		if pk < 0: continue
+		r.buy(pk)
 		# 实验 1：稳健到 E8
 		r.start_experiment()
 		var ok := true
@@ -20,6 +35,9 @@ func _good_seed() -> int:
 			if r.accelerate().lost: ok = false
 		if not ok or r.beam == null or r.beam.presses > 10: continue
 		r.extract()
+		var pk2 := pick(r)
+		if pk2 < 0: continue
+		r.buy(pk2)
 		# 实验 2：触发锁相并冲到 E11
 		r.start_experiment()
 		while r.beam != null and (r.beam.energy < 11 or r.beam.locked()) and r.beam.presses < 18:
@@ -54,6 +72,21 @@ func key(action: String, hold := 0.0) -> void:
 	up.pressed = false
 	Input.parse_input_event(up)
 
+## 逛一次采购终端：打开 → 移到要买的商品 → 买 → 离开
+func shop_visit() -> void:
+	await key("interact")
+	await w(1.4)
+	var target := pick(main.run)
+	while target >= 0 and main.shop.sel != target:
+		await key("move_right")
+		await w(0.28)
+	await w(0.5)
+	if target >= 0:
+		await key("accelerate")
+	await w(1.4)
+	await key("back")
+	await w(0.7)
+
 func idle() -> void:
 	while main.mode == main.M.SPIN:
 		await process_frame
@@ -72,9 +105,10 @@ func _go() -> void:
 		await process_frame
 	await w(1.4)
 	# 走到墙上的主环图前，再走去控制台
-	await key("move_left", 0.75)
-	await w(0.9)
-	await key("move_right", 1.35)
+	await key("move_left", 0.95)
+	await w(0.5)
+	await shop_visit()
+	await key("move_right", 1.75)
 	await w(0.4)
 	await key("interact")
 	await w(2.2)
@@ -86,8 +120,15 @@ func _go() -> void:
 	await w(0.7)
 	await key("interact")
 	await w(4.4)
-	await key("accelerate")   # 注入新束流
-	await w(1.0)
+	await key("back")         # 离开控制台去采购
+	await w(0.8)
+	await key("move_left", 1.75)
+	await w(0.3)
+	await shop_visit()
+	await key("move_right", 1.75)
+	await w(0.3)
+	await key("interact")
+	await w(2.2)
 	# 实验 2：锁相冲高
 	while main.run.beam != null and (main.run.beam.energy < 11 or main.run.beam.locked()) and main.run.beam.presses < 18:
 		await key("accelerate")
@@ -104,7 +145,7 @@ func _go() -> void:
 	while main.run.beam != null and main.run.beam.presses < 20:
 		await key("accelerate")
 		await idle()
-		var p: float = 0.0 if main.run.beam == null else main.run.beam.odds()[Odds.LOSS]
+		var p: float = 0.0 if main.run.beam == null else main.run.odds()[Odds.LOSS]
 		await w(0.3 + p * 1.4)
 	await w(3.4)
 	# 切换暗色，离开控制台走两步
