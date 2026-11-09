@@ -6,13 +6,19 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 # 概率锚点（完美, 成功, 稳定, 失谐, 丢失），线性插值，E13 以后沿用 E13 并继续加丢失
 # 2026-11-07 定稿 B 表：前期丢失压低、后期加陡（原 GDD 表最优策略丢失率 70%，太虐）
-ANCHORS = {1: (10, 69, 15, 5, 1), 5: (9, 62, 14, 10, 5), 9: (7, 50, 13, 14, 16), 13: (5, 33, 10, 12, 40)}
+OLD_ANCHORS = {1: (10, 69, 15, 5, 1), 5: (9, 62, 14, 10, 5), 9: (7, 50, 13, 14, 16), 13: (5, 33, 10, 12, 40)}
+# 2026-11-09 Q69：学《铸剑纳贡》——前两下几乎不丢，E3 起陡升（E5 约三成）
+ANCHORS = {1: (10, 72, 12, 5, 1), 2: (10, 70, 13, 5, 2), 3: (9, 60, 12, 7, 12), 4: (8, 52, 12, 6, 22),
+           5: (8, 45, 11, 6, 30), 9: (6, 32, 10, 7, 45), 13: (5, 25, 8, 7, 55)}
+if "old" in sys.argv:
+    ANCHORS = OLD_ANCHORS
+    sys.argv.remove("old")
 EMAX = 20
 
 def probs(E):
     ks = sorted(ANCHORS)
     if E >= ks[-1]:
-        p = list(ANCHORS[ks[-1]]); extra = min(30, (E - 13) * 6)
+        p = list(ANCHORS[ks[-1]]); extra = min(30, (E - 13) * 6) if ANCHORS is OLD_ANCHORS else min(20, (E - 13) * 4)
         p[4] += extra; p[1] -= extra * 0.7; p[0] -= extra * 0.1; p[2] -= extra * 0.2
         return [max(0, x) / 100 for x in p]
     for a, b in zip(ks, ks[1:]):
@@ -46,7 +52,8 @@ def optimal_values(cfg):
             return stop
         p = probs(E)
         if lk > 0:  # 锁相：丢失为 0，按比例分给成功
-            p = p[:4]; s = sum(p); p = [x / s for x in p] + [0]
+            # 锁相：只剩完美 / 成功（超级同步算在成功里），稳定、失谐、丢失都没有（Q69）
+            p = p[:2]; s = sum(p); p = [x / s for x in p] + [0, 0, 0]
         ev = 0
         for i, pi in enumerate(p):
             if pi == 0: continue
@@ -70,7 +77,7 @@ def run_experiment(cfg, rng, policy):
         presses += 1
         p = probs(E)
         if lk > 0:
-            p = p[:4]; s = sum(p); p = [x / s for x in p] + [0]
+            p = p[:2]; s = sum(p); p = [x / s for x in p] + [0, 0, 0]
         r = rng.random(); i = 0; acc = p[0]
         while r > acc and i < 4:
             i += 1; acc += p[i]

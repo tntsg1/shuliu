@@ -5,7 +5,7 @@ extends RefCounted
 ## 结算顺序（GDD 4.6）：最终概率 → 抽取 → 重抽 → 结果转化 → 破碎抵挡 → 科研抢救 → 执行与后续效果
 
 # 8 个阶段（DECISIONS Q56）：第 4、8 阶段是大考（线跳高、奖金翻倍）；数值由 tests/bot_balance.gd 校准
-static var LINES := [580, 1800, 3800, 7000, 9600, 13800, 19500, 31000]
+static var LINES := [150, 700, 1500, 2800, 3800, 5400, 7700, 12000]   # Q69 新曲线下机器人重定
 const BIG := [3, 7]
 const ENDLESS_G := 1.55          # 无尽：第 9 阶段起每阶段考核线 ×1.55
 const PER_STAGE := 3
@@ -177,17 +177,13 @@ func odds() -> PackedFloat64Array:
 		d[Odds.SUCCESS] += p[Odds.STABLE] * 0.5
 	var q := Odds.apply_mods(p, d)
 	if b.locked():
+		# 锁相（Q69）：纸带上只剩完美同步 / 加速成功 / 超级同步——丢失、保持稳定、射频失谐都不出现
 		q[Odds.LOSS] = 0.0
+		q[Odds.STABLE] = 0.0
+		q[Odds.DETUNE] = 0.0
 		var s := 0.0
 		for k in Odds.N: s += q[k]
 		for k in Odds.N: q[k] /= s
-		if b.full_sync:
-			# 完全同步：保持稳定、射频失谐都不出现，按比例分给其余结果
-			q[Odds.STABLE] = 0.0
-			q[Odds.DETUNE] = 0.0
-			var s2 := 0.0
-			for k in Odds.N: s2 += q[k]
-			for k in Odds.N: q[k] /= s2
 		Odds.add_super(q, b.energy)
 		if has("nobel_list") and b.energy >= 12:
 			Odds.add_super(q, b.energy)

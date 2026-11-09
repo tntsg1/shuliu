@@ -39,8 +39,11 @@ func _initialize() -> void:
 			check(r0.to == 9, "超级同步 +3 能级")
 	check(got_super > 60 and got_super < 220, "锁相超级同步频率合理 %d" % got_super)
 	check(absf(Odds.table(1)[Odds.LOSS] - 0.01) < 1e-9, "E1 丢失 1%")
-	check(absf(Odds.table(9)[Odds.LOSS] - 0.16) < 1e-9, "E9 丢失 16%")
-	check(Odds.value_at(1) == 40 and Odds.value_at(8) == 279 and Odds.value_at(10) == 487, "价值曲线")
+	check(absf(Odds.table(9)[Odds.LOSS] - 0.45) < 1e-9, "E9 丢失 45%")
+	check(absf(Odds.table(3)[Odds.LOSS] - 0.12) < 1e-9, "E3 丢失 12%")
+	var lt := Odds.table(9, true)
+	check(lt[Odds.LOSS] == 0.0 and lt[Odds.STABLE] == 0.0 and lt[Odds.DETUNE] == 0.0, "锁相只剩完美/成功/超级")
+	check(Odds.value_at(1) == 40 and Odds.value_at(8) == 422 and Odds.value_at(10) == 826, "价值曲线")
 
 	# 同种子可复现
 	var a := Run.new(12345)
@@ -79,11 +82,11 @@ func _initialize() -> void:
 			check(v >= -1e-12, "修正后非负")
 			sq += v
 		check(absf(sq - 1.0) < 1e-9, "修正后和为 1")
-	# 超导磁铁：E9 丢失 16% → 11%
+	# 超导磁铁：E9 丢失 45% → 40%
 	var rm := Run.new(5)
 	rm.devices.append("magnet_sc")
 	rm.start_experiment(); rm.beam.energy = 9
-	check(absf(rm.odds()[Odds.LOSS] - 0.11) < 1e-9, "超导磁铁 -5pp (%f)" % rm.odds()[Odds.LOSS])
+	check(absf(rm.odds()[Odds.LOSS] - 0.40) < 1e-9, "超导磁铁 -5pp (%f)" % rm.odds()[Odds.LOSS])
 	# 导师的最后通牒：前 3 次必定至少成功；第 4 次起丢失 +10pp
 	for sd in 30:
 		var ru := Run.new(100 + sd)
@@ -346,7 +349,8 @@ func _initialize() -> void:
 		var r := b3b.accelerate()
 		for tg in r.triggers:
 			if tg[0] == "bandaid" and tg[2].hit: conv += 1
-	check(conv > 10, "创可贴锁相时转化稳定（%d）" % conv)
+	# Q69 锁相里不再出现保持稳定，创可贴暂时永远触发不了，等用户定新效果
+	check(conv == 0, "创可贴：锁相已无保持稳定（%d）" % conv)
 
 	# —— M3 第 4 批：证章 ——
 	var b4 := Run.new(71)

@@ -23,9 +23,15 @@ func _initialize() -> void:
 			Run.OVERLINE_TAX = float(kv[1])
 		elif kv[0] == "lines":
 			Run.LINES = Array(kv[1].split(",")).map(func(x): return int(x))
+		elif kv[0] == "g":
+			Odds.GROWTH = float(kv[1])
 		elif kv[0] == "pols":
 			only = kv[1].split(",")
 	var pols := [
+		{"name": "稳健 E4 早交", "T": 4, "early": true, "shop": true},
+		{"name": "标准 E5 用满", "T": 5, "early": false, "shop": true},
+		{"name": "智能 E6", "T": 6, "early": false, "smart": true, "shop": true},
+		{"name": "不买东西 E5", "T": 5, "early": false, "shop": false},
 		{"name": "稳健 E8 早交", "T": 8, "early": true, "shop": true},
 		{"name": "标准 E10 早交", "T": 10, "early": true, "shop": true},
 		{"name": "标准 E10 用满", "T": 10, "early": false, "shop": true},
@@ -34,7 +40,7 @@ func _initialize() -> void:
 		{"name": "智能 E10", "T": 10, "early": false, "smart": true, "shop": true},
 		{"name": "智能 E12", "T": 12, "early": false, "smart": true, "shop": true},
 	]
-	print("考核线: ", Run.LINES)
+	print("考核线: ", Run.LINES, "  成长 ×", Odds.GROWTH)
 	print("剩余束流折 $%d + 阶段×%d，达标后丢失扣 %d%%" % [Run.LEFTOVER_PAY, Run.LEFTOVER_STEP, int(Run.OVERLINE_TAX * 100)])
 	for i in pols.size():
 		if only.is_empty() or str(i) in only:

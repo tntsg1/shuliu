@@ -1486,11 +1486,18 @@ func _demo_tick(dt: float) -> void:
 	Sfx.play("tick", -16.0, 0.8 + b.energy * 0.03)
 	title.demo_text = "E%02d · %s" % [b.energy, form.info.get("name", "")]
 
-## 每次开新游戏：默认放新手教程（开场信 + 逐步引导）；设置里可以关
+## 开新游戏：只有全新存档的第一局放新手教程（开场信 + 逐步引导）；失败后重开、回主页再开都不放。
+## 设置里“新手教程 · 下一局重看”可以让下一局再放一次（用完自动关）。用户 2026-11-09 定（Q68）
 func _begin_tutorial() -> void:
 	letter_seen = false
-	if play_tutorial and Options.tutorial:
+	var fresh: bool = Memes._testing() or not tutorial._cfg_done()
+	if play_tutorial and (fresh or Options.tutorial_replay):
 		tutorial.start(false)
+		# 一开局就记下“这份存档放过教程了”：哪怕第一局中途失败，重开也不再放
+		tutorial._save_done()
+		if Options.tutorial_replay:
+			Options.tutorial_replay = false
+			Options.save()
 	else:
 		tutorial.stop()
 

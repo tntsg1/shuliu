@@ -343,7 +343,8 @@ func _tape(r: Rect2) -> void:
 	# 印字：标签按最小间距左右避让，并用细线指回色段（超级同步只在锁相时出现）
 	var ks: Array = []
 	for k in Odds.N:
-		if k != Odds.SUPER or seg[k] > 0.004:
+		# 锁相时纸带只剩完美 / 成功 / 超级三段（Q69），概率为 0 的段连标签一起不印
+		if seg[k] > 0.004 or (k != Odds.SUPER and not locked):
 			ks.append(k)
 	var n := ks.size()
 	var lab: Array = []

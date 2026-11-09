@@ -9,17 +9,21 @@ const DELTA := [3, 2, 1, 0, -1, 0]
 const CHARGE := [0, 2, 1, 0, 0, 0]
 
 const BASE := 40.0
-const GROWTH := 1.32
+static var GROWTH := 1.40          # Q69：丢失提前变陡后成果涨快一点（1.32 → 1.40），机器人校准
 const EMAX := 99
 const LOCK_NEED := 6
 const LOCK_PRESSES := 4
 
 ## 锚点：完美/成功/稳定/失谐/丢失（百分比）
+## 2026-11-09 Q69 学《铸剑纳贡》：前两下几乎不丢，E3 起陡升（E5 约三成），逼玩家早做决定、靠饰品撑
 const ANCHORS := {
-	1: [10.0, 69.0, 15.0, 5.0, 1.0],
-	5: [9.0, 62.0, 14.0, 10.0, 5.0],
-	9: [7.0, 50.0, 13.0, 14.0, 16.0],
-	13: [5.0, 33.0, 10.0, 12.0, 40.0],
+	1: [10.0, 72.0, 12.0, 5.0, 1.0],
+	2: [10.0, 70.0, 13.0, 5.0, 2.0],
+	3: [9.0, 60.0, 12.0, 7.0, 12.0],
+	4: [8.0, 52.0, 12.0, 6.0, 22.0],
+	5: [8.0, 45.0, 11.0, 6.0, 30.0],
+	9: [6.0, 32.0, 10.0, 7.0, 45.0],
+	13: [5.0, 25.0, 8.0, 7.0, 55.0],
 }
 
 static func value_at(e: int) -> int:
@@ -31,11 +35,11 @@ static func super_chance(e: int) -> float:
 
 ## 返回 N 个概率（0..1，和为 1）；锚点只有后 5 种，超级同步另算
 static func table(e: int, lock := false) -> PackedFloat64Array:
-	var keys := [1, 5, 9, 13]
+	var keys := [1, 2, 3, 4, 5, 9, 13]
 	var p: Array = []
 	if e >= 13:
 		p = ANCHORS[13].duplicate()
-		var extra := minf(30.0, (e - 13) * 6.0)
+		var extra := minf(20.0, (e - 13) * 4.0)
 		p[4] += extra
 		p[1] -= extra * 0.7
 		p[0] -= extra * 0.1
@@ -61,7 +65,8 @@ static func table(e: int, lock := false) -> PackedFloat64Array:
 	var s := 0.0
 	for k in 5:
 		var v := maxf(0.0, p[k])
-		if lock and k + 1 == LOSS:
+		# 锁相：只剩完美同步 / 加速成功（+ 超级同步），稳定、失谐、丢失都没有（Q69）
+		if lock and k + 1 >= STABLE:
 			v = 0.0
 		out.append(v)
 		s += v

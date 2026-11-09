@@ -50,7 +50,7 @@ func _items() -> Array:
 		return [["01", "继续实验", cont_info, "continue"], ["02", "开始新实验", "NEW RUN", "start"], ["03", "设置", "SETTINGS", "settings"], ["04", "退出", "QUIT", "quit"]]
 	return [["", "主音量", "%d%%" % Options.volume], ["", "全屏", "开" if Options.fullscreen else "关"],
 		["", "配色", "七十年代实验室（暗）" if Options.dark else "工程图纸（亮）"], ["", "画面震动", "开" if Options.shake else "关"],
-		["", "新手教程", "每局开头 · " + ("开" if Options.tutorial else "关")], ["", "返回", "Esc"]]
+		["", "新手教程", "下一局重看 · " + ("开" if Options.tutorial_replay else "关")], ["", "返回", "Esc"]]
 
 func handle(ev: InputEvent) -> void:
 	if not open or out_t >= 0.0 or t < 0.5:
@@ -147,7 +147,7 @@ func _adjust(i: int, d: int) -> void:
 		1: Options.fullscreen = not Options.fullscreen
 		2: Options.dark = not Options.dark
 		3: Options.shake = not Options.shake
-		4: Options.tutorial = not Options.tutorial
+		4: Options.tutorial_replay = not Options.tutorial_replay
 		_: return
 	Options.apply()
 	Options.save()

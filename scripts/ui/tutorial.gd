@@ -126,7 +126,7 @@ func _ready() -> void:
 			"done": func(): return main.run.beam == null or not main.run.beam.locked() or step_t > _rt(9.0),
 			"at": func(): return _panel(Vector2(600, 110)), "note": func(): return _panel(Vector2(420, -190))},
 	]
-	# 不再只放第一局：每次开新游戏由 main 按设置（Options.tutorial，默认开）启动
+	# 由 main._begin_tutorial 启动：只在全新存档的第一局，或设置里选了“下一局重看”
 
 func start(manual: bool) -> void:
 	active = true
@@ -147,7 +147,7 @@ func _cfg_done() -> bool:
 	return bool(c.get_value("tutorial", "done", false))
 
 func _save_done() -> void:
-	if not persist:
+	if not persist or Memes._testing():
 		return
 	var c := ConfigFile.new()
 	c.load(CFG)
