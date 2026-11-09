@@ -379,8 +379,8 @@ func _card(vp: Vector2) -> void:
 	var o := Vector2(-w * 0.5, -h * 0.5)
 	draw_rect(Rect2(o + Vector2(8, 10), Vector2(w, h)), Color(0, 0, 0, 0.2))
 	draw_rect(Rect2(o, Vector2(w, h)), Pal.c("paper"))
-	Ink.frame(self, Rect2(o, Vector2(w, h)), el, 2.0)
-	Ink.frame(self, Rect2(o + Vector2(10, 10), Vector2(w - 20, h - 20)), Color(el, 0.3), 1.0)
+	Ink.frame(self, Rect2(o, Vector2(w, h)), el, Ink.W1)
+	Ink.frame(self, Rect2(o + Vector2(10, 10), Vector2(w - 20, h - 20)), Color(el, 0.3), Ink.W3)
 	# 打孔
 	for i in 3:
 		Ink.disc(self, o + Vector2(28, 60 + i * 70), 7.0, Pal.c("paper2"))

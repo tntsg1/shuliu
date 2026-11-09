@@ -246,7 +246,7 @@ func _draw() -> void:
 	Ink.pl(self, sc, el, 2.0)
 	var x0 := px + 96.0
 	# 抬头
-	Ink.text(self, "LAB-7 · 第七实验站 · 主环 26.7 km · OBS-01", Vector2(x0, 120), 15, Pal.c("text2"), Pal.mono)
+	Ink.text(self, "第七实验站 · 主环 26.7 km", Vector2(x0, 120), 15, Pal.c("text2"), Pal.font)
 	# 标题
 	Ink.text(self, "束流", Vector2(x0 + 6, 288 + 6), 150, Color(0, 0, 0, 0.12), Pal.bold)
 	Ink.text(self, "束流", Vector2(x0, 288), 150, ink, Pal.bold)

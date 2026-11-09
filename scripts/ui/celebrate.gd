@@ -58,7 +58,7 @@ func _once(key: String, at: float) -> bool:
 func _popper(side: float) -> void:
 	var vp := get_viewport_rect().size
 	var origin := Vector2(0.0 if side < 0 else vp.x, vp.y - 40.0)
-	var cols := [Pal.c("red"), Pal.c("gold"), Pal.c("blue"), Pal.c("green"), Pal.c("orange"), Pal.c("lock"), Color("#e86aa0")]
+	var cols := [Pal.c("red"), Pal.c("gold"), Pal.c("blue"), Pal.c("paper"), Pal.c("red"), Pal.c("gold")]
 	for i in 90:
 		var a := deg_to_rad(-90.0 - side * randf_range(15.0, 62.0))
 		var sp := randf_range(800.0, 1500.0)
@@ -102,7 +102,7 @@ func _process(dt: float) -> void:
 	if _once("clap", 0.7):
 		Sfx.play("applause", -3.0)
 	var shots := [[0.55, 0.16, 0.3], [0.95, 0.84, 0.26], [1.35, 0.3, 0.12], [1.8, 0.7, 0.1], [2.3, 0.1, 0.5], [3.0, 0.9, 0.45], [3.6, 0.22, 0.15], [4.2, 0.78, 0.18]]
-	var pal := [[Pal.c("gold"), Pal.c("red")], [Pal.c("blue"), Pal.c("paper")], [Pal.c("green"), Pal.c("gold")], [Pal.c("red"), Pal.c("orange")], [Pal.c("lock"), Pal.c("paper")]]
+	var pal := [[Pal.c("gold"), Pal.c("red")], [Pal.c("blue"), Pal.c("paper")], [Pal.c("red"), Pal.c("gold")], [Pal.c("paper"), Pal.c("blue")]]
 	for i in shots.size():
 		if _once("fw%d" % i, shots[i][0]):
 			var cc: Array = pal[i % pal.size()]
@@ -112,7 +112,7 @@ func _process(dt: float) -> void:
 			Sfx.play("hit", -8.0, 1.2 + i * 0.08)
 	# 持续的纸屑雨
 	if t < 7.5 and randf() < 0.6:
-		var cols := [Pal.c("red"), Pal.c("gold"), Pal.c("blue"), Pal.c("green"), Pal.c("orange")]
+		var cols := [Pal.c("red"), Pal.c("gold"), Pal.c("blue"), Pal.c("paper")]
 		confetti.append({"p": Vector2(randf() * vp.x, -20.0), "v": Vector2(randf_range(-40, 40), randf_range(60, 140)), "r": randf() * TAU,
 			"w": randf_range(-6, 6), "s": Vector2(randf_range(7, 13), randf_range(4, 8)), "c": cols[randi() % cols.size()], "f": randf_range(2.0, 4.0), "ph": randf() * TAU})
 	# —— 物理 ——
@@ -185,12 +185,6 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, vp), Color(Pal.c("paper"), 0.85 * (1.0 - t / 0.18)))
 	draw_rect(Rect2(Vector2.ZERO, vp), Color(0, 0, 0, 0.3 * clampf(t / 0.25, 0.0, 1.0) * fade))
 	var c := Vector2(vp.x * 0.5, 430.0)
-	# 背后的射线：金纸相间，慢慢转
-	var ra := clampf((t - 0.1) / 0.3, 0.0, 1.0) * fade
-	for i in 24:
-		var ang := i * TAU / 24.0 + t * 0.22
-		var col: Color = Pal.c("gold") if i % 2 == 0 else Pal.c("paper")
-		draw_line(c + Vector2.from_angle(ang) * 140.0, c + Vector2.from_angle(ang) * 1400.0, Color(col, 0.24 * ra), 80.0)
 	# 标题横幅底 + 逐字砸下来的大字
 	var bo := Ink.ease_out_back(clampf((t - 0.75) / 0.35, 0.0, 1.0))
 	if bo > 0.0:
@@ -198,7 +192,7 @@ func _draw() -> void:
 		var br := Rect2(vp.x * 0.5 - bw * 0.5, 130.0, bw, 150.0)
 		draw_rect(Rect2(br.position + Vector2(10, 12), br.size), Color(0, 0, 0, 0.22 * fade))
 		draw_rect(br, Color(Pal.c("red"), fade))
-		Ink.frame(self, br.grow(-9), Color(Pal.c("gold"), fade), 4.0)
+		Ink.frame(self, br.grow(-9), Color(Pal.c("gold"), fade), Ink.W2)
 		for sd in [-1.0, 1.0]:
 			var ex := br.position.x if sd < 0 else br.end.x
 			draw_colored_polygon(PackedVector2Array([Vector2(ex, br.position.y + 22), Vector2(ex + sd * 90.0 * bo, br.position.y + 36), Vector2(ex + sd * 52.0 * bo, br.get_center().y + 14), Vector2(ex + sd * 90.0 * bo, br.end.y + 8), Vector2(ex, br.end.y - 22)]), Color(Pal.c("red").darkened(0.28), fade))

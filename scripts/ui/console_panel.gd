@@ -92,14 +92,14 @@ func _paint_chrome(ci: CanvasItem) -> void:
 		Ink.rivet(ci, Vector2(x, 15), 2.0)
 	for r in [Rect2(50, 46, 440, 220), Rect2(530, 46, 820, 220), Rect2(1390, 46, 480, 220)]:
 		ci.draw_rect(r, Pal.c("equip").lerp(Pal.c("paper"), 0.25))
-		Ink.frame(ci, r, el, 1.6)
-		Ink.frame(ci, Rect2(r.position + Vector2(4, 4), r.size - Vector2(8, 8)), Color(el, 0.25), 1.0)
+		Ink.frame(ci, r, el, Ink.W1)
+		Ink.frame(ci, Rect2(r.position + Vector2(4, 4), r.size - Vector2(8, 8)), Color(el, 0.25), Ink.W3)
 		for p in [r.position + Vector2(10, 10), Vector2(r.end.x - 10, r.position.y + 10), r.end - Vector2(10, 10), Vector2(r.position.x + 10, r.end.y - 10)]:
 			Ink.rivet(ci, p, 2.4)
-	Ink.text(ci, "能级", Vector2(76, 82), 17, Pal.c("text2"))
-	Ink.text(ci, "潜在成果", Vector2(250, 82), 17, Pal.c("text2"))
+	Ink.text(ci, "能级", Vector2(76, 70), 17, Pal.c("text2"))
+	Ink.text(ci, "潜在成果", Vector2(250, 70), 17, Pal.c("text2"))
 	Ink.text(ci, "RP", Vector2(446, 170), 16, Pal.c("text2"), Pal.mono)
-	Ink.text(ci, "下一次加速", Vector2(556, 82), 17, Pal.c("text2"))
+	Ink.text(ci, "下一次加速", Vector2(556, 70), 17, Pal.c("text2"))
 
 func set_beam(energy: int, value: int, odds: PackedFloat64Array, ch: int, lk: int) -> void:
 	e_target = energy
@@ -386,8 +386,10 @@ func _tape(r: Rect2) -> void:
 					draw_line(Vector2(gx, r.position.y - 16), Vector2(gx, r.end.y + 4), Color(ink, 0.18 - g * 0.025), 2.0)
 		var a := ptr_vis
 		draw_line(Vector2(px, r.position.y - 14), Vector2(px, r.end.y + 6), Color(ink, a), 2.6)
-		draw_colored_polygon(PackedVector2Array([Vector2(px - 12, r.position.y - 30), Vector2(px + 12, r.position.y - 30), Vector2(px, r.position.y - 10)]), Color(Pal.c("gold"), a))
-		Ink.pl(self, PackedVector2Array([Vector2(px - 12, r.position.y - 30), Vector2(px + 12, r.position.y - 30), Vector2(px, r.position.y - 10), Vector2(px - 12, r.position.y - 30)]), Color(ink, a), 2.0)
+		var tri := PackedVector2Array([Vector2(px - 10, r.position.y - 24), Vector2(px + 10, r.position.y - 24), Vector2(px, r.position.y - 8)])
+		draw_colored_polygon(tri, Color(Pal.c("gold"), a))
+		tri.append(tri[0])
+		Ink.pl(self, tri, Color(ink, a), Ink.W2)
 	# 丢失段：红色圈注（像拿红笔圈出来）
 	var lw := r.size.x * seg[Odds.LOSS] / maxf(total, 1e-5)
 	if seg[Odds.LOSS] >= 0.12:

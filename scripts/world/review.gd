@@ -94,7 +94,14 @@ func _draw() -> void:
 		draw_colored_polygon(PackedVector2Array([Vector2(X + 61, top - 46), Vector2(X + 84, top - 41 + wv), Vector2(X + 61, top - 34)]), Pal.c("green"))
 		Ink.text(self, "可提交", Vector2(X + 64, top - 50), 11, Pal.c("green"), Pal.bold)
 	if must:
-		Ink.text(self, "束流用完 · 请提交", Vector2(X + W * 0.5, top - 98 - sin(t * 5.0) * 2.0), 13, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		# 牌子上方插一张纸条（纸底，背后是红色磁铁也看得清）
+		var my := y - 262.0 - sin(t * 5.0) * 2.0
+		var mw := Ink.size(Pal.bold, "束流用完 · 请提交", 13).x + 16.0
+		var mr := Rect2(X + W * 0.5 - mw * 0.5, my - 16, mw, 22)
+		Ink.drop(self, mr)
+		draw_rect(mr, Pal.c("paper"))
+		Ink.frame(self, mr, Pal.c("red"), Ink.W2)
+		Ink.text(self, "束流用完 · 请提交", Vector2(X + W * 0.5, my), 13, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	# 悬停描边
 	if hot > 0.01:
 		Ink.frame(self, rect().grow(4), Color(Pal.c("red"), 0.6 * hot), 2.0)

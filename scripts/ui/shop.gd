@@ -366,8 +366,8 @@ func _draw() -> void:
 	var ink := Pal.c("text")
 	draw_rect(Rect2(pr.position + Vector2(10, 12), pr.size), Color(0, 0, 0, 0.2))
 	draw_rect(pr, Pal.c("paper"))
-	Ink.frame(self, pr, el, 2.0)
-	Ink.frame(self, pr.grow(-10), Color(el, 0.3), 1.0)
+	Ink.frame(self, pr, el, Ink.W1)
+	Ink.frame(self, pr.grow(-10), Color(el, 0.3), Ink.W3)
 	# 页眉
 	Ink.text(self, "采购目录", pr.position + Vector2(48, 62), 36, ink, Pal.bold)
 	Ink.text(self, "第七实验站 · 物资科 · 第 %03d 期" % (run.experiment_no + 1), pr.position + Vector2(232, 60), 16, Pal.c("text2"))
@@ -378,7 +378,7 @@ func _draw() -> void:
 	var rc := Rect2(pr.end.x - 520, pr.position.y + 32, 170, 40)
 	refresh_rect = rc
 	draw_rect(rc.grow(2) if hover_extra == "refresh" else rc, Pal.c("gold") if hover_extra == "refresh" else Pal.c("paper2"))
-	Ink.frame(self, rc, el, 1.4)
+	Ink.frame(self, rc, el, Ink.W2)
 	Ink.text(self, "R  刷新  $%d" % run.refresh_cost, rc.position + Vector2(16, 28), 17, ink if run.money >= run.refresh_cost else Pal.c("text2"))
 	draw_line(pr.position + Vector2(40, 90), Vector2(pr.end.x - 40, pr.position.y + 90), Color(el, 0.5), 1.4)
 	# 关闭（×）
@@ -425,7 +425,7 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	draw_rect(Rect2(o2 + Vector2(6, 8) + Vector2(4, 14) * ch, cr.size), Color(0, 0, 0, 0.08 + 0.1 * ch))
 	var bg := Pal.c("paper") if d.kind == "relic" else Pal.c("paper2")
 	draw_rect(Rect2(o2, cr.size), bg)
-	Ink.frame(self, Rect2(o2, cr.size), Pal.c("red") if hot else el, 3.0 if hot else 1.6)
+	Ink.frame(self, Rect2(o2, cr.size), Pal.c("red") if hot else el, 3.0 if hot else Ink.W2)
 	if absf(sx) < 0.15:
 		draw_set_transform(Vector2.ZERO)
 		return
@@ -463,7 +463,7 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	var can: bool = main.run.money >= price
 	var tag := Rect2(o2 + Vector2(cr.size.x - 104, cr.size.y - 46), Vector2(92, 34))
 	draw_rect(tag, Pal.c("gold") if can else Pal.c("paper2"))
-	Ink.frame(self, tag, el, 1.4)
+	Ink.frame(self, tag, el, Ink.W2)
 	Ink.text(self, "$%d" % price, tag.get_center() + Vector2(0, 8), 20, ink if can else Pal.c("red"), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 	if price < d.price:
 		# 打折：原价划掉 + 红色“半价”小章
@@ -527,7 +527,7 @@ func _draw_inventory(pr: Rect2, el: Color, ink: Color) -> void:
 					draw_line(cc - Vector2(8, 0), cc + Vector2(8, 0), Color(el, 0.3), 2.0)
 					draw_line(cc - Vector2(0, 8), cc + Vector2(0, 8), Color(el, 0.3), 2.0)
 			else:
-				Ink.frame(self, r, Color(el, 0.5), 1.4)
+				Ink.frame(self, r, Color(el, 0.5), Ink.W2)
 			if (want_kind == kind and full) or ff > 0.0:
 				var a := maxf(ff, (0.4 + 0.3 * sin(t * 8.0)) if want_kind == kind and full else 0.0)
 				Ink.frame(self, r.grow(3), Color(Pal.c("red"), a), 2.4)

@@ -25,6 +25,10 @@ func _initialize() -> void:
 		_compare()
 		quit(0)
 		return
+	if tag == "compare_ui":
+		_compare_ui()
+		quit(0)
+		return
 	main = load("res://main.tscn").instantiate()
 	main.play_tutorial = false
 	main.play_intro = false
@@ -100,3 +104,32 @@ func _compare() -> void:
 		y += b.get_height() + 20
 	out.save_png(ProjectSettings.globalize_path("res://shots/art_compare.png"))
 	print("compare saved ", rows.size(), " rows")
+
+## 界面整改：shots/art_ui/before_* 与 after_* 逐张拼成 shots/art_ui_compare.png
+func _compare_ui() -> void:
+	var names := []
+	for f in DirAccess.get_files_at(ProjectSettings.globalize_path("res://shots/art_ui/")):
+		if f.begins_with("before_") and f.ends_with(".png"):
+			names.append(f.trim_prefix("before_"))
+	names.sort()
+	var rows := []
+	var h := 0
+	for n in names:
+		var b := Image.load_from_file(ProjectSettings.globalize_path("res://shots/art_ui/before_" + n))
+		var f := Image.load_from_file(ProjectSettings.globalize_path("res://shots/art_ui/after_" + n))
+		if b == null or f == null:
+			continue
+		for im in [b, f]:
+			im.resize(960, 540, Image.INTERPOLATE_LANCZOS)
+			im.convert(Image.FORMAT_RGBA8)
+		rows.append([b, f])
+		h += 560
+	var out := Image.create(960 * 2 + 30, h, false, Image.FORMAT_RGBA8)
+	out.fill(Color(0.15, 0.15, 0.15))
+	var y := 0
+	for r in rows:
+		out.blit_rect(r[0], Rect2i(0, 0, 960, 540), Vector2i(0, y))
+		out.blit_rect(r[1], Rect2i(0, 0, 960, 540), Vector2i(990, y))
+		y += 560
+	out.save_png(ProjectSettings.globalize_path("res://shots/art_ui_compare.png"))
+	print("ui compare saved ", rows.size(), " rows")

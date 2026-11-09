@@ -78,8 +78,19 @@ func _draw() -> void:
 	var c := Vector2(vp.x * 0.5, lerpf(vp.y + h * 0.6, vp.y * 0.5, inn) + go * (vp.y * 0.5 + h))
 	draw_set_transform(c, -0.012 + go * 0.15)
 	var o := Vector2(-w * 0.5, -h * 0.5)
-	draw_rect(Rect2(o + Vector2(10, 14), Vector2(w, h)), Color(0, 0, 0, 0.25))
+	draw_rect(Rect2(o + Vector2(8, 10), Vector2(w, h)), Color(0, 0, 0, 0.25))
 	draw_rect(Rect2(o, Vector2(w, h)), Color("#f8f3e7"))
+	# 信纸折过三折：两道很淡的折痕（上半亮、下半暗）
+	for k in [1.0, 2.0]:
+		var fy: float = h * k / 3.0
+		draw_rect(Rect2(o + Vector2(0, fy - 1), Vector2(w, 1)), Color(1, 1, 1, 0.5))
+		draw_rect(Rect2(o + Vector2(0, fy), Vector2(w, 1)), Color(0, 0, 0, 0.05))
+	Ink.frame(self, Rect2(o, Vector2(w, h)), Color(ink, 0.25), Ink.W3)
+	# 左上角回形针
+	var cp := o + Vector2(64, -14)
+	var clip := PackedVector2Array([cp + Vector2(0, 56), cp + Vector2(0, 6), cp + Vector2(7, 0), cp + Vector2(14, 6), cp + Vector2(14, 46), cp + Vector2(9, 50), cp + Vector2(5, 46), cp + Vector2(5, 14)])
+	Ink.pl(self, clip, Color(0, 0, 0, 0.15), 3.2)
+	Ink.pl(self, clip, Color("#8a8a86"), 2.0)
 	# 信笺抬头：两道红线
 	draw_rect(Rect2(o + Vector2(0, 96), Vector2(w, 3)), red)
 	draw_rect(Rect2(o + Vector2(0, 102), Vector2(w, 1)), red)
