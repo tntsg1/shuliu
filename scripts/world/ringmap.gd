@@ -65,8 +65,8 @@ func _paint_map(ci: CanvasItem) -> void:
 			Ink.text(ci, str(i + 1), p + Vector2.from_angle(a) * 11 + Vector2(-3, 4), 9, Pal.c("text2"), Pal.mono)
 	# 你在这里
 	var me_p := c + Vector2.from_angle(-PI * 0.5 + TAU * 6 / 8.0) * R
-	ci.draw_line(me_p, me_p + Vector2(-34, -26), Pal.c("red"), 1.2, true)
-	Ink.text(ci, "EXP-7 你在这里", me_p + Vector2(-84, -30), 11, Pal.c("red"), Pal.hand)
+	ci.draw_line(me_p, me_p + Vector2(-22, -26), Pal.c("red"), 1.2, true)
+	Ink.text(ci, "你在这里", me_p + Vector2(-38, -30), 11, Pal.c("red"), Pal.hand)
 	ci.draw_set_transform(Vector2.ZERO)
 
 var _map: Baked

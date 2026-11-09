@@ -40,9 +40,9 @@ func _draw() -> void:
 	# —— 墙上的进度牌 ——
 	# 像锻刀模拟器的献上窗口：要求多少、已经攒了多少，一眼看清
 	var br := Rect2(X + 4, y - 252, W - 8, 92)
-	draw_rect(Rect2(br.position + Vector2(3, 4), br.size), Color(0, 0, 0, 0.12))
+	Ink.drop(self, br)
 	draw_rect(br, Pal.c("paper"))
-	Ink.frame(self, br, el, 1.6)
+	Ink.frame(self, br, el, Ink.W2)
 	draw_rect(Rect2(br.position, Vector2(br.size.x, 16)), Pal.c("red") if must else (Pal.c("green") if can else Pal.c("blue")))
 	Ink.text(self, "考核审核台", br.position + Vector2(br.size.x * 0.5, 13), 12, Pal.c("paper"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	if not run.won():
@@ -61,10 +61,12 @@ func _draw() -> void:
 	Ink.rivet(self, Vector2(br.end.x - 6, br.position.y + 22), 1.8)
 	# —— 桌子 ——
 	var top := y - 74.0
-	Ink.box(self, Rect2(X, top, W, 10), Pal.c("equip"), el, 1.6, 611)
-	Ink.box(self, Rect2(X + 8, top + 10, 10, 64), Pal.c("equip_dark"), el, 1.2, 612)
-	Ink.box(self, Rect2(X + W - 18, top + 10, 10, 64), Pal.c("equip_dark"), el, 1.2, 613)
-	Ink.box(self, Rect2(X + W - 60, top + 10, 42, 34), Pal.c("equip_dark"), el, 1.2, 614)
+	Ink.ground(self, X + 8, X + 18)
+	Ink.ground(self, X + W - 18, X + W - 8)
+	Ink.box(self, Rect2(X, top, W, 10), Pal.c("equip"), el, Ink.W1, 611)
+	Ink.box(self, Rect2(X + 8, top + 10, 10, 64), Pal.c("equip_dark"), el, Ink.W2, 612)
+	Ink.box(self, Rect2(X + W - 18, top + 10, 10, 64), Pal.c("equip_dark"), el, Ink.W2, 613)
+	Ink.box(self, Rect2(X + W - 60, top + 10, 42, 34), Pal.c("equip_dark"), el, Ink.W2, 614)
 	draw_rect(Rect2(X + W - 46, top + 24, 14, 3), el)
 	# 收件盘：每做完一次实验多一张报告
 	var tray := Rect2(X + 10, top - 16, 58, 16)

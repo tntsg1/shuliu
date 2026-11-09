@@ -5,7 +5,7 @@ extends Node2D
 ## 只在阶段变化 / 鼠标悬停变化时重画。
 
 const SCHED := Rect2(352, 306, 278, 146)
-const NOTE := Rect2(640, 318, 100, 150)
+const NOTE := Rect2(648, 318, 100, 150)
 
 var main: Node
 var hot := 0.0
@@ -35,7 +35,7 @@ func _draw() -> void:
 	var sz := SCHED.size
 	draw_rect(Rect2(Vector2(4, 5), sz), Color(0, 0, 0, 0.12))
 	draw_rect(Rect2(Vector2.ZERO, sz), Color("#f7f2e6"))
-	Ink.frame(self, Rect2(Vector2.ZERO, sz), Color(el, 0.6), 1.2)
+	Ink.frame(self, Rect2(Vector2.ZERO, sz), Color(el, 0.6), Ink.W3)
 	draw_rect(Rect2(Vector2(sz.x * 0.5 - 22, -7), Vector2(44, 14)), Color(Pal.c("gold"), 0.45))
 	Ink.text(self, "第七实验站评审安排", Vector2(12, 22), 13, ink, Pal.bold)
 	var first := maxi(0, run.stage - 7) if run.endless else 0
@@ -71,8 +71,10 @@ func _draw() -> void:
 	var lift := hot * 3.0
 	draw_rect(Rect2(Vector2(4, 6 + lift), nz), Color(0, 0, 0, 0.14 + 0.08 * hot))
 	draw_rect(Rect2(Vector2(0, -lift), nz), Color("#fbf7ec"))
-	Ink.frame(self, Rect2(Vector2(0, -lift), nz), red.lerp(el, 0.3) if hot > 0.3 else Color(el, 0.6), 1.2 + hot)
-	draw_circle(Vector2(nz.x * 0.5, 6 - lift), 3.2, red)
+	Ink.frame(self, Rect2(Vector2(0, -lift), nz), red.lerp(el, 0.3) if hot > 0.3 else Color(el, 0.6), Ink.W3 + hot)
+	Ink.disc(self, Vector2(nz.x * 0.5 + 1.5, 8 - lift), 3.2, Color(0, 0, 0, 0.15))
+	Ink.disc(self, Vector2(nz.x * 0.5, 6 - lift), 3.2, red)
+	Ink.disc(self, Vector2(nz.x * 0.5 - 1.0, 5 - lift), 1.0, Color(1, 1, 1, 0.5))
 	Ink.text(self, "经费处理决定", Vector2(nz.x * 0.5, 22 - lift), 11, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	var ly := 40.0 - lift
 	for l in ["经校董会决定，本站还有最后 8 次评审机会。", "每轮配给 3 瓶束流气瓶。评审未通过，实验站将交由星汇数据公司收购。"]:

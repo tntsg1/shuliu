@@ -20,7 +20,7 @@ void fragment() {
 	float blot = noise(fc / 90.0) * 0.6 + noise(fc / 23.0) * 0.4;
 	// 纸纤维：拉长的噪声
 	float fib = noise(vec2(fc.x / 3.0, fc.y / 40.0)) * noise(vec2(fc.x / 41.0 + 3.0, fc.y / 2.5));
-	float v = 1.0 - strength * (g * 0.55 + (blot - 0.5) * 0.9) - fiber * strength * smoothstep(0.35, 0.6, fib) * 0.6;
+	float v = 1.0 - strength * (g * 0.55 + (blot - 0.5) * 0.9) - fiber * strength * smoothstep(0.35, 0.6, fib) * 0.25;
 	vec2 uv = SCREEN_UV - 0.5;
 	v *= 1.0 - vignette * smoothstep(0.35, 0.85, length(uv * vec2(1.0, 0.9)));
 	COLOR = vec4(tint.rgb * v, 1.0);

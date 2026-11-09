@@ -115,7 +115,6 @@ func _draw() -> void:
 		draw_line(Vector2(s.position.x, y), Vector2(s.end.x, y), Color(ink, 0.12), 0.6)
 		if int(idle_t * 2.0) % 2 == 0:
 			draw_rect(Rect2(s.position.x + 10, s.end.y - 18, 6, 9), Color(ink, 0.6))
-		Ink.text(self, "DET-A READY", Vector2(s.position.x + 20, s.end.y - 9), 9, Color(ink, 0.6), Pal.mono, HORIZONTAL_ALIGNMENT_LEFT, -1)
 		return
 	var e := Ink.ease_out_cubic(progress)
 	if meme == "" and not form.is_empty():

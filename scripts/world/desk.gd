@@ -13,11 +13,13 @@ func _draw() -> void:
 	var y := Geo.FLOOR
 	var el := Pal.equip_line()
 	var top := PackedVector2Array([Vector2(x, y), Vector2(x, y - 92), Vector2(x + 150, y - 112), Vector2(x + 150, y)])
-	Ink.poly(self, top, Pal.c("equip"), el, 1.8, 401)
+	Ink.ground(self, x, x + 150)
+	Ink.poly(self, top, Pal.c("equip"), el, Ink.W1, 401)
 	draw_line(Vector2(x, y - 92), Vector2(x + 150, y - 112), el, 3.0, true)
+	draw_rect(Rect2(x + 3, y - 88, 4, 85), Color(1, 1, 1, 0.22))
 	draw_rect(Rect2(x + 8, y - 70, 134, 3), Color(el, 0.3))
 	for i in 3:
-		Ink.box(self, Rect2(x + 14 + i * 40, y - 52, 30, 44), Pal.c("equip_dark"), el, 1.0, 402 + i)
+		Ink.box(self, Rect2(x + 14 + i * 40, y - 52, 30, 44), Pal.c("equip_dark"), el, Ink.W2, 402 + i)
 		draw_rect(Rect2(x + 26 + i * 40, y - 32, 6, 2), el)
 	# 指示灯
 	var cols := [Pal.c("red"), Pal.c("gold"), Pal.c("ramp2")]
@@ -29,13 +31,13 @@ func _draw() -> void:
 			on = main != null and main.has_beam()
 		var lp := Vector2(x + 20 + i * 18, y - 84 - i * 2.4)
 		Ink.disc(self, lp, 5.0, cols[i] if on else Pal.c("equip_dark"))
-		draw_arc(lp, 5.0, 0, TAU, 16, el, 1.0, true)
+		draw_arc(lp, 5.0, 0, TAU, 16, el, Ink.W3, true)
 	# 斜面小屏
 	draw_set_transform(Vector2(x + 96, y - 138), -0.13)
 	var bg := Pal.c("screen") if Pal.dark else Pal.c("paper")
 	draw_rect(Rect2(-46, -30, 92, 58), Pal.c("equip"))
 	draw_rect(Rect2(-40, -25, 80, 48), bg)
-	Ink.frame(self, Rect2(-46, -30, 92, 58), el, 1.6)
+	Ink.frame(self, Rect2(-46, -30, 92, 58), el, Ink.W2)
 	var ink := Pal.c("paper") if Pal.dark else Pal.c("ink")
 	var lines := [Pal.c("ramp2"), Pal.c("ramp3"), Pal.c("gold"), Pal.c("ramp1"), Pal.c("red")]
 	for i in 5:

@@ -33,17 +33,18 @@ func _paint_stand(ci: CanvasItem) -> void:
 	var h := Geo.CH_SIZE * 0.5
 	var el := Pal.equip_line()
 	for sx in [-120.0, 100.0]:
-		Ink.box(ci, Rect2(sx, h.y, 22, Geo.FLOOR - Geo.BEAMY - h.y), Pal.c("equip_dark"), el, 1.6, int(sx))
-		Ink.box(ci, Rect2(sx - 16, Geo.FLOOR - Geo.BEAMY - 8, 54, 8), Pal.c("equip_dark"), el, 1.2, int(sx) + 7)
-		ci.draw_line(Vector2(sx + 2, h.y + 20), Vector2(sx + 20, h.y + 60), Color(el, 0.4), 1.0)
+		Ink.ground(ci, sx - 16, sx + 38, Geo.FLOOR - Geo.BEAMY)
+		Ink.box(ci, Rect2(sx, h.y, 22, Geo.FLOOR - Geo.BEAMY - h.y), Pal.c("equip_dark"), el, Ink.W2, int(sx))
+		Ink.box(ci, Rect2(sx - 16, Geo.FLOOR - Geo.BEAMY - 8, 54, 8), Pal.c("equip_dark"), el, Ink.W2, int(sx) + 7)
+		ci.draw_line(Vector2(sx + 2, h.y + 20), Vector2(sx + 20, h.y + 60), Color(el, 0.4), Ink.W3)
 
 func _paint_glass(ci: CanvasItem) -> void:
 	var h := Geo.CH_SIZE * 0.5
 	var el := Pal.equip_line()
 	Ink.pl(ci, _stadium(h + Vector2(7, 7)), Pal.c("equip"), 10.0)
-	Ink.pl(ci, _stadium(h + Vector2(12, 12)), el, 1.8)
-	Ink.pl(ci, _stadium(h + Vector2(2, 2)), el, 1.8)
-	Ink.pl(ci, _stadium(h - Vector2(5, 5)), Color(el, 0.25), 1.0)
+	Ink.pl(ci, _stadium(h + Vector2(12, 12)), el, Ink.W1)
+	Ink.pl(ci, _stadium(h + Vector2(2, 2)), el, Ink.W2)
+	Ink.pl(ci, _stadium(h - Vector2(5, 5)), Color(el, 0.25), Ink.W3)
 	var ring := _stadium(h + Vector2(7, 7), 18)
 	for i in range(0, ring.size() - 1, 2):
 		Ink.rivet(ci, ring[i], 2.2)
@@ -53,8 +54,8 @@ func _paint_boxes(ci: CanvasItem) -> void:
 	var el := Pal.equip_line()
 	for i in 6:
 		for y in [-h.y - 32.0, h.y + 12.0]:
-			Ink.box(ci, Rect2(_lamp_x(i) - 11, y, 22, 20), Pal.c("equip_dark"), el, 1.2, i * 7 + int(y))
-	Ink.sticker(ci, "OBS-01 观测舱", Vector2(-h.x + 70, -h.y - 48), -0.02, 11)
+			Ink.box(ci, Rect2(_lamp_x(i) - 11, y, 22, 20), Pal.c("equip_dark"), el, Ink.W2, i * 7 + int(y))
+	Ink.text(ci, "观测舱", Vector2(-h.x + 110, -h.y - 44), 17, Pal.c("ink2"), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _draw() -> void:
 	var h := Geo.CH_SIZE * 0.5

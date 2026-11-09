@@ -71,9 +71,10 @@ func _process(dt: float) -> void:
 func _draw() -> void:
 	var el := Pal.equip_line()
 	# 架子：底板 + 两根立柱 + 一道防倒链
-	Ink.box(self, Rect2(RACK.position.x, RACK.end.y - 8, RACK.size.x, 8), Pal.c("equip_dark"), el, 1.2, 501)
-	Ink.box(self, Rect2(RACK.position.x, RACK.position.y + 20, 6, RACK.size.y - 28), Pal.c("equip_dark"), el, 1.0, 502)
-	Ink.box(self, Rect2(RACK.end.x - 6, RACK.position.y + 20, 6, RACK.size.y - 28), Pal.c("equip_dark"), el, 1.0, 503)
+	Ink.ground(self, RACK.position.x, RACK.end.x)
+	Ink.box(self, Rect2(RACK.position.x, RACK.end.y - 8, RACK.size.x, 8), Pal.c("equip_dark"), el, Ink.W2, 501)
+	Ink.box(self, Rect2(RACK.position.x, RACK.position.y + 20, 6, RACK.size.y - 28), Pal.c("equip_dark"), el, Ink.W1, 502)
+	Ink.box(self, Rect2(RACK.end.x - 6, RACK.position.y + 20, 6, RACK.size.y - 28), Pal.c("equip_dark"), el, Ink.W1, 503)
 	# 进气管：架子 → 注入器底座
 	Ink.pl(self, PackedVector2Array([Vector2(RACK.position.x + 3, RACK.position.y + 40), Vector2(INLET.x + 14, RACK.position.y + 40), Vector2(INLET.x + 14, INLET.y)]), el, 3.0)
 	Ink.pl(self, PackedVector2Array([Vector2(RACK.position.x + 3, RACK.position.y + 40), Vector2(INLET.x + 14, RACK.position.y + 40), Vector2(INLET.x + 14, INLET.y)]), Pal.c("equip"), 1.4)
@@ -112,8 +113,8 @@ func _bottle(p: Vector2, sc: float, rot: float, a: float) -> void:
 	draw_rect(Rect2(-w * 0.5, -h, w, h), Color(body, a))
 	Ink.disc(self, Vector2(0, -h), w * 0.5, Color(body, a))
 	draw_rect(Rect2(-w * 0.5, -h, 5, h), Color(1, 1, 1, 0.25 * a))
-	Ink.frame(self, Rect2(-w * 0.5, -h, w, h), Color(el, a), 1.2)
-	draw_arc(Vector2(0, -h), w * 0.5, PI, TAU, 14, Color(el, a), 1.2, true)
+	Ink.frame(self, Rect2(-w * 0.5, -h, w, h), Color(el, a), Ink.W2)
+	draw_arc(Vector2(0, -h), w * 0.5, PI, TAU, 14, Color(el, a), Ink.W2, true)
 	# 瓶肩色环 + 阀门
 	draw_rect(Rect2(-w * 0.5, -h + 6, w, 5), Color(Pal.c("red"), 0.8 * a))
 	draw_rect(Rect2(-4, -h - w * 0.5 - 10, 8, 10), Color(el, a))

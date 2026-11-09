@@ -1,6 +1,20 @@
 class_name Ink
 ## 绘制辅助：手绘墨线（亮色图纸风轻微抖动）、弹簧阻尼、文字
 
+# —— 线宽四档（design/视觉规范.md 第 1 节）：画线一律用这四个，不写裸数字 ——
+const W1 := 2.4   # 主轮廓：大设备外框
+const W2 := 1.4   # 结构线：内部分隔、搁板、法兰、支架
+const W3 := 0.9   # 注释：纸边、标签框、刻度
+const W4 := 0.6   # 纹理：剖切斜线、线圈排线、墙板缝（颜色透明度 ≤ 0.25）
+
+## 投影：光从左上来，影子一律落在右下 (4, 5)，黑 0.12（离开墙面的纸、牌、壁挂物）
+static func drop(ci: CanvasItem, r: Rect2) -> void:
+	ci.draw_rect(Rect2(r.position + Vector2(4, 5), r.size), Color(0, 0, 0, 0.12))
+
+## 接地影：站在地上的东西底边一条 4 px，左右各宽出 6 px（先画影子再画物体）
+static func ground(ci: CanvasItem, x0: float, x1: float, y := 800.0) -> void:
+	ci.draw_rect(Rect2(x0 - 6, y - 4, x1 - x0 + 12, 4), Color(0, 0, 0, 0.15))
+
 ## 临界阻尼弹簧：返回 [新值, 新速度]。omega 越大越快，丝滑无过冲
 static func spring(x: float, v: float, target: float, omega: float, dt: float) -> Array:
 	var f := 1.0 + 2.0 * dt * omega

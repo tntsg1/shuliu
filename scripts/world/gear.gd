@@ -25,10 +25,13 @@ func _ready() -> void:
 func _paint_shelf(ci: CanvasItem) -> void:
 	var s := SHELF
 	var el := Pal.equip_line()
-	Ink.box(ci, Rect2(s.position.x, s.position.y + 42, s.size.x, 6), Pal.c("equip_dark"), el, 1.4, 901)
-	Ink.box(ci, Rect2(s.position.x, s.end.y - 6, s.size.x, 6), Pal.c("equip_dark"), el, 1.4, 902)
-	Ink.box(ci, Rect2(s.position.x - 4, s.position.y - 4, 6, s.size.y + 4), Pal.c("equip_dark"), el, 1.2, 903)
-	Ink.box(ci, Rect2(s.end.x - 2, s.position.y - 4, 6, s.size.y + 4), Pal.c("equip_dark"), el, 1.2, 904)
+	# 两根立柱一直落到地面（不悬空），底下接地影
+	var leg_h := Geo.FLOOR - s.position.y + 4
+	Ink.ground(ci, s.position.x - 4, s.end.x + 4)
+	Ink.box(ci, Rect2(s.position.x, s.position.y + 42, s.size.x, 6), Pal.c("equip_dark"), el, Ink.W2, 901)
+	Ink.box(ci, Rect2(s.position.x, s.end.y - 6, s.size.x, 6), Pal.c("equip_dark"), el, Ink.W2, 902)
+	Ink.box(ci, Rect2(s.position.x - 4, s.position.y - 4, 6, leg_h), Pal.c("equip_dark"), el, Ink.W2, 903)
+	Ink.box(ci, Rect2(s.end.x - 2, s.position.y - 4, 6, leg_h), Pal.c("equip_dark"), el, Ink.W2, 904)
 	Ink.sticker(ci, "护身符", Vector2(s.position.x + 34, s.position.y - 12), -0.05, 10)
 
 func _draw() -> void:
@@ -44,14 +47,14 @@ func _draw() -> void:
 		var y := Geo.BEAMY - sin(b * PI) * 6.0
 		var r := Rect2(x - 34, y - 46, 68, 92)
 		draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.12))
-		Ink.box(self, r, Pal.c("equip"), el, 2.0, i * 31)
+		Ink.box(self, r, Pal.c("equip"), el, Ink.W1, i * 31)
 		draw_rect(Rect2(r.position + Vector2(6, 6), Vector2(56, 56)), Pal.c("paper"))
-		Ink.frame(self, Rect2(r.position + Vector2(6, 6), Vector2(56, 56)), el, 1.2)
+		Ink.frame(self, Rect2(r.position + Vector2(6, 6), Vector2(56, 56)), el, Ink.W2)
 		Icons.draw(self, id, r.position + Vector2(34, 34), 50.0)
 		# 底部状态灯：触发时变亮
 		var lamp := Pal.c("ramp2").lerp(Pal.c("gold"), b) if b > 0.0 else Pal.c("equip_dark")
 		draw_rect(Rect2(r.position + Vector2(10, 70), Vector2(48, 10)), lamp)
-		Ink.frame(self, Rect2(r.position + Vector2(10, 70), Vector2(48, 10)), el, 1.0)
+		Ink.frame(self, Rect2(r.position + Vector2(10, 70), Vector2(48, 10)), el, Ink.W3)
 		Ink.rivet(self, r.position + Vector2(5, 86), 2.0)
 		Ink.rivet(self, r.position + Vector2(63, 86), 2.0)
 		if b > 0.0:
