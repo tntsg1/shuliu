@@ -47,6 +47,9 @@ var money_pulse := 0.0
 var full_flash := {"device": 0.0, "relic": 0.0}
 var tip_id := ""
 var tip_v := 0.0
+var card_tip_index := -1
+var card_tip_time := 0.0
+var card_tip_v := 0.0
 var card_h := PackedFloat32Array([0, 0, 0, 0, 0])
 var card_hv := PackedFloat32Array([0, 0, 0, 0, 0])
 
@@ -64,6 +67,8 @@ func show_shop() -> void:
 	money_disp = main.run.money
 	flyers.clear(); coins.clear(); puffs.clear(); in_air.clear()
 	hold_id = ""; confirm_id = ""; tip_id = ""; tip_v = 0.0
+	card_tip_index = -1; card_tip_time = 0.0; card_tip_v = 0.0
+	hover_card = -1; hover_id = ""
 	for i in 5:
 		stamp_t[i] = 0.5 if i < main.run.offers.size() and main.run.offers[i].sold else -1.0
 	Sfx.play("paper", -4.0)
@@ -310,6 +315,19 @@ func _anim(dt: float) -> void:
 			Sfx.play("tick", -18.0, 1.0 + hold_t * 1.2)
 		if hold_t >= HOLD:
 			_sell(hold_id)
+	# 商品卡需要停留片刻，切换、购买或翻牌时立即收起。
+	var eligible: bool = open and hc >= 0 and hc < main.run.offers.size() and hc < flips.size()
+	if eligible:
+		eligible = not main.run.offers[hc].sold and absf(flips[hc]) >= 0.9
+	var next_card := hc if eligible else -1
+	if next_card != card_tip_index:
+		card_tip_index = next_card
+		card_tip_time = 0.0
+		card_tip_v = 0.0
+	if card_tip_index >= 0:
+		card_tip_time += dt
+		if card_tip_time >= 0.35:
+			card_tip_v = minf(1.0, card_tip_v + dt * 5.0)
 	# 提示条：切换物件时重新展开
 	if hot != tip_id:
 		tip_id = hot
@@ -381,6 +399,8 @@ func _draw() -> void:
 		card_rects.append(cr)
 		_card(cr, o, i, _hot_card() == i)
 	_draw_inventory(pr, el, ink)
+	if card_tip_index >= 0 and card_tip_index < card_rects.size() and card_tip_v > 0.03:
+		_tip(run.offers[card_tip_index].id, card_rects[card_tip_index].get_center(), pr, el, ink, false, card_tip_v)
 	# 页脚
 	draw_line(Vector2(pr.position.x + 40, pr.end.y - 70), Vector2(pr.end.x - 40, pr.end.y - 70), Color(el, 0.4), 1.0)
 	Ink.text(self, "鼠标：点击商品购买 · 按住已有物品卖出 · 右键离开      键盘：← → 选择  ↑ ↓ 切换  E 购买 / 两次 E 卖出  R 刷新  Esc 离开", Vector2(pr.position.x + 48, pr.end.y - 32), 16, ink)
@@ -423,8 +443,18 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	while nfs > 13 and Ink.size(Pal.bold, d.name, nfs).x > cr.size.x - 32:
 		nfs -= 1
 	Ink.text(self, d.name, o2 + Vector2(16, 204), nfs, ink, Pal.bold, HORIZONTAL_ALIGNMENT_LEFT, cr.size.x - 32)
-	# 效果
-	Ink.para(self, Pal.font, o2 + Vector2(16, 236), d.desc, cr.size.x - 32, 15, 7, ink)
+	# 效果：优先单行，过长时换成最多两行。
+	var big: String = d.get("big", "")
+	if big == "":
+		big = d.desc
+	var bfs := 26
+	while bfs > 18 and Ink.size(Pal.bold, big, bfs).x > cr.size.x - 32:
+		bfs -= 1
+	if Ink.size(Pal.bold, big, bfs).x > cr.size.x - 32:
+		Ink.para(self, Pal.bold, o2 + Vector2(16, 250), big, cr.size.x - 32, 22, 2, ink)
+	else:
+		Ink.text(self, big, o2 + Vector2(16, 250), bfs, ink, Pal.bold)
+	draw_line(o2 + Vector2(16, 300), o2 + Vector2(cr.size.x - 16, 300), Color(el, 0.3), 1.0)
 	# 物品故事
 	if d.lore != "":
 		Ink.para(self, Pal.hand, o2 + Vector2(16, cr.size.y - 92), "“" + d.lore + "”", cr.size.x - 32, 15, 3, Pal.c("blue"))
@@ -603,23 +633,28 @@ func _tile(id: String, c: Vector2, el: Color) -> void:
 		draw_arc(p, 56.0, -PI / 2, -PI / 2 + TAU * hp, 48, Pal.c("red"), 4.0, true)
 		Ink.text(self, "卖出 +$%d" % Items.sell_price(id), p + Vector2(66, 6 - 6 * hp), 18, Pal.c("red"), Pal.bold)
 
-func _tip(id: String, c: Vector2, pr: Rect2, el: Color, ink: Color) -> void:
+func _tip(id: String, c: Vector2, pr: Rect2, el: Color, ink: Color, selling := true, progress := -1.0) -> void:
 	var d: Dictionary = Items.ALL[id]
-	var k := Ink.ease_out_back(tip_v)
+	var tv := tip_v if progress < 0.0 else progress
+	var k := minf(1.0, Ink.ease_out_back(tv)) if not selling else Ink.ease_out_back(tv)
 	var w := 470.0
 	var desc_h := Ink.para_size(Pal.font, d.desc, w - 36, 15).y
 	var lore_h := 0.0
 	if d.lore != "":
 		lore_h = Ink.para_size(Pal.hand, "“" + d.lore + "”", w - 36, 14).y + 6
-	var h := 44.0 + desc_h + lore_h + 40.0
+	var h := 44.0 + desc_h + lore_h + (40.0 if selling else 16.0)
 	# 放在物件旁边（右边放不下就放左边），从物件那侧横向“唰”地展开
-	var right_side := c.x + 64.0 + w < pr.end.x - 30.0
-	var top := clampf(c.y - h * 0.5, pr.position.y + 560.0, pr.end.y - 84.0 - h)
-	var x := c.x + 64.0 if right_side else c.x - 64.0 - w
-	var anchor := Vector2(c.x + (50.0 if right_side else -50.0), c.y)
+	var offset := 64.0 if selling else CARD.x * 0.5 + 8.0
+	var right_side := c.x + offset + w <= pr.end.x - 8.0
+	var min_top := pr.position.y + (560.0 if selling else 8.0)
+	var max_top := pr.end.y - (84.0 if selling else 8.0) - h
+	var top := clampf(c.y - h * 0.5, min_top, maxf(min_top, max_top))
+	var x := c.x + offset if right_side else c.x - offset - w
+	x = clampf(x, pr.position.x + 8.0, pr.end.x - w - 8.0)
+	var anchor := Vector2(c.x + ((offset - 8.0) if right_side else -(offset - 8.0)), c.y)
 	var edge := Vector2(x if right_side else x + w, clampf(c.y, top + 12, top + h - 12))
-	draw_line(anchor, edge, Color(el, 0.6 * tip_v), 1.4, true)
-	Ink.disc(self, edge, 3.0, Color(el, tip_v))
+	draw_line(anchor, edge, Color(el, 0.6 * tv), 1.4, true)
+	Ink.disc(self, edge, 3.0, Color(el, tv))
 	var pivot := Vector2(x if right_side else x + w, top)
 	draw_set_transform(pivot, 0.0, Vector2(maxf(0.01, k), 1.0))
 	if not right_side:
@@ -629,19 +664,23 @@ func _tip(id: String, c: Vector2, pr: Rect2, el: Color, ink: Color) -> void:
 	draw_rect(r, Pal.c("paper"))
 	draw_rect(Rect2(0, 0, 6, h), Icons.rarity_col(d.rarity))
 	Ink.frame(self, r, el, 1.4)
-	if tip_v > 0.35:
-		var a := clampf((tip_v - 0.35) / 0.4, 0.0, 1.0)
-		Ink.text(self, d.name, Vector2(20, 30), 19, Color(ink, a), Pal.bold)
+	if tv > 0.35:
+		var a := clampf((tv - 0.35) / 0.4, 0.0, 1.0)
+		var title_size := 19
+		while title_size > 12 and Ink.size(Pal.bold, d.name, title_size).x > w - 145:
+			title_size -= 1
+		Ink.text(self, d.name, Vector2(20, 30), title_size, Color(ink, a), Pal.bold)
 		Ink.text(self, ("设备" if d.kind == "device" else "饰品") + " · " + Items.RARITY_NAME[d.rarity], Vector2(w - 18, 28), 14, Color(Icons.rarity_col(d.rarity), a), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 		Ink.para(self, Pal.font, Vector2(20, 56), d.desc, w - 36, 15, -1, Color(ink, a))
 		if d.lore != "":
 			Ink.para(self, Pal.hand, Vector2(20, 56 + desc_h + 6), "“" + d.lore + "”", w - 36, 14, -1, Color(Pal.c("blue"), a))
-		var hint := "按住鼠标卖出"
-		if kb:
-			hint = "再按 E 确认卖出" if confirm_id == id and confirm_t > 0.0 else "E 卖出（按两次）"
-		draw_line(Vector2(16, h - 34), Vector2(w - 16, h - 34), Color(el, 0.3 * a), 1.0)
-		Ink.text(self, hint, Vector2(20, h - 12), 14, Color(Pal.c("text2"), a))
-		Ink.text(self, "+$%d" % Items.sell_price(id), Vector2(w - 18, h - 11), 17, Color(Pal.c("red"), a), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
+		if selling:
+			var hint := "按住鼠标卖出"
+			if kb:
+				hint = "再按 E 确认卖出" if confirm_id == id and confirm_t > 0.0 else "E 卖出（按两次）"
+			draw_line(Vector2(16, h - 34), Vector2(w - 16, h - 34), Color(el, 0.3 * a), 1.0)
+			Ink.text(self, hint, Vector2(20, h - 12), 14, Color(Pal.c("text2"), a))
+			Ink.text(self, "+$%d" % Items.sell_price(id), Vector2(w - 18, h - 11), 17, Color(Pal.c("red"), a), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
 	draw_set_transform(Vector2.ZERO)
 
 func _dashed(r: Rect2, col: Color, wdt: float, off: float) -> void:
