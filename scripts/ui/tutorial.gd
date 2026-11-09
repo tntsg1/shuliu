@@ -21,19 +21,21 @@ func _ready() -> void:
 	# 每步：id / 文字 / 何时出现 / 何时完成 / 箭头指向（返回屏幕坐标；null 表示不画箭头）/ 便条位置
 	steps = [
 		# —— 背景：开场信之后，先看墙上的日程表，再看束流从哪来（DECISIONS Q62/Q63）——
-		{"id": "wall", "text": "墙上是评审日程表。
-一共 8 次评审，过一次划掉一格；
-第 4、8 次是大考，线更高。
-（点旁边那张纸能重读那封信）",
-			"say": "这里是第七实验站。8 次评审里交不够任何一次，就卖给星汇数据。",
+		{"id": "wall", "text": "墙上贴的是评审日程表，
+总共要过 8 轮，每过一轮就划掉一格。
+第 4 轮和第 8 轮会查得严一些，
+听说到时候有大领导过来。
+旁边还贴着一封校长办公室寄来的信，
+有空可以看看。",
+			"say": "我们必须在8次评审内都满足他们的考核要求，\n否则的话，我们的加速器马上就会被卖掉了",
 			"show": func(): return main.mode == main.M.WALK,
 			"done": func(): return step_t > 8.0 or main.mode != main.M.WALK or main.letter.open,
 			"at": func(): return _w(Vector2(560, 372)), "note": func(): return _w(Vector2(1080, 300))},
-		{"id": "bottles", "text": "这几瓶氢气，
-就是这次评审配给的束流：
-一瓶 = 一束，做一次实验用掉一瓶。
-用完了，就得去交评审。",
-			"say": "束流从离子源来：每次评审，经费处只配给 3 瓶氢气。",
+		{"id": "bottles", "text": "这轮就给了这么几瓶氢气，
+每做一次实验就得用掉一瓶，
+用完可就没了，自己看着点用。
+等气瓶全用完，就该去交评审了。",
+			"say": "使用粒子对撞机的基本粒子就是氢气，\n这里面装的氢气可以供你完成一次完整的实验",
 			"show": func(): return main.mode == main.M.WALK,
 			"done": func(): return step_t > 8.0 or main.mode != main.M.WALK,
 			"at": func(): return _w(Vector2(350, 690)), "note": func(): return _w(Vector2(470, 560))},
@@ -58,9 +60,10 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.SHOP,
 			"done": func(): return main.mode != main.M.SHOP,
 			"at": null, "note": func(): return Vector2(1500, 800)},
-		{"id": "console", "text": "控制台在观测舱前面。
-点它，把第一瓶束流注进去。",
-			"say": "把束流一圈圈加速得越高，引出时换到的科研点就越多。",
+		{"id": "console", "text": "观测舱前面有台控制台，
+过去点一下，把第一瓶氢气装进去
+就能开始实验了。",
+			"say": "可以在这里把氢气加速到接近光速进行对撞，产生科研成果",
 			"show": func(): return main.mode == main.M.WALK,
 			"done": func(): return main.mode != main.M.WALK and main.mode != main.M.SHOP,
 			"at": func(): return _w(Vector2(Geo.CONSOLE_STAND + 30, Geo.FLOOR - 150)), "note": func(): return _w(Vector2(Geo.CONSOLE_STAND + 150, Geo.FLOOR - 520))},
@@ -86,10 +89,11 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam != null and main.run.beam.energy >= 4,
 			"done": func(): return main.run.experiment_no > 1 or main.run.beam == null,
 			"at": func(): return _panel(Vector2(1760, 110)), "note": func(): return _panel(Vector2(1530, -200))},
-		{"id": "report", "text": "实验报告送进了审核台。
-牌子上：要求多少、已攒多少。
-攒够“要求”，就能去交。",
-			"say": "引出的那一刻，潜在成果变成科研点（RP），记在审核台的账上。",
+		{"id": "report", "text": "实验报告已经放到审核台上了，
+上面写着这轮要攒多少科研点，
+还有你现在已经攒了多少。
+攒够了就能去交评审。",
+			"say": "第一次科研成果成功出炉了，我们看一看得分如何呢",
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
 			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > 7.0,
 			"at": func(): return _w(Vector2(main.review.X + 75, Geo.FLOOR - 200)), "note": func(): return _w(Vector2(main.review.X - 120, Geo.FLOOR - 420))},
@@ -100,11 +104,15 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
 			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > 7.0,
 			"at": func(): return Vector2(400, 300), "note": func(): return Vector2(440, 120)},
-		{"id": "submit", "text": "够了“要求”就去审核台交。
-没用完的气瓶退回，折成经费；
-够线后还接着做，丢了要扣 30%。
-气瓶用完，就必须去交。",
-			"say": "交得早，省下的气瓶换钱；接着赌，攒下的分能带到下一次评审。",
+		{"id": "submit", "text": "科研点攒够了就能直接交，
+不用把气瓶全用完，
+剩下的气瓶会退回去，折成经费。
+想趁着还有气瓶再多做几次也行，
+不过得想好了，万一后面的实验失败，
+之前攒下的科研点就会扣掉 30%。
+要是气瓶已经用光了，
+那就只能去交评审了。",
+			"say": func(): return ("科研成果的分数已经能通过考核了，但是你还是剩下了几个气瓶，\n不过好心提醒你一下，你剩下的%d瓶也会被回收哦" % main.run.experiments_left) if main.run.total >= main.run.line() and main.run.experiments_left > 0 else "",
 			"show": func(): return (main.mode == main.M.CONSOLE and main.run.beam == null or main.mode == main.M.WALK) and main.run.experiment_no >= 1 and shown.has("clips"),
 			"done": func(): return main.mode == main.M.REVIEW or main.run.beam != null or step_t > 9.0,
 			"at": func(): return _w(Vector2(main.review.STAND, Geo.FLOOR - 180)), "note": func(): return _w(Vector2(main.review.STAND - 200, Geo.FLOOR - 480))},
@@ -213,7 +221,9 @@ func _process(dt: float) -> void:
 				step_t = 0.0
 				Sfx.play("paper", -12.0, 1.1)
 				if st.has("say"):
-					main.overlay.narrate(st.say, 6.0)
+					var line: String = st.say.call() if st.say is Callable else st.say
+					if line != "":
+						main.overlay.narrate(line, 6.5)
 				break
 			if st.show.call() and st.done.call():
 				shown[st.id] = true

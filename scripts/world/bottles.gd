@@ -86,7 +86,7 @@ func _draw() -> void:
 		_bottle(p + Vector2(0, -(1.0 - e) * 160.0), 1.0, 0.0, clampf(k * 3.0, 0.0, 1.0))
 	# 防倒链（压在瓶子前面）
 	draw_line(Vector2(RACK.position.x + 3, RACK.position.y + 62), Vector2(RACK.end.x - 3, RACK.position.y + 62), Color(el, 0.7), 1.6, true)
-	Ink.sticker(self, "束流配额 · 本次评审", Vector2(RACK.get_center().x, RACK.position.y + 8), -0.03, 10)
+	Ink.sticker(self, "本轮配额：3 瓶", Vector2(RACK.get_center().x, RACK.position.y + 8), -0.03, 10)
 	for f in flying:
 		var k: float = f.t
 		if k < 0.0:

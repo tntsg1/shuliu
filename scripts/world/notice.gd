@@ -4,8 +4,8 @@ extends Node2D
 ##  经费处理决定——开场那封信的张贴版，红章；点它重读整封信。
 ## 只在阶段变化 / 鼠标悬停变化时重画。
 
-const SCHED := Rect2(352, 314, 278, 128)
-const NOTE := Rect2(640, 330, 84, 118)
+const SCHED := Rect2(352, 306, 278, 146)
+const NOTE := Rect2(640, 318, 100, 150)
 
 var main: Node
 var hot := 0.0
@@ -37,7 +37,7 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, sz), Color("#f7f2e6"))
 	Ink.frame(self, Rect2(Vector2.ZERO, sz), Color(el, 0.6), 1.2)
 	draw_rect(Rect2(Vector2(sz.x * 0.5 - 22, -7), Vector2(44, 14)), Color(Pal.c("gold"), 0.45))
-	Ink.text(self, "第七实验站 · 评审日程", Vector2(12, 22), 13, ink, Pal.bold)
+	Ink.text(self, "第七实验站评审安排", Vector2(12, 22), 13, ink, Pal.bold)
 	var first := maxi(0, run.stage - 7) if run.endless else 0
 	Ink.text(self, ("无尽 · 第 %d 次" % (run.stage + 1)) if run.endless else "共 8 次", Vector2(sz.x - 10, 22), 11, Color(ink, 0.6), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
 	var bw := 30.0
@@ -63,7 +63,7 @@ func _draw() -> void:
 				var a := TAU * k / 24.0 + 0.3
 				pts.append(b.get_center() + Vector2(cos(a) * (bw * 0.5 + 6.0 + sin(a * 3.0)), sin(a) * (26.0 + cos(a * 2.0))))
 			Ink.pl(self, pts, red, 2.0)
-	Ink.text(self, "交不够任何一次 → 实验站出售", Vector2(12, sz.y - 10), 11, red, Pal.hand)
+	Ink.para(self, Pal.hand, Vector2(12, sz.y - 30), "本期共 8 次评审。任何一次未达标，学校将终止资助，并出售实验站。", sz.x - 24, 11, 2, red)
 	draw_set_transform(Vector2.ZERO)
 	# —— 经费处理决定（点开重读整封信）——
 	draw_set_transform(NOTE.position, 0.05)
@@ -74,10 +74,10 @@ func _draw() -> void:
 	Ink.frame(self, Rect2(Vector2(0, -lift), nz), red.lerp(el, 0.3) if hot > 0.3 else Color(el, 0.6), 1.2 + hot)
 	draw_circle(Vector2(nz.x * 0.5, 6 - lift), 3.2, red)
 	Ink.text(self, "经费处理决定", Vector2(nz.x * 0.5, 22 - lift), 11, ink, Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
-	var ly := 38.0 - lift
-	for l in ["最后 8 次评审", "每次配 3 瓶束流", "交不够即出售", "（星汇数据）"]:
-		Ink.text(self, l, Vector2(8, ly), 9, Color(ink, 0.8), Pal.font)
-		ly += 14.0
+	var ly := 40.0 - lift
+	for l in ["经校董会决定，本站还有最后 8 次评审机会。", "每轮配给 3 瓶束流气瓶。评审未通过，实验站将交由星汇数据公司收购。"]:
+		Ink.para(self, Pal.font, Vector2(8, ly), l, nz.x - 16, 9, -1, Color(ink, 0.8))
+		ly += Ink.para_size(Pal.font, l, nz.x - 16, 9).y + 4.0
 	# 红章
 	var sc := Vector2(nz.x - 24, nz.y - 22 - lift)
 	draw_arc(sc, 15.0, 0, TAU, 24, Color(red, 0.75), 1.6, true)
