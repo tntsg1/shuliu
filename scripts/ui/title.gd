@@ -50,7 +50,7 @@ func _items() -> Array:
 		return [["01", "继续实验", cont_info, "continue"], ["02", "开始新实验", "NEW RUN", "start"], ["03", "设置", "SETTINGS", "settings"], ["04", "退出", "QUIT", "quit"]]
 	return [["", "主音量", "%d%%" % Options.volume], ["", "全屏", "开" if Options.fullscreen else "关"],
 		["", "配色", "七十年代实验室（暗）" if Options.dark else "工程图纸（亮）"], ["", "画面震动", "开" if Options.shake else "关"],
-		["", "新手便条", "重新开启"], ["", "返回", "Esc"]]
+		["", "新手教程", "每局开头 · " + ("开" if Options.tutorial else "关")], ["", "返回", "Esc"]]
 
 func handle(ev: InputEvent) -> void:
 	if not open or out_t >= 0.0 or t < 0.5:
@@ -138,14 +138,7 @@ func _choose(i: int) -> void:
 		return
 	match i:
 		0: _adjust(0, 1)
-		1, 2, 3: _adjust(i, 1)
-		4:
-			Options.reset_tutorial()
-			if main:
-				main.tutorial.persist = true
-				main.tutorial.start(false)
-			Sfx.play("btn2", -6.0, 1.3)
-			demo_text = "新手便条已重新开启"
+		1, 2, 3, 4: _adjust(i, 1)
 		5: _to_page("main")
 
 func _adjust(i: int, d: int) -> void:
@@ -154,6 +147,7 @@ func _adjust(i: int, d: int) -> void:
 		1: Options.fullscreen = not Options.fullscreen
 		2: Options.dark = not Options.dark
 		3: Options.shake = not Options.shake
+		4: Options.tutorial = not Options.tutorial
 		_: return
 	Options.apply()
 	Options.save()
@@ -295,8 +289,8 @@ func _draw() -> void:
 				draw_arc(Vector2(vol_rect.position.x + vol_rect.size.x * Options.volume / 100.0, vol_rect.get_center().y), 9.0, 0, TAU, 16, Color(el, a), 1.4, true)
 				Ink.text(self, it[2], Vector2(ix + 372, y + 4), 18, Color(Pal.c("text2"), a), Pal.mono)
 			else:
-				var vcol := Pal.c("blue") if i < 4 else Pal.c("text2")
-				Ink.text(self, ("◂ " + it[2] + " ▸") if i in [1, 2, 3] else it[2], Vector2(ix + 150, y + 4), 18, Color(vcol, a), Pal.font)
+				var vcol := Pal.c("blue") if i < 5 else Pal.c("text2")
+				Ink.text(self, ("◂ " + it[2] + " ▸") if i in [1, 2, 3, 4] else it[2], Vector2(ix + 150, y + 4), 18, Color(vcol, a), Pal.font)
 		y += hh + (10.0 if page == "main" else 4.0)
 	# 底部
 	var hint := "鼠标点选 · ↑↓ 选择 · 回车 / E 确认" if page == "main" else "← → 调整 · Esc / 右键 返回"

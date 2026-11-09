@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN, TITLE }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN, TITLE, PAUSE }
 
 var run: Run
 var mode := M.WALK
@@ -211,6 +211,7 @@ func _on_title_continue() -> void:
 ## 接着玩一局读回来的存档（测试也直接调这个）
 func resume(loaded: Run) -> void:
 	run = loaded
+	tutorial.stop()      # 读档接着玩不重放教程
 	live_save = true
 	_save_sig = 0
 	chamber.empty()
@@ -334,8 +335,15 @@ func _unhandled_input(ev: InputEvent) -> void:
 			shop.handle(ev)
 		M.PLAN:
 			plans.handle(ev)
+		M.PAUSE:
+			if ev.is_action("back"):
+				to_title()
+			elif ev.is_action("interact") or ev.is_action("accelerate"):
+				close_pause()
 		M.WALK:
-			if ev.is_action("interact"):
+			if ev.is_action("back"):
+				open_pause()
+			elif ev.is_action("interact"):
 				if _near_console():
 					enter_console()
 				elif _near_terminal():
@@ -389,7 +397,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 			elif ev.is_action("back"):
 				leave_console()
 		M.END:
-			if ev.is_action("restart"):
+			if ev.is_action("back"):
+				to_title()
+			elif ev.is_action("restart"):
 				restart()
 			elif ev is InputEventKey and ev.physical_keycode == KEY_C and run.won():
 				go_endless()
@@ -936,6 +946,39 @@ func leave_console() -> void:
 	else:
 		overlay.say("束流在舱里等你，随时回控制台继续")
 
+# —— Esc：回到主页（用户 2026-11-08）——
+## 走动时按 Esc 先弹确认卡（防误按）；进度一直在自动存，主页点“继续实验”接着玩
+func open_pause() -> void:
+	mode = M.PAUSE
+	player.input_enabled = false
+	Sfx.play("paper", -6.0, 1.0)
+	overlay.show_card({"title": "回到主页？", "title_col": Pal.c("blue"), "value": "已攒 %s RP" % fmt(run.total),
+		"sub": "第 %d 次评审 · 进度已自动保存" % (run.stage + 1), "lines": ["回到主页后点“继续实验”，从这里接着玩。"], "keys": ""})
+
+func close_pause() -> void:
+	overlay.hide_card()
+	mode = M.WALK
+	player.input_enabled = true
+	Sfx.play("paper", -8.0, 1.2)
+
+func to_title() -> void:
+	if mode != M.END:
+		_autosave(0.0, true)
+	live_save = false
+	overlay.hide_card()
+	overlay.card_v = 0.0
+	tutorial.stop()
+	if letter.open:
+		letter.open = false
+		letter.visible = false
+	cel.finish()
+	plans.open = false
+	leave_console()
+	chamber.empty()
+	form.reset()
+	Sfx.play("whoosh", -8.0, 0.8)
+	_open_title()
+
 ## 通过第 8 阶段后继续挑战：考核线每阶段 ×ENDLESS_G，先挑计划书再接着做
 func go_endless() -> void:
 	if not run.won():
@@ -949,6 +992,9 @@ func go_endless() -> void:
 
 func restart() -> void:
 	run = Run.new()
+	_begin_tutorial()
+	if tutorial.active:
+		open_letter()
 	overlay.hide_card()
 	leave_console()
 
@@ -1162,6 +1208,8 @@ func _triggers(r: Dictionary) -> void:
 
 # —— 结算卡按钮（鼠标可点，同时显示快捷键） ——
 func card_buttons() -> Array:
+	if mode == M.PAUSE:
+		return [{"label": "回到主页", "key": "Esc", "action": "to_title"}, {"label": "继续实验", "key": "E / 空格", "action": "close_pause"}]
 	if mode == M.END:
 		if run.won():
 			return [{"label": "继续挑战（无尽）", "key": "C", "action": "endless"}, {"label": "重新开始", "key": "R", "action": "restart"}]
@@ -1191,6 +1239,8 @@ func _card_action(a: String) -> void:
 	match a:
 		"restart": restart()
 		"endless": go_endless()
+		"to_title": to_title()
+		"close_pause": close_pause()
 		"submit": submit()
 		"new":
 			if run.can_start(): _new_beam()
@@ -1242,7 +1292,7 @@ func _mouse(ev: InputEventMouse) -> void:
 	if mb.button_index != MOUSE_BUTTON_LEFT:
 		return
 	match mode:
-		M.RESULT, M.END, M.REVIEW, M.CHOICE:
+		M.RESULT, M.END, M.REVIEW, M.CHOICE, M.PAUSE:
 			var a: String = overlay.button_at(sp)
 			if a != "":
 				_card_action(a)
@@ -1338,7 +1388,7 @@ func _hover() -> void:
 			if k >= 0 and run.beam != null:
 				var p := run.odds()
 				tip = PackedStringArray([Odds.NAMES[k], "下一次加速出现这个结果的真实概率：%.1f%%" % (p[k] * 100.0)])
-		M.RESULT, M.END, M.REVIEW, M.CHOICE:
+		M.RESULT, M.END, M.REVIEW, M.CHOICE, M.PAUSE:
 			overlay.hover_btn = overlay.hover_at(sp)
 			hand = overlay.hover_btn >= 0
 	if tip.is_empty() and mode != M.SHOP:
@@ -1436,7 +1486,16 @@ func _demo_tick(dt: float) -> void:
 	Sfx.play("tick", -16.0, 0.8 + b.energy * 0.03)
 	title.demo_text = "E%02d · %s" % [b.energy, form.info.get("name", "")]
 
+## 每次开新游戏：默认放新手教程（开场信 + 逐步引导）；设置里可以关
+func _begin_tutorial() -> void:
+	letter_seen = false
+	if play_tutorial and Options.tutorial:
+		tutorial.start(false)
+	else:
+		tutorial.stop()
+
 func _on_title_start() -> void:
+	_begin_tutorial()
 	run = Run.new()
 	Save.clear()
 	live_save = true

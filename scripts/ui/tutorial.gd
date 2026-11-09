@@ -146,8 +146,7 @@ func _ready() -> void:
 			"done": func(): return main.run.beam == null or not main.run.beam.locked() or step_t > 9.0,
 			"at": func(): return _panel(Vector2(600, 110)), "note": func(): return _panel(Vector2(420, -190))},
 	]
-	if not _cfg_done():
-		start(false)
+	# 不再只放第一局：每次开新游戏由 main 按设置（Options.tutorial，默认开）启动
 
 func start(manual: bool) -> void:
 	active = true

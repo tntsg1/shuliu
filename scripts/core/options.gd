@@ -7,6 +7,7 @@ static var volume := 80          # 0..100
 static var fullscreen := false
 static var dark := false
 static var shake := true
+static var tutorial := true     # 每局开头的新手教程（开场信 + 逐步引导），默认开（用户 2026-11-08）
 
 static func load_and_apply() -> void:
 	if not Memes._testing():
@@ -37,6 +38,7 @@ static func save() -> void:
 	c.set_value("options", "fullscreen", fullscreen)
 	c.set_value("options", "dark", dark)
 	c.set_value("options", "shake", shake)
+	c.set_value("options", "tutorial", tutorial)
 	c.save(CFG)
 
 ## 新手便条重新开启（清掉“已看完”标记）
