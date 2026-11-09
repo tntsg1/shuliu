@@ -20,6 +20,23 @@ func _ready() -> void:
 	Pal.changed.connect(queue_redraw)
 	# 每步：id / 文字 / 何时出现 / 何时完成 / 箭头指向（返回屏幕坐标；null 表示不画箭头）/ 便条位置
 	steps = [
+		# —— 背景：开场信之后，先看墙上的日程表，再看束流从哪来（DECISIONS Q62/Q63）——
+		{"id": "wall", "text": "墙上是评审日程表。
+一共 8 次评审，过一次划掉一格；
+第 4、8 次是大考，线更高。
+（点旁边那张纸能重读那封信）",
+			"say": "这里是第七实验站。8 次评审里交不够任何一次，就卖给星汇数据。",
+			"show": func(): return main.mode == main.M.WALK,
+			"done": func(): return step_t > 8.0 or main.mode != main.M.WALK or main.letter.open,
+			"at": func(): return _w(Vector2(560, 372)), "note": func(): return _w(Vector2(1080, 300))},
+		{"id": "bottles", "text": "这几瓶氢气，
+就是这次评审配给的束流：
+一瓶 = 一束，做一次实验用掉一瓶。
+用完了，就得去交评审。",
+			"say": "束流从离子源来：每次评审，经费处只配给 3 瓶氢气。",
+			"show": func(): return main.mode == main.M.WALK,
+			"done": func(): return step_t > 8.0 or main.mode != main.M.WALK,
+			"at": func(): return _w(Vector2(350, 690)), "note": func(): return _w(Vector2(470, 560))},
 		{"id": "walk", "text": "欢迎上任，负责人。
 点击地面走过去，
 点击设备直接使用。
@@ -42,7 +59,8 @@ func _ready() -> void:
 			"done": func(): return main.mode != main.M.SHOP,
 			"at": null, "note": func(): return Vector2(1500, 800)},
 		{"id": "console", "text": "控制台在观测舱前面。
-点它，开始实验。",
+点它，把第一瓶束流注进去。",
+			"say": "把束流一圈圈加速得越高，引出时换到的科研点就越多。",
 			"show": func(): return main.mode == main.M.WALK,
 			"done": func(): return main.mode != main.M.WALK and main.mode != main.M.SHOP,
 			"at": func(): return _w(Vector2(Geo.CONSOLE_STAND + 30, Geo.FLOOR - 150)), "note": func(): return _w(Vector2(Geo.CONSOLE_STAND + 150, Geo.FLOOR - 520))},
@@ -68,6 +86,13 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam != null and main.run.beam.energy >= 4,
 			"done": func(): return main.run.experiment_no > 1 or main.run.beam == null,
 			"at": func(): return _panel(Vector2(1760, 110)), "note": func(): return _panel(Vector2(1530, -200))},
+		{"id": "report", "text": "实验报告送进了审核台。
+牌子上：要求多少、已攒多少。
+攒够“要求”，就能去交。",
+			"say": "引出的那一刻，潜在成果变成科研点（RP），记在审核台的账上。",
+			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
+			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > 7.0,
+			"at": func(): return _w(Vector2(main.review.X + 75, Geo.FLOOR - 200)), "note": func(): return _w(Vector2(main.review.X - 120, Geo.FLOOR - 420))},
 		{"id": "clips", "text": "左边夹板：考核进度和累计分。
 右边夹板：实验日志，
 还有“显示概率 / 实际频率”，
@@ -75,10 +100,11 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
 			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > 7.0,
 			"at": func(): return Vector2(400, 300), "note": func(): return Vector2(440, 120)},
-		{"id": "submit", "text": "提交考核在右边的审核台。
-累计分够线就能去交，
-也可以接着攒；本阶段 3 束
-用完了，就必须去交。",
+		{"id": "submit", "text": "够了“要求”就去审核台交。
+没用完的气瓶退回，折成经费；
+够线后还接着做，丢了要扣 30%。
+气瓶用完，就必须去交。",
+			"say": "交得早，省下的气瓶换钱；接着赌，攒下的分能带到下一次评审。",
 			"show": func(): return (main.mode == main.M.CONSOLE and main.run.beam == null or main.mode == main.M.WALK) and main.run.experiment_no >= 1 and shown.has("clips"),
 			"done": func(): return main.mode == main.M.REVIEW or main.run.beam != null or step_t > 9.0,
 			"at": func(): return _w(Vector2(main.review.STAND, Geo.FLOOR - 180)), "note": func(): return _w(Vector2(main.review.STAND - 200, Geo.FLOOR - 480))},
@@ -133,6 +159,7 @@ func start(manual: bool) -> void:
 func stop() -> void:
 	active = false
 	idx = -1
+	queue_redraw()
 
 func _cfg_done() -> bool:
 	var c := ConfigFile.new()
@@ -160,6 +187,9 @@ func _panel(p: Vector2) -> Vector2:
 func _process(dt: float) -> void:
 	if not active or main == null or main.run == null:
 		return
+	if main.letter != null and main.letter.open:
+		queue_redraw()
+		return
 	step_t += dt
 	if done_t >= 0.0:
 		done_t += dt
@@ -173,6 +203,8 @@ func _process(dt: float) -> void:
 			done_t = 0.0
 			Sfx.play("paper", -10.0, 1.3)
 	if idx < 0 and done_t < 0.0:
+		# 挑下一步时计时从 0 算：否则“停留几秒算完成”的步骤会拿上一步的计时，一出现就被判完成
+		step_t = 0.0
 		for i in steps.size():
 			var st: Dictionary = steps[i]
 			if shown.has(st.id):
@@ -181,6 +213,8 @@ func _process(dt: float) -> void:
 				idx = i
 				step_t = 0.0
 				Sfx.play("paper", -12.0, 1.1)
+				if st.has("say"):
+					main.overlay.narrate(st.say, 6.0)
 				break
 			if st.show.call() and st.done.call():
 				shown[st.id] = true
@@ -190,7 +224,7 @@ func _process(dt: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if not active or idx < 0:
+	if not active or idx < 0 or (main != null and main.letter != null and main.letter.open):
 		return
 	var st: Dictionary = steps[idx]
 	var appear := Ink.ease_out_back(clampf(step_t / 0.3, 0.0, 1.0))

@@ -13,7 +13,11 @@ var bump := 0.0            # 新报告落进收件盘时弹一下
 var _last_n := 0
 
 func rect() -> Rect2:
-	return Rect2(X - 10, Geo.FLOOR - 230, W + 20, 230)
+	return Rect2(X - 10, Geo.FLOOR - 252, W + 20, 252)
+
+## 收件盘的位置（实验报告纸条飞进这里）
+func inbox() -> Vector2:
+	return Vector2(X + 39, Geo.FLOOR - 82)
 
 func _process(dt: float) -> void:
 	t += dt
@@ -34,16 +38,21 @@ func _draw() -> void:
 	var can: bool = run.can_submit()
 	var must: bool = run.beam == null and run.experiments_left <= 0 and not run.won() and not run.failed
 	# —— 墙上的进度牌 ——
-	var br := Rect2(X + 8, y - 232, W - 16, 74)
+	# 像锻刀模拟器的献上窗口：要求多少、已经攒了多少，一眼看清
+	var br := Rect2(X + 4, y - 252, W - 8, 92)
 	draw_rect(Rect2(br.position + Vector2(3, 4), br.size), Color(0, 0, 0, 0.12))
 	draw_rect(br, Pal.c("paper"))
 	Ink.frame(self, br, el, 1.6)
 	draw_rect(Rect2(br.position, Vector2(br.size.x, 16)), Pal.c("red") if must else (Pal.c("green") if can else Pal.c("blue")))
 	Ink.text(self, "考核审核台", br.position + Vector2(br.size.x * 0.5, 13), 12, Pal.c("paper"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	if not run.won():
-		Ink.text(self, ("第 %d 阶段 · 大考" if Run.is_big(run.stage) else "第 %d 阶段") % (run.stage + 1), br.position + Vector2(8, 34), 12, Pal.c("red") if Run.is_big(run.stage) else Pal.c("text2"))
-		Ink.text(self, "%d / %d" % [run.total, run.line()], br.end - Vector2(8, 38), 13, Pal.c("text"), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
-		var pr := Rect2(br.position.x + 8, br.end.y - 18, br.size.x - 16, 8)
+		var big := Run.is_big(run.stage)
+		Ink.text(self, ("第 %d 次评审 · 大考" if big else "第 %d 次评审") % (run.stage + 1), br.position + Vector2(10, 33), 12, Pal.c("red") if big else Pal.c("text2"), Pal.bold if big else Pal.font)
+		Ink.text(self, "要求", br.position + Vector2(10, 52), 12, Pal.c("text2"))
+		Ink.text(self, main.fmt(run.line()), Vector2(br.end.x - 10, br.position.y + 52), 14, Pal.c("text"), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
+		Ink.text(self, "已攒", br.position + Vector2(10, 70), 12, Pal.c("text2"))
+		Ink.text(self, main.fmt(run.total), Vector2(br.end.x - 10, br.position.y + 70), 14, Pal.c("green") if can else Pal.c("text"), Pal.mono if not can else Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+		var pr := Rect2(br.position.x + 8, br.end.y - 14, br.size.x - 16, 7)
 		draw_rect(pr, Pal.c("paper2"))
 		var k := clampf(float(run.total) / maxf(1.0, run.line()), 0.0, 1.0)
 		draw_rect(Rect2(pr.position, Vector2(pr.size.x * k, pr.size.y)), Pal.c("green") if can else Pal.c("ramp2"))

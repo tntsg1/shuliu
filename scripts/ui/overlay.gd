@@ -108,6 +108,35 @@ func super_burst(center: Vector2) -> void:
 func flash_lock() -> void:
 	lockfx = 1.0
 
+# —— 旁白字幕（像锻刀模拟器那样，屏幕下方一行字；控制台升起时让到面板上面）——
+var narr := ""
+var narr_t := 0.0
+var narr_dur := 0.0
+
+func narrate(s: String, dur := 5.0) -> void:
+	narr = s
+	narr_t = 0.0
+	narr_dur = dur
+
+func _narration(vp: Vector2) -> void:
+	if narr == "" or narr_t > narr_dur:
+		return
+	var a := clampf(narr_t / 0.35, 0.0, 1.0) * clampf((narr_dur - narr_t) / 0.5, 0.0, 1.0)
+	var sv: float = main.panel.show_v if main and main.panel else 0.0
+	var y := vp.y - 120.0 - 300.0 * sv
+	var lines := narr.split(String.chr(10))
+	var fs := 24
+	var w := 0.0
+	for l in lines:
+		w = maxf(w, Ink.size(Pal.hand, l, fs).x)
+	var h := lines.size() * 34.0 + 18.0
+	var r := Rect2(vp.x * 0.5 - w * 0.5 - 30, y - h, w + 60, h)
+	draw_rect(r, Color(Color("#1f1d1a"), 0.62 * a))
+	var ly := r.position.y + 36.0
+	for l in lines:
+		Ink.text(self, l, Vector2(vp.x * 0.5, ly), fs, Color(Color("#f8f3e7"), a), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
+		ly += 34.0
+
 func say(s: String) -> void:
 	toast = s
 	toast_t = 2.2
@@ -143,6 +172,8 @@ func _process(dt: float) -> void:
 		bloom_v += dt
 		r = Ink.spring(bloom_disp, _vb, float(bloom_target), 4.2, dt); bloom_disp = r[0]; _vb = r[1]
 	toast_t = maxf(0.0, toast_t - dt)
+	if narr != "":
+		narr_t += dt
 	tip_v = lerpf(tip_v, 1.0 if not tip_lines.is_empty() else 0.0, 1.0 - exp(-18.0 * dt))
 	red = maxf(0.0, red - dt * 2.2)
 	lockfx = maxf(0.0, lockfx - dt * 1.2)
@@ -189,6 +220,7 @@ func _draw() -> void:
 		_stamp(vp)
 	if card_v > 0.01:
 		_card(vp)
+	_narration(vp)
 	if toast_t > 0.0:
 		var a := clampf(toast_t / 0.3, 0.0, 1.0)
 		var w := Ink.size(Pal.font, toast, 18).x + 40
@@ -273,7 +305,10 @@ func _tally(vp: Vector2) -> void:
 	var drop := Ink.ease_out_back(clampf(k / 0.35, 0.0, 1.0))
 	var fly := Ink.ease_in_out(clampf((k - 2.0) / 0.5, 0.0, 1.0))
 	var home := Vector2(vp.x * 0.5, 150.0)
+	# 实验报告送进审核台的收件盘（DECISIONS Q64）
 	var dest := Vector2(230.0, 250.0)
+	if main and main.review:
+		dest = get_viewport().get_canvas_transform() * (main.review.inbox() as Vector2)
 	var p := Vector2(home.x, lerpf(-80.0, home.y, drop)).lerp(dest, fly)
 	var sc := lerpf(1.0, 0.35, fly)
 	var a := 1.0 - clampf((k - 2.35) / 0.25, 0.0, 1.0)

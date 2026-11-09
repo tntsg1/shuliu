@@ -19,6 +19,9 @@ var bloom_form := {}        # 这一束引出时的形态（成果卡）
 var detector: Node2D
 var desk: Node2D
 var review: Node2D
+var notice: Node2D          # 墙上的评审日程表 + 经费处理决定（点它重读开场信）
+var bottles: Node2D         # 束流配额气瓶架
+var letter: Control         # 开场信
 var goal_card := Callable()   # 庆祝播到 1.5 秒时升起“下一阶段目标”卡
 var review_passed := false   # 审核台：刚通过一个阶段，卡片只剩“好的”
 var player: Node2D
@@ -103,6 +106,10 @@ func _ready() -> void:
 	desk.set("main", self)
 	review = _node("res://scripts/world/review.gd", world)
 	review.set("main", self)
+	notice = _node("res://scripts/world/notice.gd", world)
+	notice.set("main", self)
+	bottles = _node("res://scripts/world/bottles.gd", world)
+	bottles.set("main", self)
 	player = _node("res://scripts/world/player.gd", world)
 	prompt = _node("res://scripts/world/prompt.gd", world)
 	cam = Camera2D.new()
@@ -147,6 +154,8 @@ func _ready() -> void:
 	add_child(il)
 	intro = _ctrl("res://scripts/ui/intro.gd", il)
 	intro.finished.connect(_on_intro_done)
+	letter = _ctrl("res://scripts/ui/letter.gd", il)
+	letter.closed.connect(_on_letter_closed)
 	var dl := CanvasLayer.new()
 	dl.layer = 40
 	add_child(dl)
@@ -233,6 +242,20 @@ func resume(loaded: Run) -> void:
 func _on_intro_done() -> void:
 	player.input_enabled = true
 	cam_omega = 2.2
+	# 第一次开局：剖面图之后先递上那封信（交代破产、8 次评审、3 瓶束流、审核台）
+	if tutorial.active and not letter_seen:
+		open_letter()
+
+var letter_seen := false
+
+func open_letter() -> void:
+	letter_seen = true
+	player.input_enabled = false
+	letter.show_letter()
+
+func _on_letter_closed() -> void:
+	if mode == M.WALK:
+		player.input_enabled = true
 
 func _node(path: String, parent: Node) -> Node2D:
 	var n := Node2D.new()
@@ -291,6 +314,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 		return
 	if intro.active:
 		intro.skip()
+		return
+	if letter.open:
+		letter.press()
 		return
 	if mode == M.TITLE:
 		title.handle(ev)
@@ -768,6 +794,8 @@ func submit() -> void:
 		return
 	var res := run.submit()
 	review.bump = 1.0
+	if res.passed and res.get("left", 0) > 0:
+		bottles.refund(res.left, res.leftover)
 	if res.passed:
 		clip_l.stamp("阶段 %d 通过" % (res.stage + 1))
 		Sfx.play("btn", 0.0, 0.6)
@@ -1200,6 +1228,9 @@ func _mouse(ev: InputEventMouse) -> void:
 	if intro.active:
 		intro.skip()
 		return
+	if letter.open:
+		letter.press()
+		return
 	if mb.button_index == MOUSE_BUTTON_RIGHT:
 		if mode == M.RESULT and not run.must_submit():
 			leave_console()
@@ -1236,7 +1267,10 @@ func _mouse(ev: InputEventMouse) -> void:
 				_finish_bloom()
 		M.WALK:
 			var wp := _to_world(sp)
-			if _terminal_rect().has_point(wp):
+			if notice.rect().has_point(wp):
+				Sfx.play("paper", -6.0, 1.0)
+				open_letter()
+			elif _terminal_rect().has_point(wp):
 				_walk_to(Geo.TERMINAL_X + 35, "shop")
 			elif review.rect().has_point(wp):
 				_walk_to(review.STAND, "review")
@@ -1278,7 +1312,12 @@ func _hover() -> void:
 	review.hot = lerpf(review.hot, 1.0 if (mode == M.WALK and (review.rect().has_point(wp) or _near_review())) else 0.0, 0.25)
 	match mode:
 		M.WALK:
-			if review.rect().has_point(wp):
+			notice.hot = lerpf(notice.hot, 1.0 if notice.rect().has_point(wp) else 0.0, 0.3)
+			if notice.rect().has_point(wp):
+				hand = true
+				hover_interact = true
+				prompt.show_at(Vector2(notice.NOTE.get_center().x, notice.NOTE.position.y - 14), "点击", "重读那封信")
+			elif review.rect().has_point(wp):
 				hand = true
 				hover_interact = true
 				prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "点击", "考核审核台")
