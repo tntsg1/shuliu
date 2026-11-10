@@ -104,7 +104,7 @@ func can_sign() -> bool:
 
 func sign_group(id: String) -> String:
 	if not can_sign():
-		return "本局实验已经开始了，下一局再签"
+		return "本局实验已经开始，暂时不能更换合同，下一局开始前再来签订。"
 	if not Contracts.GROUPS.has(id) or id == group:
 		return ""
 	# 先退掉旧组的开局配置
@@ -114,7 +114,7 @@ func sign_group(id: String) -> String:
 			relics.erase("note100")
 		"finance":
 			if money < 30:
-				return "财务组发的经费已经花掉了，不能改签"
+				return "财务组提供的初始经费已经使用，当前不能更换合同。"
 			money -= 30
 		"postdoc":
 			experiments_left -= 1
@@ -132,13 +132,13 @@ func sign_group(id: String) -> String:
 
 func sign_challenge(id: String) -> String:
 	if not can_sign():
-		return "本局实验已经开始了，下一局再签"
+		return "本局实验已经开始，暂时不能更换合同，下一局开始前再来签订。"
 	if id != "" and not challenge_offers.has(id):
 		return "桌上没有这份合同"
 	if id == challenge:
 		return ""
 	if id == "one_relic" and slot_used("relic") > 1:
-		return "护身符架上已经不止 1 件了"
+		return "护身符架上已经放了超过 1 件护身符，不符合这份合同的签订要求。"
 	if challenge == "zero_money":
 		money += challenge_money
 		challenge_money = 0
@@ -370,18 +370,18 @@ func charm_state(id: String) -> Dictionary:
 	var e := 0 if b == null else b.energy
 	match id:
 		# —— 攒进度 ——
-		"rejected": return _cs("怨气 %d/3" % rejected_stacks, rejected_stacks == 0)
+		"rejected": return _cs("怨气累计 %d/3" % rejected_stacks, rejected_stacks == 0)
 		"coffee":
-			if b == null: return _cs("连成 0/3", true)
-			return _cs("已用", true) if b.coffee_used else _cs("连成 %d/3" % mini(3, b.streak), b.streak == 0)
+			if b == null: return _cs("连续成功 0/3", true)
+			return _cs("已经使用", true) if b.coffee_used else _cs("连续成功 %d/3" % mini(3, b.streak), b.streak == 0)
 		"alarm_4am":
-			if b == null: return _cs("加速 0/7", true)
-			return _cs("已用", true) if b.alarm_used else _cs("加速 %d/7" % mini(7, b.presses), b.presses == 0)
+			if b == null: return _cs("已加速 0/7 次", true)
+			return _cs("已经使用", true) if b.alarm_used else _cs("已加速 %d/7 次" % mini(7, b.presses), b.presses == 0)
 		"third_draft":
 			if b == null: return _cs("稳定 0/2", true)
-			return _cs("×%.1f · %d/2" % [1.0 + b.draft, b.draft_stable % 2], b.draft <= 0.0)
-		"koi": return _cs("好运 0/5", true) if b == null else _cs("好运 %d/5" % b.koi, b.koi == 0)
-		"grad_promise": return _cs("承诺 %d/4" % promise, promise == 0)
+			return _cs("加成 ×%.1f · 进度 %d/2" % [1.0 + b.draft, b.draft_stable % 2], b.draft <= 0.0)
+		"koi": return _cs("好运累计 0/5", true) if b == null else _cs("好运累计 %d/5" % b.koi, b.koi == 0)
+		"grad_promise": return _cs("承诺进度 %d/4" % promise, promise == 0)
 		"chair":
 			if b == null or b.chair <= 0.0: return _cs("×1.0", true)
 			return _cs("×%.1f" % (1.0 + b.chair), false)
@@ -390,8 +390,8 @@ func charm_state(id: String) -> Dictionary:
 			return _cs("×%.2f" % (1.0 + minf(0.6, b.streak * 0.03)), b.streak == 0)
 		"budget": return _cs("×%.2f" % (1.0 + minf(0.5, floor(money / 10.0) * 0.05)), money < 10)
 		"screw": return {} if b == null or b.screw_mult <= 1.0 else _cs("×%d" % int(b.screw_mult), false)
-		"impossible": return _cs("完美<5%", true) if b == null or b.imp_mult <= 1.0 else _cs("×5", false)
-		"note100": return _cs("下次必成", false) if b != null and b.guaranteed_next else _cs("成功≥75%", true)
+		"impossible": return _cs("完美同步率<5%", true) if b == null or b.imp_mult <= 1.0 else _cs("×5", false)
+		"note100": return _cs("下次必定成功", false) if b != null and b.guaranteed_next else _cs("成功概率≥75%", true)
 		# —— 本阶段一次 ——
 		"badge": return _once(stage_badge_used, "本阶段")
 		"extinguisher": return _once(stage_ext_used, "本阶段")
@@ -400,10 +400,10 @@ func charm_state(id: String) -> Dictionary:
 		"schrodinger": return _once(stage_sch_used, "本阶段")
 		"protect_sys": return _once(stage_protect_used, "本阶段")
 		"lost_data":
-			if lost_charge_pending or lost_bonus > 0: return _cs("待兑现 +%d" % lost_bonus, false)
+			if lost_charge_pending or lost_bonus > 0: return _cs("等待兑现 +%d" % lost_bonus, false)
 			return _once(stage_lost_data_used, "本阶段")
-		"dean_pen": return _cs("之后 ×0.8", true) if stage_pen_used else _cs("首次 ×3", false)
-		"red_flag": return _cs("已收起", true) if stage_had_loss else _cs("×1.4 有效", false)
+		"dean_pen": return _cs("后续触发 ×0.8", true) if stage_pen_used else _cs("第一次触发 ×3", false)
+		"red_flag": return _cs("已经收起", true) if stage_had_loss else _cs("×1.4 加成已经生效", false)
 		# —— 本局一次 ——
 		"dean_paper": return _once(paper_used, "本局")
 		# —— 本束一次 ——
@@ -413,19 +413,19 @@ func charm_state(id: String) -> Dictionary:
 		"diagnostic": return _beam_once(b, "diag_used")
 		"red_button": return _beam_once(b, "red_used")
 		"marker":
-			if b == null: return _cs("×1.15 待兑现", true)
-			return _cs("失谐了", true) if b.had_detune else _cs("×1.15 待兑现", false)
-		"meal_card": return _cs("可领 $2", false) if meal_ready else _cs("已领", true)
+			if b == null: return _cs("×1.15 加成等待兑现", true)
+			return _cs("已经发生失谐", true) if b.had_detune else _cs("×1.15 加成等待兑现", false)
+		"meal_card": return _cs("可以领取 $2", false) if meal_ready else _cs("已经领取", true)
 		# —— 条件生效 ——
-		"dose_card": return _cs("E10 起", e < 10)
-		"cryo_magnet": return _cs("E10 起", e < 10)
-		"nobel_list": return _cs("E12 起", e < 12)
-		"calorimeter": return _cs("E8 起", e < 8)
-		"last_slide": return _cs("最后一束", experiments_left != 1)
+		"dose_card": return _cs("能级达到 E10 后生效", e < 10)
+		"cryo_magnet": return _cs("能级达到 E10 后生效", e < 10)
+		"nobel_list": return _cs("能级达到 E12 后生效", e < 12)
+		"calorimeter": return _cs("能级达到 E8 后生效", e < 8)
+		"last_slide": return _cs("剩下最后一束", experiments_left != 1)
 		"phd_cert": return _cs("背水一战", not (experiments_left == 1 and total < line()))
-		"duty_roster": return _cs("第 1 下", b == null or b.presses != 0)
+		"duty_roster": return _cs("第一次操作", b == null or b.presses != 0)
 		"ultimatum":
-			if b == null or b.presses < 3: return _cs("必成 %d/3" % (0 if b == null else b.presses), false)
+			if b == null or b.presses < 3: return _cs("必定成功 %d/3" % (0 if b == null else b.presses), false)
 			return _cs("丢失 +10%", false)
 	return {}
 
@@ -433,12 +433,12 @@ func _cs(t: String, dim: bool) -> Dictionary:
 	return {"t": t, "dim": dim}
 
 func _once(used: bool, per: String) -> Dictionary:
-	return _cs("已用", true) if used else _cs(per + "可用", false)
+	return _cs("已经使用", true) if used else _cs({"本阶段": "当前阶段可以使用", "本局": "本局可以使用"}.get(per, per + "可用"), false)
 
 func _beam_once(b: Beam, field: String) -> Dictionary:
 	if b == null:
-		return _cs("每束一次", true)
-	return _cs("已用", true) if bool(b.get(field)) else _cs("本束可用", false)
+		return _cs("每束只能使用一次", true)
+	return _cs("已经使用", true) if bool(b.get(field)) else _cs("当前束流可以使用", false)
 
 func potential() -> int:
 	return 0 if beam == null else int(floor(beam.value_base() * multiplier()))
@@ -472,11 +472,11 @@ func accelerate() -> Dictionary:
 	if k == Odds.DETUNE and has("tape_roll") and not b.tape_used:
 		b.tape_used = true
 		k = Odds.STABLE
-		trig.append(["tape_roll", "粘住了：失谐 → 稳定"])
+		trig.append(["tape_roll", "胶带生效了，失谐结果改为稳定"])
 	if k == Odds.DETUNE and has("badge") and not stage_badge_used:
 		stage_badge_used = true
 		k = Odds.STABLE
-		trig.append(["badge", "刷开了：失谐 → 稳定"])
+		trig.append(["badge", "已经刷开了，失谐结果改为稳定"])
 	# 带概率的饰品：触发记录里附上 {p, hit}，界面用它播“抽卡”
 	if k == Odds.DETUNE and has("wrong_answer"):
 		var hit := _hit(0.2)
@@ -508,18 +508,18 @@ func accelerate() -> Dictionary:
 		stage_call_used = true
 		k = Odds.STABLE
 		b.saved = true
-		trig.append(["emergency_call", "教授接了：丢失 → 稳定"])
+		trig.append(["emergency_call", "教授接住了，束流丢失改为稳定"])
 	if k == Odds.LOSS and has("extinguisher") and not stage_ext_used and b.energy <= 6:
 		stage_ext_used = true
 		k = Odds.STABLE
 		b.saved = true
-		trig.append(["extinguisher", "喷上了：丢失 → 稳定"])
+		trig.append(["extinguisher", "喷涂效果已经生效，束流丢失改为稳定"])
 	if k == Odds.LOSS and has("coin") and not b.coin_used:
 		b.coin_used = true
 		if _hit(0.5):
 			k = Odds.STABLE
 			b.saved = true
-			trig.append(["coin", "正面！丢失 → 稳定", {"p": 0.5, "hit": true}])
+			trig.append(["coin", "翻到了正面，束流丢失改为稳定", {"p": 0.5, "hit": true}])
 		else:
 			trig.append(["coin", "反面……", {"p": 0.5, "hit": false}])
 	var gamble := b.sch_gamble
@@ -583,7 +583,7 @@ func accelerate() -> Dictionary:
 				stage_lost_data_used = true
 				lost_bonus = int(floor(pot * 0.15))
 				lost_charge_pending = true
-				trig.append(["lost_data", "下次引出 +%d · 下束充能 +2" % lost_bonus])
+				trig.append(["lost_data", "下次引出额外 +%d，下一束锁相充能 +2" % lost_bonus])
 		_log(k, from, from)
 		b.alive = false
 		_apply_tax(res)
@@ -638,10 +638,10 @@ func accelerate() -> Dictionary:
 	if k == Odds.STABLE and has("third_draft"):
 		b.draft = minf(1.0, b.draft + 0.1)
 		b.draft_stable += 1
-		trig.append(["third_draft", "第 %d 次修改：×%.1f" % [b.draft_stable, 1.0 + b.draft], {"quiet": true}])
+		trig.append(["third_draft", "第 %d 次修改完成，本次倍率 ×%.1f" % [b.draft_stable, 1.0 + b.draft], {"quiet": true}])
 		if b.draft_stable % 2 == 0 and not was_locked and not b.lock_used:
 			b.charge += 1
-			trig.append(["third_draft", "稳定两次：锁相充能 +1"])
+			trig.append(["third_draft", "累计获得 2 次稳定结果，锁相充能 +1"])
 	if good and has("nobel_list") and b.energy >= 12:
 		money += 4
 		res.money += 4
@@ -651,7 +651,7 @@ func accelerate() -> Dictionary:
 		trig.append(["grad_promise", "下次锁相 +%d" % promise])
 	if k == Odds.DETUNE and has("rejected"):
 		rejected_stacks = mini(3, rejected_stacks + 1)
-		trig.append(["rejected", "怨气 %d/3" % rejected_stacks + ("，下次成功 +3" if rejected_stacks >= 3 else ""), {"quiet": true}])
+		trig.append(["rejected", ("怨气已经累计到 3/3，下次成功时额外 +3" if rejected_stacks >= 3 else "当前怨气累计 %d/3" % rejected_stacks), {"quiet": true}])
 	if (k == Odds.PERFECT or k == Odds.SUPER) and has("koi") and b.koi < 5:
 		b.koi += 1
 		trig.append(["koi", "好运 ×%d" % b.koi])
@@ -963,7 +963,7 @@ func buy(i: int) -> String:
 	if money < price:
 		return "经费不够"
 	if def.kind == "relic" and ch("devices_only"):
-		return "挑战合同：本局只能买设备"
+		return "挑战合同：本局只能购买设备，不能购买其他物品。"
 	if not slots_free(def.kind, o.id):
 		return ("设备" if def.kind == "device" else "饰品") + "槽已满，先卖掉一件"
 	money -= price
@@ -1119,7 +1119,7 @@ func put_in_basket() -> String:
 
 func store_in_cab() -> String:
 	if ch("no_cab"):
-		return "挑战合同：储备柜本局封存"
+		return "挑战合同：本局不能使用储备柜。"
 	if held != "full":
 		return "手里没有满瓶"
 	if cab.size() >= CAB_SLOTS:
@@ -1168,9 +1168,9 @@ func lost_take() -> String:
 		return "没有可收的东西"
 	var kind: String = Items.ALL[id].kind
 	if kind == "relic" and ch("devices_only"):
-		return "挑战合同：本局只能要设备，这件只能折成 $%d" % LOST_CASH
+		return "挑战合同：本局只能购买设备，这件物品只能换成 $%d 经费。" % LOST_CASH
 	if not slots_free(kind, id):
-		return ("设备槽" if kind == "device" else "护身符架") + "满了：先去采购终端卖掉一件，或者折成 $%d" % LOST_CASH
+		return ("设备槽已经放满了，可以先去采购终端出售一件设备" if kind == "device" else "护身符架已经放满了，可以先去采购终端出售一件护身符") + "，或者把这件物品换成 $%d 经费。" % LOST_CASH
 	if kind == "device":
 		devices.append(id)
 	else:

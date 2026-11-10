@@ -93,6 +93,14 @@ func _rules() -> void:
 	s.spent = 320
 	var st := Meta.settle(s)
 	check(st.gain == int(round(45 * 1.6)) and st.opened.has("group:finance"), "一件护身符 ×1.6 声望；花满 $300 解锁财务组")
+	var ph := Run.new(11)
+	ph.relics.append("phd_cert")
+	ph.stage = 4
+	ph.failed = true
+	ph.spent = 400
+	var p0 := Meta.prestige()
+	var sp := Meta.settle(ph)
+	check(sp.gain == 0 and sp.opened.is_empty() and Meta.prestige() == p0 and sp.get("phd", false), "博士学位证书没通过：不给局外进度")
 
 func _go() -> void:
 	await frames(5)

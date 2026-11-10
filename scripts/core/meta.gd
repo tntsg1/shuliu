@@ -95,6 +95,14 @@ static func settle(run: Run) -> Dictionary:
 	if run.challenge != "":
 		mult *= 1.0 + float(Contracts.CHALLENGES[run.challenge].bonus)
 	var gain := int(round(base * mult))
+	# 博士学位证书：带着它最终没通过评审，本局不给任何局外进度（物品描述写明的代价）
+	if run.failed and not run.won() and run.has("phd_cert"):
+		run.meta_paid += stages
+		if not run.meta_counted:
+			run.meta_counted = true
+			d.runs = int(d.runs) + 1
+		save()
+		return {"gain": 0, "base": base, "mult": mult, "stages": stages, "clear": false, "opened": [], "phd": true}
 	run.meta_paid += stages
 	if clear:
 		run.meta_cleared = true
@@ -134,11 +142,11 @@ static func borrow_price(id: String) -> int:
 static func borrow_block(id: String) -> String:
 	ensure()
 	if unlocked(id):
-		return "已借阅"
+		return "已经借阅"
 	if Items.ALL[id].rarity == Items.LEGEND and int(d.clears) < 1:
-		return "传说那一格：第一次通关后打开"
+		return "传说物品需要首次通关后才能借阅"
 	if prestige() < borrow_price(id):
-		return "声望不够（要 %d，现有 %d）" % [borrow_price(id), prestige()]
+		return "科研声望不足（需要 %d，当前拥有 %d）" % [borrow_price(id), prestige()]
 	return ""
 
 static func borrow(id: String) -> String:

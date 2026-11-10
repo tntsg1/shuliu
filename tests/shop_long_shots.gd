@@ -1,0 +1,37 @@
+extends SceneTree
+## 长“大字”排版检查（用户改的文案）
+var main: Node
+
+func _initialize() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots/"))
+	main = load("res://main.tscn").instantiate()
+	main.play_tutorial = false
+	main.play_intro = false
+	root.add_child(main)
+	_go()
+
+func frames(n: int) -> void:
+	for i in n:
+		await process_frame
+
+func _go() -> void:
+	await frames(3)
+	main.run.money = 400
+	main.run.relics = ["tape_roll", "rejected"]
+	main.run.devices = []
+	main.run.offers.clear()
+	for id in ["screw", "extinguisher", "lost_data", "third_draft", "lab_cat"]:
+		main.run.offers.append({"id": id, "sold": false, "price": Items.ALL[id].price})
+	main.player.position.x = Geo.TERMINAL_X + 35
+	main.open_shop()
+	await frames(100)
+	main.shop.kb = false
+	main.shop.hover_card = -1
+	await frames(10)
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/shop_long.png"))
+	var ok: bool = Items.combo_with("third_draft", main.run.relics).get("with", "") == "胶带" \
+		and Items.combo_with("grad_promise", main.run.relics).get("with", "") == "拒稿论文" \
+		and Items.combo_with("magnet_sc", main.run.relics).is_empty() and Items.combo_with("beam_dump", main.run.relics).is_empty()
+	print("combo shop: ", "OK" if ok else "FAIL")
+	quit(0)

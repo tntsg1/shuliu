@@ -46,21 +46,21 @@ func _go() -> void:
 	await frames(40)
 	await snap("cs_01_start")
 	var ok := true
-	ok = ok and run.charm_state("rejected").t == "怨气 0/3" and run.charm_state("tape_roll").t == "本束可用"
+	ok = ok and run.charm_state("rejected").t == "怨气累计 0/3" and run.charm_state("tape_roll").t == "当前束流可以使用"
 	# 失谐：诊断仪先拦（本束已用），第二次胶带拦，第三次工牌拦
 	await press(Odds.DETUNE)
 	await press(Odds.DETUNE)
 	await press(Odds.DETUNE)
-	ok = ok and run.charm_state("diagnostic").t == "已用" and run.charm_state("tape_roll").t == "已用" and run.charm_state("badge").t == "已用"
-	ok = ok and run.charm_state("third_draft").t.begins_with("×1.3")
+	ok = ok and run.charm_state("diagnostic").t == "已经使用" and run.charm_state("tape_roll").t == "已经使用" and run.charm_state("badge").t == "已经使用"
+	ok = ok and run.charm_state("third_draft").t.begins_with("加成 ×1.3")
 	# 第四次失谐没人拦：怨气 1/3
 	await press(Odds.DETUNE)
-	ok = ok and run.charm_state("rejected").t == "怨气 1/3"
+	ok = ok and run.charm_state("rejected").t == "怨气累计 1/3"
 	await frames(8)
 	await snap("cs_02_used_pulse")
 	await press(Odds.SUCCESS)
 	await press(Odds.SUCCESS)
-	ok = ok and run.charm_state("coffee").t == "连成 2/3"
+	ok = ok and run.charm_state("coffee").t == "连续成功 2/3"
 	run.beam.energy = 11
 	main._sync()
 	await frames(50)

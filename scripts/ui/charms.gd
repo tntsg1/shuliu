@@ -16,17 +16,17 @@ var states := {}         # id -> {t, dim, pulse}：状态签当前文字，文�
 var nudges: Array = []   # 持续生效的物品这一下起了作用：晃一下 + 头顶冒一张小纸签 {id, text, t, col}
 
 const TOK := 48.0
-const ROW := 80.0         # 一排高度：纸牌 + 底下的状态签
+const ROW := 90.0         # 一排高度：纸牌 + 底下的状态签
 const GAP := 62.0
 const BOARD_W := 400.0
 const FLY_END := 0.5
 const ROLL_T := 1.15
 const CHAIN_T := 0.25     # 连锁结算单：每条间隔（Q75）
-const CHAIN_W := 430.0
+const CHAIN_W := 480.0
 ## 结算顺序里的阶段名（Run.accelerate 按这个顺序处理：重抽 → 改写 → 保护 → 最终结果 → 结果类效果）
-const PHASE := {"eraser": "重抽", "diagnostic": "改写", "tape_roll": "改写", "badge": "改写", "wrong_answer": "改写",
-	"bandaid": "改写", "note100": "保底", "screw": "意外", "lab_cat": "保护", "emergency_call": "保护", "extinguisher": "保护",
-	"coin": "保护", "schrodinger": "保护", "dean_paper": "抢救", "protect_sys": "抢救"}
+const PHASE := {"eraser": "重新抽取", "diagnostic": "结果修改", "tape_roll": "结果修改", "badge": "结果修改", "wrong_answer": "结果修改",
+	"bandaid": "结果修改", "note100": "保底触发", "screw": "意外事件", "lab_cat": "保护效果", "emergency_call": "保护效果", "extinguisher": "保护效果",
+	"coin": "保护效果", "schrodinger": "保护效果", "dean_paper": "抢救结果", "protect_sys": "抢救结果"}
 
 var chain := {}           # 连锁结算单 {lines: [[阶段, 名字, 文字, 出现时刻, 颜色]], t, end}
 
@@ -93,7 +93,7 @@ func play_chain(r: Dictionary) -> void:
 	var lines: Array = []
 	var at := 0.0
 	if raw != out:
-		lines.append(["抽到", "", Odds.NAMES[raw], 0.0, Pal.outcome(raw)])
+		lines.append(["抽取结果", "", Odds.NAMES[raw], 0.0, Pal.outcome(raw)])
 		at = CHAIN_T
 	for tr in trs:
 		var id: String = tr[0]
@@ -115,14 +115,14 @@ func play_chain(r: Dictionary) -> void:
 		var col: Color = Pal.c("text")
 		if extra.has("hit") and not extra.hit:
 			col = Pal.c("text2")
-		lines.append([PHASE.get(id, "效果"), nm, tr[1], show_t, col])
+		lines.append([PHASE.get(id, "生效效果"), nm, tr[1], show_t, col])
 	if lines.size() < 2 and raw == out:
 		chain = {}
 		return
 	if r.get("lost", false):
-		lines.append(["结果", "", Odds.NAMES[Odds.LOSS], at + 0.1, Pal.outcome(Odds.LOSS)])
+		lines.append(["最终结果", "", Odds.NAMES[Odds.LOSS], at + 0.1, Pal.outcome(Odds.LOSS)])
 	elif not r.get("sch", false) and r.has("outcome"):
-		lines.append(["结果", "", Odds.NAMES[out], at + 0.1, Pal.outcome(out)])
+		lines.append(["最终结果", "", Odds.NAMES[out], at + 0.1, Pal.outcome(out)])
 	chain = {"lines": lines, "t": 0.0, "end": at + 0.1, "shown": 0}
 
 ## 结算单还在逐条写：空格 / E 一下子全写出来（飞出来的饰品也直接落回挂板）
@@ -154,7 +154,7 @@ func _draw_chain(a: float, el: Color) -> void:
 	draw_rect(Rect2(r.position + Vector2(4, 5), r.size), Color(0, 0, 0, 0.12 * ca))
 	draw_rect(r, Color(Pal.c("paper"), ca))
 	Ink.frame(self, r, Color(el, 0.7 * ca), Ink.W3)
-	Ink.text(self, "本次结算", Vector2(r.position.x + 12, r.position.y + 18), 12, Color(Pal.c("text2"), ca), Pal.bold)
+	Ink.text(self, "本次实验结算", Vector2(r.position.x + 12, r.position.y + 18), 12, Color(Pal.c("text2"), ca), Pal.bold)
 	for i in n:
 		var ln: Array = chain.lines[i]
 		var la := clampf((chain.t - float(ln[3])) / 0.12, 0.0, 1.0) * ca
@@ -162,15 +162,17 @@ func _draw_chain(a: float, el: Color) -> void:
 			continue
 		var y := r.position.y + 26.0 + i * lh + 15.0
 		var dx := (1.0 - la) * 12.0
-		var last: bool = ln[0] == "结果" or ln[0] == "抽到"
+		var last: bool = ln[0] == "最终结果" or ln[0] == "抽取结果"
 		Ink.text(self, ln[0], Vector2(r.position.x + 12 + dx, y), 12, Color(Pal.c("text2"), la), Pal.bold)
 		if last:
-			Ink.text(self, ln[2], Vector2(r.position.x + 52 + dx, y), 15, Color(ln[4], la), Pal.bold)
+			Ink.text(self, ln[2], Vector2(r.position.x + 74 + dx, y), 15, Color(ln[4], la), Pal.bold)
 			continue
 		var nm: String = ln[1]
-		if nm.length() > 9:
-			nm = nm.substr(0, 8) + "…"
-		Ink.text(self, nm, Vector2(r.position.x + 52 + dx, y), 13, Color(Pal.c("text2"), la), Pal.font)
+		# 名字和右边的文字不能叠：放不下就截短
+		var room := r.size.x - 74.0 - 12.0 - Ink.size(Pal.bold, ln[2], 14).x - 12.0
+		while nm.length() > 2 and Ink.size(Pal.font, nm, 13).x > room:
+			nm = nm.substr(0, nm.length() - 2) + "…"
+		Ink.text(self, nm, Vector2(r.position.x + 74 + dx, y), 13, Color(Pal.c("text2"), la), Pal.font)
 		Ink.text(self, ln[2], Vector2(r.end.x - 12, y), 14, Color(ln[4], la), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 
 ## 持续生效的物品（改概率 / 改倍率）这一下起了作用：钉子上晃一下，头顶冒一张小纸签，不飞出来
@@ -426,9 +428,16 @@ func _state_tag(id: String, hook: Vector2, a: float, el: Color) -> void:
 	var k: float = st.pulse
 	var pop := sin(minf(1.0, k * 1.6) * PI) * (1.0 - k) * 1.0
 	var c := hook + Vector2(0, 66.0 - 4.0 * pop)
-	var sz := 10.0
-	var tw := Ink.size(Pal.bold, st.t, int(sz)).x + 8.0
-	var r := Rect2(c.x - tw * 0.5, c.y - 7.0, tw, 14.0)
+	# 签子宽度不超过一格（GAP）：放不下就折成两行，从最均匀的位置断开（优先在空格处）
+	var lines := _tag_lines(st.t)
+	var sz := 10 if lines.size() == 1 else 9
+	var lh := 12.0
+	var tw := 0.0
+	for l in lines:
+		tw = maxf(tw, Ink.size(Pal.bold, l, sz).x)
+	tw += 8.0
+	var th := 14.0 + (lines.size() - 1) * lh
+	var r := Rect2(c.x - tw * 0.5, c.y - 7.0, tw, th)
 	var ink: Color = Pal.c("ink") if not st.dim else Pal.c("ink").lerp(Pal.c("paper2"), 0.55)
 	var bg: Color = Pal.c("paper") if not st.dim else Pal.c("paper2")
 	if k < 1.0:
@@ -436,7 +445,41 @@ func _state_tag(id: String, hook: Vector2, a: float, el: Color) -> void:
 	draw_rect(Rect2(r.position + Vector2(1, 2), r.size), Color(0, 0, 0, 0.10 * a))
 	draw_rect(r, Color(bg, a))
 	Ink.frame(self, r, Color(el, a * (0.35 if st.dim else 0.7)), Ink.W4)
-	Ink.text(self, st.t, Vector2(c.x, c.y + 4.0), int(sz), Color(ink, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	for i in lines.size():
+		Ink.text(self, lines[i], Vector2(c.x, c.y + 4.0 + i * lh), sz, Color(ink, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+
+var _tag_cache := {}
+
+func _tag_lines(t: String) -> Array:
+	if _tag_cache.has(t):
+		return _tag_cache[t]
+	var out: Array = [t]
+	if Ink.size(Pal.bold, t, 10).x + 8.0 > GAP - 4.0:
+		var best := 1e9
+		# 先试只在空格处断：两行都放得下就用它（“怨气累计 / 1/3”而不是“怨气累 / 计 1/3”）
+		for i in range(1, t.length()):
+			if t[i] != " ":
+				continue
+			var a0 := t.substr(0, i).strip_edges()
+			var b0 := t.substr(i).strip_edges()
+			var w0 := maxf(Ink.size(Pal.bold, a0, 9).x, Ink.size(Pal.bold, b0, 9).x)
+			if w0 + 8.0 <= GAP + 2.0 and w0 < best:
+				best = w0
+				out = [a0, b0]
+		if out.size() == 2:
+			_tag_cache[t] = out
+			return out
+		for i in range(1, t.length()):
+			var a1 := t.substr(0, i).strip_edges()
+			var b1 := t.substr(i).strip_edges()
+			var w := maxf(Ink.size(Pal.bold, a1, 9).x, Ink.size(Pal.bold, b1, 9).x)
+			if t[i - 1] == " " or t[i] == " ":
+				w -= 6.0
+			if w < best:
+				best = w
+				out = [a1, b1]
+	_tag_cache[t] = out
+	return out
 
 ## 一次触发的完整表演
 func _fire(f: Dictionary, el: Color) -> void:

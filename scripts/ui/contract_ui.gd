@@ -85,7 +85,7 @@ func _sign(s: int, r: int) -> void:
 	if s == 0:
 		var gid: String = Contracts.GROUP_ORDER[r]
 		if not Meta.group_open(gid):
-			err = "还没解锁：" + Contracts.GROUPS[gid].unlock
+			err = "还没有解锁「%s」合同，需要先完成对应的解锁条件。" % Contracts.GROUPS[gid].name
 		else:
 			err = run.sign_group(gid)
 	else:
@@ -123,7 +123,7 @@ func _draw() -> void:
 	Ink.frame(self, pr, el, Ink.W1)
 	Ink.text(self, "合同", pr.position + Vector2(40, 58), 34, ink, Pal.bold)
 	var can := run.can_sign()
-	Ink.text(self, "开局前签：第一束实验开始以后就不能改了" if can else "本局实验已经开始，合同下一局才能改", pr.position + Vector2(130, 56), 15, Pal.c("text2") if can else Pal.c("red"), Pal.bold if not can else Pal.font)
+	Ink.text(self, "合同需要在第一束实验开始之前签订，开始实验后就不能再修改了。" if can else "本局实验已经开始，下一局才能重新选择合同。", pr.position + Vector2(130, 56), 15, Pal.c("text2") if can else Pal.c("red"), Pal.bold if not can else Pal.font)
 	draw_line(pr.position + Vector2(30, 80), Vector2(pr.end.x - 30, pr.position.y + 80), Color(el, 0.4), Ink.W2)
 	rects.clear()
 	var colw := (pr.size.x - 120) * 0.5
@@ -160,7 +160,7 @@ func _draw() -> void:
 					on = run.challenge == cid
 				else:
 					title = "不签"
-					desc = "照常打，声望不加成。"
+					desc = "不签订合同，继续正常实验，本局不会获得额外的科研声望加成。"
 					on = run.challenge == ""
 			draw_rect(rr, Pal.c("paper2") if not on else Pal.c("gold").lerp(Pal.c("paper"), 0.55))
 			Ink.frame(self, rr, Pal.c("red") if is_sel else Color(el, 0.55), 3.0 if is_sel else Ink.W3)

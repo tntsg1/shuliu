@@ -162,8 +162,8 @@ func _shelf(el: Color, el2: Color, off: Color) -> void:
 			var lp := Vector2(cr.position.x + 10, cr.get_center().y)
 			draw_arc(lp + Vector2(0, -8), 7.0, PI, TAU, 10, el, 2.4, true)
 			Ink.box(self, Rect2(lp.x - 10, lp.y - 8, 20, 16), Pal.c("gold"), el, Ink.W3, 4)
-			Ink.sticker(self, "第一次通关后打开", Vector2(cr.get_center().x, cr.end.y - 26), 0.03, 10)
-	Ink.sticker(self, "教授书架 · 用声望借阅", Vector2(sh.get_center().x, sh.position.y - 44), -0.01, 13)
+			Ink.sticker(self, "首次通关后开放", Vector2(cr.get_center().x, cr.end.y - 26), 0.03, 10)
+	Ink.sticker(self, "教授书架 · 使用声望借阅", Vector2(sh.get_center().x, sh.position.y - 44), -0.01, 13)
 
 func _desk(el: Color, el2: Color) -> void:
 	var d := DESK
@@ -175,7 +175,7 @@ func _desk(el: Color, el2: Color) -> void:
 	var pc := ph.get_center() + Vector2(0, 10)
 	Ink.disc(self, pc + Vector2(0, -22), 18.0, Pal.c("equip_dark"))
 	draw_colored_polygon(PackedVector2Array([pc + Vector2(-34, 50), pc + Vector2(-26, 4), pc + Vector2(26, 4), pc + Vector2(34, 50)]), Pal.c("equip_dark"))
-	Ink.text(self, "荣休", ph.position + Vector2(ph.size.x * 0.5, ph.size.y + 18), 12, Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
+	Ink.text(self, "荣誉退休", ph.position + Vector2(ph.size.x * 0.5, ph.size.y + 18), 12, Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 	# 书桌
 	Ink.ground(self, d.position.x + 12, d.end.x - 12, fl)
 	Ink.box(self, Rect2(d.position.x, d.position.y, d.size.x, 14), Pal.c("equip_dark"), el2, Ink.W2, 3)

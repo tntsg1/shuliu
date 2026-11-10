@@ -526,13 +526,13 @@ func _ride_tick(dt: float) -> void:
 			player.auto_target = Geo.LADDER_X + 70.0     # 从舱口迈出来一步
 			Sfx.play("paper", -12.0, 0.9)
 			if upstairs():
-				overlay.say("书架借书花科研声望；办公桌上的合同要在第一束实验之前签")
+				overlay.say("可以在书架上花费科研声望借阅物品，办公桌上还有一些合同可以签，不过要在开始第一束实验之前签好。")
 			return
 		Sfx.play("metal", -6.0, 0.8)
 		Sfx.play("hit_low", -14.0, 1.2)
 		shake = 0.25
 		if underground() and not run.lost_drawn and run.lost_pick == "":
-			overlay.say("失物招领箱在右边：每局可以免费抽一件")
+			overlay.say("右边有一个失物招领箱，每局都可以免费领取一件物品。")
 
 ## 重开 / 回主页 / 读档：主角回到实验室，货梯回到一楼
 func _reset_floor() -> void:
@@ -544,7 +544,7 @@ func _reset_floor() -> void:
 # —— 失物招领箱（M5-3）——
 func _lost_open() -> void:
 	if run.lost_drawn and run.lost_pick == "":
-		overlay.say("本局已经领过一件了，下一局再来")
+		overlay.say("这局已经领取过一件物品了，下一局再来看看吧。")
 		Sfx.play("hit_low", -10.0, 1.3)
 		return
 	var fresh := run.lost_pick == ""
@@ -567,9 +567,9 @@ func _lost_card() -> void:
 	var d: Dictionary = Items.ALL[id]
 	var sub: String = ("设备" if d.kind == "device" else "饰品") + " · " + Items.RARITY_NAME[d.rarity]
 	if not Meta.unlocked(id):
-		sub += " · 还没借阅：本局试用"
-	overlay.show_card({"title": "失物招领箱 · 翻出来一件", "title_col": Icons.rarity_col(d.rarity), "value": d.name, "sub": sub,
-		"lines": [d.get("big", d.desc), d.desc], "keys": "E  收下      Q  折成 $%d      Esc  先放着" % Run.LOST_CASH})
+		sub += " · 这件物品还没有借阅过，本局可以先试用。"
+	overlay.show_card({"title": "失物招领箱 · 找到一件物品", "title_col": Icons.rarity_col(d.rarity), "value": d.name, "sub": sub,
+		"lines": [d.get("big", d.desc), d.desc], "keys": "E  领取物品      Q  换成 $%d      Esc  暂时不领取" % Run.LOST_CASH})
 
 func _lost_take() -> void:
 	var id := run.lost_pick
@@ -579,7 +579,7 @@ func _lost_take() -> void:
 		Sfx.play("hit_low", -10.0, 1.3)
 		return
 	overlay.hide_card()
-	overlay.say("收下了：" + Items.ALL[id].name + ("（本局试用）" if run.trial.has(id) else ""))
+	overlay.say("已领取：" + Items.ALL[id].name + ("（本局试用）" if run.trial.has(id) else ""))
 	Sfx.play("grab", -6.0, 1.0)
 	Sfx.play("ring", -12.0, 1.3)
 	_lost_close()
@@ -589,7 +589,7 @@ func _lost_cash() -> void:
 	if n <= 0:
 		return
 	overlay.hide_card()
-	overlay.say("折成经费 +$%d" % n)
+	overlay.say("已兑换成 $%d 经费" % n)
 	Sfx.play("btn2", -6.0, 1.4)
 	_lost_close()
 
@@ -649,7 +649,7 @@ func _new_beam() -> void:
 	chamber.inject()
 	# 继承的锁相充能：挂板上标出来自哪件物品（劫后再战）
 	for x in run.inherited:
-		charms.nudge(x[0], "继承充能 +%d" % x[1], 0.6)
+		charms.nudge(x[0], "继承的充能增加 %d 格" % x[1], 0.6)
 	form.reset()
 	panel.reset_beam()
 	panel.val_disp = Odds.value_at(1)
@@ -859,7 +859,7 @@ func extract() -> void:
 	if run.beam == null or cooldown > 0.0:
 		return
 	if not run.can_extract():
-		overlay.say("挑战合同：能级到 E8 才能引出（现在 E%d）" % run.beam.energy)
+		overlay.say("挑战合同：束流能级需要达到 E8 才能引出，当前能级为 E%d。" % run.beam.energy)
 		Sfx.play("hit_low", -10.0, 1.3)
 		cooldown = 0.4
 		return
@@ -1093,18 +1093,21 @@ func submit() -> void:
 ## 一局结束的局外结算写进结算卡（M5-8 / M5-17）
 func _meta_lines(m: Dictionary) -> Array:
 	var out: Array = []
-	var tail := "" if Meta.get_v("office_open", false) else "（教授办公室开放后可用）"
+	var tail := "" if Meta.get_v("office_open", false) else "教授办公室开放后就可以使用。"
+	if m.get("phd", false):
+		out.append("博士学位证书：最终没能通过评审，本局没有获得任何局外解锁进度。")
+		return out
 	if m.get("mult", 1.0) > 1.0:
-		out.append("科研声望 +%d（挑战合同「%s」×%.2f）· 共 %d%s" % [m.gain, Contracts.CHALLENGES[run.challenge].name, m.mult, Meta.prestige(), tail])
+		out.append("本局获得科研声望 +%d（挑战合同「%s」，声望倍率 ×%.2f），当前累计 %d 点。%s" % [m.gain, Contracts.CHALLENGES[run.challenge].name, m.mult, Meta.prestige(), tail])
 	else:
-		out.append("科研声望 +%d · 共 %d%s" % [m.gain, Meta.prestige(), tail])
+		out.append("本局获得科研声望 +%d，当前累计 %d 点。%s" % [m.gain, Meta.prestige(), tail])
 	if m.opened.has("storage"):
-		out.append("地下储藏室开放了：坐采购终端旁边的货梯下去，每局可以在失物招领箱免费抽一件。")
+		out.append("地下储藏室已经开放，可以乘坐采购终端旁边的货梯前往。每局都能从失物招领箱免费领取一件物品。")
 	if m.opened.has("office"):
-		out.append("楼上的退休教授办公室开放了：爬左边墙上的直梯上去，用声望借书、签合同。")
+		out.append("退休教授办公室已经开放，可以爬上左边墙上的梯子前往。你可以在那里使用科研声望借阅书籍，也可以签订挑战合同。")
 	for o in m.opened:
 		if String(o).begins_with("group:"):
-			out.append("新的课题组合同：%s（去教授办公室签）" % Contracts.GROUPS[String(o).substr(6)].name)
+			out.append("新的课题组合同「%s」已经解锁，可以前往教授办公室签订。" % Contracts.GROUPS[String(o).substr(6)].name)
 	return out
 
 func _on_plan_chosen(id: String) -> void:
@@ -1511,7 +1514,7 @@ func card_buttons() -> Array:
 			return [{"label": "继续挑战（无尽）", "key": "C", "action": "endless"}, {"label": "重新开始", "key": "R", "action": "restart"}]
 		return [{"label": "重新开始", "key": "R", "action": "restart"}]
 	if mode == M.LOST:
-		return [{"label": "收下", "key": "E", "action": "lost_take"}, {"label": "折成 $%d" % Run.LOST_CASH, "key": "Q", "action": "lost_cash"}, {"label": "先放着", "key": "Esc", "action": "lost_close"}]
+		return [{"label": "领取物品", "key": "E", "action": "lost_take"}, {"label": "换成 $%d" % Run.LOST_CASH, "key": "Q", "action": "lost_cash"}, {"label": "暂时不领取", "key": "Esc", "action": "lost_close"}]
 	if mode == M.CHOICE:
 		return [{"label": "结束，保留 30%", "key": "E", "action": "sch_end"}, {"label": "再加速一次", "key": "空格", "action": "sch_go"}]
 	if mode == M.REVIEW:
@@ -1736,21 +1739,21 @@ func _spot_label(id: String) -> String:
 				return "存进储备柜" if run.cab.size() < Run.CAB_SLOTS else ""
 			return "取出备用瓶" if run.held == "" and not run.cab.is_empty() else ""
 		"lift":
-			return "坐货梯去地下储藏室" if Meta.storage_open() else "货梯维修中"
+			return "乘坐货梯前往地下储藏室" if Meta.storage_open() else "货梯正在维修"
 		"lift_b":
-			return "坐货梯回实验室"
+			return "乘坐货梯返回实验室"
 		"ladder":
-			return "爬梯子去教授办公室" if Meta.get_v("office_open", false) else "楼上 · 尚未开放"
+			return "爬上梯子前往教授办公室" if Meta.get_v("office_open", false) else "楼上暂未开放"
 		"ladder_o":
-			return "爬梯子回实验室"
+			return "爬下梯子返回实验室"
 		"shelf":
-			return "教授书架 · 借书（声望 %d）" % Meta.prestige()
+			return "查看教授书架 · 消耗科研声望借阅"
 		"desk":
-			return "签合同" if run.can_sign() else "看看合同（本局已开始）"
+			return "查看并签订合同" if run.can_sign() else "查看合同（本局实验已经开始）"
 		"lostbox":
 			if run.lost_pick != "":
-				return "看看翻出来的那件"
-			return "失物招领：抽一件（每局一次）" if not run.lost_drawn else "本局已经领过了"
+				return "查看刚才找到的物品"
+			return "打开失物招领箱，领取一件物品" if not run.lost_drawn else "这局已经领取过了"
 	return ""
 
 ## 搬瓶的每个动作：规则先改好，画面上主角弯腰伸手、瓶子沿弧线飞过去，落位那一下出声、卡箍合上、桶晃、柜门开合
@@ -1763,14 +1766,14 @@ func _spot_do(id: String) -> void:
 	match id:
 		"lift", "lift_b":
 			if id == "lift" and not Meta.storage_open():
-				err = "货梯维修中：第一局结束后，地下储藏室才开放"
+				err = "货梯还在维修，完成第一局实验后就可以前往地下储藏室了。"
 			else:
 				_ride_start()
 		"lostbox":
 			_lost_open()
 		"ladder", "ladder_o":
 			if id == "ladder" and not Meta.get_v("office_open", false):
-				err = "楼上的退休教授办公室还没开放：第一次通过第 5 阶段后开放"
+				err = "楼上的退休教授办公室暂时还没开放，第一次通过第 5 阶段后就可以进入了。"
 			else:
 				_climb_start()
 		"shelf":

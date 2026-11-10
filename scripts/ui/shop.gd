@@ -188,7 +188,7 @@ func _refresh() -> void:
 			stamp_t[i] = -1.0
 		Sfx.play("paper", -4.0, 1.1)
 	else:
-		_say("挑战合同：本局不许刷新" if main.run.ch("no_refresh") else "经费不够刷新")
+		_say("挑战合同：本局不能刷新商店里的商品。" if main.run.ch("no_refresh") else "经费不够刷新")
 
 func _say(s: String) -> void:
 	msg = s
@@ -441,7 +441,7 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	if not o.sold:
 		var cw := Items.combo_with(o.id, main.run.relics + main.run.devices)
 		if not cw.is_empty():
-			var ct: String = "和%s一套" % cw.with
+			var ct: String = "可以和%s组成套装" % cw.with
 			var cfs := 13
 			var cwid := Ink.size(Pal.bold, ct, cfs).x + 14.0
 			var cp := o2 + Vector2(cr.size.x - cwid - 8.0, 38.0)
@@ -466,11 +466,18 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	var bfs := 26
 	while bfs > 18 and Ink.size(Pal.bold, big, bfs).x > cr.size.x - 32:
 		bfs -= 1
+	var sep := 300.0
 	if Ink.size(Pal.bold, big, bfs).x > cr.size.x - 32:
-		Ink.para(self, Pal.bold, o2 + Vector2(16, 250), big, cr.size.x - 32, 22, 2, ink)
+		# 多行：放不下三行就缩小字号，故事上面那条线跟着文字往下挪
+		var pfs := 22
+		var room := cr.size.y - 118.0 - 230.0
+		while pfs > 15 and Ink.para_size(Pal.bold, big, cr.size.x - 32, pfs).y > room:
+			pfs -= 1
+		Ink.para(self, Pal.bold, o2 + Vector2(16, 230 + pfs), big, cr.size.x - 32, pfs, -1, ink)
+		sep = clampf(230.0 + Ink.para_size(Pal.bold, big, cr.size.x - 32, pfs).y + 10.0, 300.0, cr.size.y - 110.0)
 	else:
 		Ink.text(self, big, o2 + Vector2(16, 250), bfs, ink, Pal.bold)
-	draw_line(o2 + Vector2(16, 300), o2 + Vector2(cr.size.x - 16, 300), Color(el, 0.3), 1.0)
+	draw_line(o2 + Vector2(16, sep), o2 + Vector2(cr.size.x - 16, sep), Color(el, 0.3), 1.0)
 	# 物品故事
 	if d.lore != "":
 		Ink.para(self, Pal.hand, o2 + Vector2(16, cr.size.y - 92), "“" + d.lore + "”", cr.size.x - 32, 15, 3, Pal.c("blue"))

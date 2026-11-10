@@ -105,7 +105,7 @@ func _draw() -> void:
 	Ink.drop(self, sign)
 	Ink.box(self, sign, Pal.c("paper"), el, Ink.W2, 77)
 	Ink.text(self, "B1", sign.position + Vector2(12, 32), 26, Pal.c("text"), Pal.bold)
-	Ink.text(self, "储藏室", sign.position + Vector2(52, 28), 13, Pal.c("text2"), Pal.font)
+	Ink.text(self, "· 地下储藏室", sign.position + Vector2(52, 28), 13, Pal.c("text2"), Pal.font)
 	_lost_box(el)
 	if not is_open():
 		Ink.text(self, "地下储藏室 · 尚未开放", Vector2(1640, top + 210), 15, Color(Pal.c("ink2"), 0.5), Pal.hand)
@@ -124,9 +124,9 @@ func _lost_box(el: Color) -> void:
 	Ink.frame(self, nr, Color(el, 0.7), Ink.W3)
 	draw_rect(Rect2(nr.position + Vector2(48, -6), Vector2(32, 12)), Color(Pal.c("gold"), 0.5))
 	Ink.text(self, "失物招领", nr.position + Vector2(64, 28), 18, Pal.c("text"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
-	Ink.text(self, "每局限领一件", nr.position + Vector2(64, 52), 13, Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
+	Ink.text(self, "每局只能领取一件", nr.position + Vector2(64, 52), 13, Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 	if drawn():
-		Ink.text(self, "本局已领", nr.position + Vector2(64, 70), 12, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		Ink.text(self, "本局已经领取", nr.position + Vector2(64, 70), 12, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
 	draw_set_transform(c, wob)
 	# 伸出来的东西（在箱子后面）

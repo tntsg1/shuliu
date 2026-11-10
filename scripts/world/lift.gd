@@ -45,7 +45,7 @@ func _draw() -> void:
 	Ink.disc(self, Vector2(Geo.LIFT_X + 18, head.get_center().y), 7.0, Pal.c("equip_dark"))
 	var on := running and fmod(t, 0.5) < 0.25
 	Ink.disc(self, Vector2(x1 + 2, head.position.y + 6), 3.0, Pal.c("orange") if on else Pal.c("equip_dark"))
-	Ink.sticker(self, "货梯 ↓B1", Vector2(Geo.LIFT_X, head.position.y - 14), -0.02, 11)
+	Ink.sticker(self, "货梯 ↓ B1", Vector2(Geo.LIFT_X, head.position.y - 14), -0.02, 11)
 	# 钢缆
 	for cx in [Geo.LIFT_X - 18.0, Geo.LIFT_X + 18.0]:
 		draw_line(Vector2(cx, head.end.y), Vector2(cx, plat_y - 4), el, Ink.W3)
@@ -85,6 +85,6 @@ func _draw() -> void:
 		draw_rect(Rect2(tr.position + Vector2(2, 3), tr.size), Color(0, 0, 0, 0.12))
 		draw_rect(tr, Pal.c("paper"))
 		Ink.frame(self, tr, el, Ink.W3)
-		Ink.text(self, "维修中", Vector2(0, -2), 14, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
-		Ink.text(self, "尚未开放", Vector2(0, 15), 11, Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
+		Ink.text(self, "正在维修", Vector2(0, -2), 14, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		Ink.text(self, "暂未开放", Vector2(0, 15), 11, Pal.c("text2"), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 		draw_set_transform(Vector2.ZERO)

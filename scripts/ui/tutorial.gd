@@ -48,12 +48,11 @@ func _ready() -> void:
 			"done": func(): return main.mode != main.M.SHOP,
 			"at": null, "note": func(): return Vector2(1500, 800)},
 		# —— 氢气瓶全手动（Q70，便条文字是草稿，等用户改）——
-		{"id": "take", "text": "左边的气瓶架上放着这一轮的氢气瓶。
-走到气瓶架前按 E，拿起一瓶。",
+		{"id": "take", "text": "左边的气瓶架上放着这轮实验要用的氢气瓶，走到气瓶架前面，按 E 就可以拿起一瓶。",
 			"show": func(): return main.mode == main.M.WALK and main.run.held == "" and main.run.inj == "" and main.run.beam == null,
 			"done": func(): return main.run.held == "fresh" or main.run.inj == "fresh" or main.run.experiment_no > 0,
 			"at": func(): return _w(Vector2(351, 680)), "note": func(): return _w(Vector2(520, 520))},
-		{"id": "load", "text": "把氢气瓶装到注入器前面的瓶座上：走到注入器前再按 E。",
+		{"id": "load", "text": "拿到氢气瓶以后，走到注入器前面的瓶座旁边，按 E 把氢气瓶安装上去，就可以准备实验了。",
 			"show": func(): return main.mode == main.M.WALK and main.run.held == "fresh",
 			"done": func(): return main.run.inj == "fresh" or main.run.experiment_no > 0,
 			"at": func(): return _w(Vector2(246, 700)), "note": func(): return _w(Vector2(500, 520))},
@@ -90,18 +89,19 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.inj == "full",
 			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > _rt(7.0),
 			"at": func(): return _w(Vector2(246, 690)), "note": func(): return _w(Vector2(main.review.X - 120, Geo.FLOOR - 420))},
-		{"id": "deliver", "text": "拿着成果瓶走到审核台，按 E 放进篮子。",
+		{"id": "deliver", "text": "拿着成果瓶走到审核台前面，按 E 把成果瓶放进篮子里，科研点就会计入本轮的累计成果。
+等累计的科研点达到要求以后，就可以提交本轮评审了。",
 			"show": func(): return main.mode == main.M.WALK and main.run.held == "full",
 			"done": func(): return main.run.held != "full",
 			"at": func(): return _w(Vector2(main.review.X + 40, Geo.FLOOR - 110)), "note": func(): return _w(Vector2(main.review.X - 420, Geo.FLOOR - 460))},
-		{"id": "toss", "text": "实验失败以后，瓶座上会留下一只空瓶。
-按 E 把它取下来，扔进最左边的空瓶回收站，才能装下一瓶。",
+		{"id": "toss", "text": "实验失败以后，注入器的瓶座上会留下一只空瓶，需要先把它取下来才能继续使用。
+走到瓶座前面按 E 取下空瓶，再把它扔进最左边的空瓶回收站，之后就可以安装下一瓶氢气了。",
 			"show": func(): return main.mode == main.M.WALK and (main.run.inj == "empty" or main.run.held == "empty") and main.run.beam == null,
 			"done": func(): return main.run.inj != "empty" and main.run.held != "empty",
 			"at": func(): return _w(Vector2(246, 700)) if main.run.held != "empty" else _w(Vector2(116, 720)), "note": func(): return _w(Vector2(520, 520))},
-		{"id": "cab", "text": "审核台右边是储备柜。
-站在审核台前按 Q，可以从篮子里拿出一瓶，存进储备柜，留到之后不够线的时候再拿出来放回篮子。
-储备柜最多放 2 瓶，里面的瓶子不算这一轮的科研点。",
+		{"id": "cab", "text": "审核台右边有一个储备柜。
+站在审核台前按 Q，就可以从篮子里拿出一瓶成果瓶放进储备柜，等之后科研点不够的时候，再把存好的成果瓶取出来放回篮子。
+储备柜最多可以存放 2 瓶成果瓶，存进去的成果瓶暂时不会计入本轮的科研点。",
 			"show": func(): return main.mode == main.M.WALK and main.run.basket.size() >= 1 and absf(main.player.position.x - main.review.STAND) < 160.0,
 			"done": func(): return step_t > _rt(9.0) or main.mode != main.M.WALK,
 			"at": func(): return _w(Vector2(1586, 640)), "note": func(): return _w(Vector2(1180, 330))},

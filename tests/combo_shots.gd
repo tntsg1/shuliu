@@ -71,7 +71,7 @@ func _go() -> void:
 	await console(["tape_roll", "third_draft", "thermos"])
 	await press(Odds.DETUNE)
 	print("1a ", chain_lines())
-	check(chain_lines() == ["抽到|射频失谐", "改写|粘住了：失谐 → 稳定", "效果|第 1 次修改：×1.1", "结果|保持稳定"], "稳定修稿 第一下")
+	check(chain_lines() == ["抽取结果|射频失谐", "结果修改|胶带生效了，失谐结果改为稳定", "生效效果|第 1 次修改完成，本次倍率 ×1.1", "最终结果|保持稳定"], "稳定修稿 第一下")
 	await frames(30)
 	await snap("combo_1a")
 	await frames(60)

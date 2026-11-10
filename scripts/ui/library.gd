@@ -117,7 +117,7 @@ func _borrow() -> void:
 		Sfx.play("hit_low", -10.0, 1.3)
 		return
 	stamp[id] = t
-	msg = "借到了：%s——之后每局的商店都可能出现它" % Items.ALL[id].name
+	msg = "已成功借阅：%s。以后每局都有机会在商店和失物招领箱中获得这件物品。" % Items.ALL[id].name
 	msg_t = t
 	Sfx.play("btn", -2.0, 0.7)
 	Sfx.play("metal", -8.0, 1.2)
@@ -141,7 +141,7 @@ func _draw() -> void:
 	draw_rect(pr, Pal.c("paper"))
 	Ink.frame(self, pr, el, Ink.W1)
 	Ink.text(self, "教授书架", pr.position + Vector2(40, 58), 34, ink, Pal.bold)
-	Ink.text(self, "借阅一次，之后每局的商店和失物招领都可能出现它", pr.position + Vector2(210, 56), 15, Pal.c("text2"), Pal.font)
+	Ink.text(self, "借阅过的物品，以后每局都有机会在商店和失物招领箱中出现。", pr.position + Vector2(210, 56), 15, Pal.c("text2"), Pal.font)
 	Ink.text(self, "科研声望 %d" % Meta.prestige(), Vector2(pr.end.x - 40, pr.position.y + 58), 26, Pal.c("gold").darkened(0.25), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 	draw_line(pr.position + Vector2(30, 80), Vector2(pr.end.x - 30, pr.position.y + 80), Color(el, 0.4), Ink.W2)
 	# 书格
@@ -182,7 +182,7 @@ func _draw() -> void:
 					draw_arc(r.get_center() + Vector2(0, -4), 7.0, PI, TAU, 10, el, 2.4, true)
 					draw_rect(Rect2(r.get_center() + Vector2(-9, -4), Vector2(18, 14)), Pal.c("gold"))
 		if c == 3 and not legend_open:
-			Ink.text(self, "第一次通关后打开", Vector2(x0 + TILE + PAD * 0.5, gy + 4 * (TILE + PAD) + 30), 13, Pal.c("text2"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+			Ink.text(self, "首次通关后开放", Vector2(x0 + TILE + PAD * 0.5, gy + 4 * (TILE + PAD) + 30), 13, Pal.c("text2"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	# 借书卡（选中那本）
 	var id := selected()
 	var cr := Rect2(pr.end.x - 520, pr.position.y + 110, 480, pr.size.y - 150)
@@ -200,17 +200,33 @@ func _draw() -> void:
 		while nfs > 15 and Ink.size(Pal.bold, d.name, nfs).x > cr.size.x - 40:
 			nfs -= 1
 		Ink.text(self, d.name, cr.position + Vector2(20, 228), nfs, ink, Pal.bold)
-		Ink.text(self, d.get("big", ""), cr.position + Vector2(20, 268), 20, ink, Pal.bold)
-		Ink.para(self, Pal.font, cr.position + Vector2(20, 300), d.desc, cr.size.x - 40, 15, 5, Pal.c("text2"))
-		if d.get("lore", "") != "":
-			Ink.para(self, Pal.hand, cr.position + Vector2(20, 410), "“" + d.lore + "”", cr.size.x - 40, 14, 3, Pal.c("blue"))
+		# 大字 → 完整描述 → 故事 依次往下排；总高放不下就整体缩小字号
+		var tw := cr.size.x - 40
+		var bottom := cr.end.y - 84.0
+		var big: String = d.get("big", "")
+		var lore: String = ("“" + d.lore + "”") if d.get("lore", "") != "" else ""
+		var k := 1.0
+		while k > 0.7:
+			var hh := Ink.para_size(Pal.bold, big, tw, int(20 * k)).y + 10.0 + Ink.para_size(Pal.font, d.desc, tw, int(15 * k)).y
+			if lore != "":
+				hh += 12.0 + Ink.para_size(Pal.hand, lore, tw, int(14 * k)).y
+			if cr.position.y + 248.0 + hh <= bottom:
+				break
+			k -= 0.05
+		var y := cr.position.y + 248.0
+		Ink.para(self, Pal.bold, Vector2(cr.position.x + 20, y + int(20 * k)), big, tw, int(20 * k), -1, ink)
+		y += Ink.para_size(Pal.bold, big, tw, int(20 * k)).y + 10.0
+		Ink.para(self, Pal.font, Vector2(cr.position.x + 20, y + int(15 * k)), d.desc, tw, int(15 * k), -1, Pal.c("text2"))
+		y += Ink.para_size(Pal.font, d.desc, tw, int(15 * k)).y + 12.0
+		if lore != "":
+			Ink.para(self, Pal.hand, Vector2(cr.position.x + 20, y + int(14 * k)), lore, tw, int(14 * k), -1, Pal.c("blue"))
 		var why := Meta.borrow_block(id)
 		var br := Rect2(cr.position.x + 20, cr.end.y - 74, cr.size.x - 40, 54)
 		borrow_rect = br
 		var can := why == ""
 		draw_rect(br, Pal.c("gold") if can else Pal.c("paper2"))
 		Ink.frame(self, br, el, Ink.W2)
-		var label := ("借阅 · 声望 %d      E / 点击" % Meta.borrow_price(id)) if can else why
+		var label := ("花费 %d 声望借阅 · 按 E 或点击" % Meta.borrow_price(id)) if can else why
 		Ink.text(self, label, br.get_center() + Vector2(0, 7), 18 if can else 15, ink if can else Pal.c("text2"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	if msg != "" and t - msg_t < 3.0:
 		Ink.text(self, msg, Vector2(pr.position.x + 40, pr.end.y - 30), 16, Pal.c("green").darkened(0.2) if msg.begins_with("借到") else Pal.c("red"), Pal.bold)
