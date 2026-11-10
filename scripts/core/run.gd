@@ -51,6 +51,12 @@ var meta_paid := 0               # 已经结算过声望的阶段数
 var meta_cleared := false        # 通关奖励已给
 var meta_counted := false        # 已计入局数
 var lost_drawn := false          # 失物招领箱本局已经抽过
+var group := "base"              # 课题组合同（M5-15）
+var challenge := ""              # 挑战合同（M5-16），"" = 没签
+var challenge_offers: Array = [] # 本局办公桌上的 3 份
+var challenge_money := 0         # 零经费合同收走的钱（改签时退回）
+var spent := 0                   # 本局累计花掉的经费（财务组解锁）
+var eng_full_pass := false       # 装满设备通过过一个阶段（工程组解锁）
 var trial: Array = []            # 失物招领抽到的未解锁物品（本局试用）
 var paper_used := false       # 校长稿纸：每局一次
 var stage_badge_used := false
@@ -84,7 +90,70 @@ func _init(s := 0) -> void:
 	seed_value = s if s != 0 else int(Time.get_unix_time_from_system() * 1000.0) % 2147483647
 	rng.seed = seed_value
 	shop_rng.seed = seed_value ^ 0x5bd1e995
+	challenge_offers = Contracts.deal(seed_value)
 	roll_shop()
+
+# —— 合同（M5b）——
+## 每阶段配给几瓶氢气（博士后流动站 4 瓶）
+func per_stage() -> int:
+	return PER_STAGE + (1 if group == "postdoc" else 0)
+
+## 只能在本局第一束实验开始之前签 / 改签
+func can_sign() -> bool:
+	return stage == 0 and experiment_no == 0 and beam == null and not failed
+
+func sign_group(id: String) -> String:
+	if not can_sign():
+		return "本局实验已经开始了，下一局再签"
+	if not Contracts.GROUPS.has(id) or id == group:
+		return ""
+	# 先退掉旧组的开局配置
+	match group:
+		"theory":
+			money += 15
+			relics.erase("note100")
+		"finance":
+			if money < 30:
+				return "财务组发的经费已经花掉了，不能改签"
+			money -= 30
+		"postdoc":
+			experiments_left -= 1
+	group = id
+	match id:
+		"theory":
+			money = maxi(0, money - 15)
+			if not has("note100") and slots_free("relic"):
+				relics.append("note100")
+		"finance":
+			money += 30
+		"postdoc":
+			experiments_left += 1
+	return ""
+
+func sign_challenge(id: String) -> String:
+	if not can_sign():
+		return "本局实验已经开始了，下一局再签"
+	if id != "" and not challenge_offers.has(id):
+		return "桌上没有这份合同"
+	if id == challenge:
+		return ""
+	if id == "one_relic" and slot_used("relic") > 1:
+		return "护身符架上已经不止 1 件了"
+	if challenge == "zero_money":
+		money += challenge_money
+		challenge_money = 0
+	challenge = id
+	if id == "zero_money":
+		challenge_money = money
+		money = 0
+	return ""
+
+func ch(id: String) -> bool:
+	return challenge == id
+
+## 引出需要的最低能级（E8 起步合同）
+func can_extract() -> bool:
+	return beam != null and (not ch("min_e8") or beam.energy >= 8)
 
 func seed_text() -> String:
 	var h := "%08X" % (seed_value & 0xFFFFFFFF)
@@ -149,10 +218,12 @@ func line() -> int:
 		l = int(ceil(l * 1.1))
 	elif plan == "downsizing":
 		l = int(ceil(l * 0.8))
+	if group == "postdoc":
+		l = int(ceil(l * 1.25))
 	return l
 
 func can_submit() -> bool:
-	return beam == null and not won() and not failed and total >= line()
+	return beam == null and not won() and not failed and total >= line() and (not ch("no_early") or experiments_left <= 0)
 
 func must_submit() -> bool:
 	return beam == null and not won() and not failed and experiments_left <= 0
@@ -190,6 +261,7 @@ func odds() -> PackedFloat64Array:
 	if has("cryo_magnet") and b.energy >= 10: lm *= 0.75
 	d[Odds.LOSS] -= p[Odds.LOSS] * (1.0 - lm)
 	if has("injector_hi"): d[Odds.LOSS] += 0.05
+	if group == "finance": d[Odds.LOSS] += 0.02
 	if has("quad_array"): d[Odds.SUCCESS] += 0.12
 	if has("rf_backup"): d[Odds.PERFECT] += 0.06
 	if has("ultimatum") and b.presses >= 3: d[Odds.LOSS] += 0.10
@@ -595,19 +667,19 @@ func accelerate() -> Dictionary:
 		if res.lock_ended:
 			b.full_sync = false
 	else:
-		if not b.lock_used:
+		if not b.lock_used and not ch("no_lock"):
 			b.charge = 0 if k == Odds.DETUNE else b.charge + Odds.CHARGE[k]
 			if b.charge >= lock_need():
 				b.charge = lock_need()
 				b.lock_left = lock_n
 				b.lock_used = true
 				res.lock_started = true
-		if not res.lock_started and has("coffee") and not b.coffee_used and b.streak >= 3:
+		if not res.lock_started and has("coffee") and not b.coffee_used and b.streak >= 3 and not ch("no_lock"):
 			b.coffee_used = true
 			b.lock_left = 3 + (2 if has("fast_clock") else 0)
 			res.lock_started = true
 			trig.append(["coffee", "第七杯咖啡"])
-	if not was_locked and not res.lock_started and has("alarm_4am") and not b.alarm_used and b.presses >= 7:
+	if not was_locked and not res.lock_started and has("alarm_4am") and not b.alarm_used and b.presses >= 7 and not ch("no_lock"):
 		b.alarm_used = true
 		b.lock_left = 4 + (2 if has("fast_clock") else 0)
 		res.lock_started = true
@@ -674,8 +746,11 @@ func press_red() -> Dictionary:
 		0:
 			b.red_mult *= 10.0
 		1:
-			b.lock_left += 4
-			b.lock_used = true
+			if ch("no_lock"):
+				res["blocked"] = true      # 不许锁相合同：这一格作废
+			else:
+				b.lock_left += 4
+				b.lock_used = true
 			b.full_sync = true
 			b.synced = true
 		2:
@@ -777,8 +852,10 @@ func submit() -> Dictionary:
 			held = ""
 		if inj == "fresh":
 			inj = ""
+		if slot_used("device") >= slot_count("device"):
+			eng_full_pass = true
 		stage += 1
-		experiments_left = PER_STAGE
+		experiments_left = per_stage()
 		stage_badge_used = false
 		stage_pen_used = false
 		stage_lost_data_used = false
@@ -808,8 +885,10 @@ func submit() -> Dictionary:
 ## 槽位数（扳手 +1 设备槽）；螺丝不占饰品槽
 func slot_count(kind: String) -> int:
 	if kind == "device":
-		return Items.device_slots(stage) + (1 if has("wrench") else 0)
-	return Items.relic_slots(stage)
+		return Items.device_slots(stage) + (1 if has("wrench") else 0) + (1 if group == "engineering" else 0)
+	if ch("one_relic"):
+		return 1
+	return Items.relic_slots(stage) - (1 if group == "engineering" else 0)
 
 func slot_used(kind: String) -> int:
 	if kind == "device":
@@ -862,9 +941,10 @@ func _fill_offers() -> void:
 			offers[fi]["free"] = true
 
 func refresh() -> bool:
-	if money < refresh_cost:
+	if money < refresh_cost or ch("no_refresh"):
 		return false
 	money -= refresh_cost
+	spent += refresh_cost
 	if not has("printer"):
 		refresh_cost *= 2
 	offers.clear()
@@ -882,9 +962,12 @@ func buy(i: int) -> String:
 	var price: int = o.get("price", def.price)
 	if money < price:
 		return "经费不够"
+	if def.kind == "relic" and ch("devices_only"):
+		return "挑战合同：本局只能买设备"
 	if not slots_free(def.kind, o.id):
 		return ("设备" if def.kind == "device" else "饰品") + "槽已满，先卖掉一件"
 	money -= price
+	spent += price
 	o.sold = true
 	if def.kind == "device":
 		devices.append(o.id)
@@ -1035,6 +1118,8 @@ func put_in_basket() -> String:
 	return ""
 
 func store_in_cab() -> String:
+	if ch("no_cab"):
+		return "挑战合同：储备柜本局封存"
 	if held != "full":
 		return "手里没有满瓶"
 	if cab.size() >= CAB_SLOTS:
@@ -1082,6 +1167,8 @@ func lost_take() -> String:
 	if id == "":
 		return "没有可收的东西"
 	var kind: String = Items.ALL[id].kind
+	if kind == "relic" and ch("devices_only"):
+		return "挑战合同：本局只能要设备，这件只能折成 $%d" % LOST_CASH
 	if not slots_free(kind, id):
 		return ("设备槽" if kind == "device" else "护身符架") + "满了：先去采购终端卖掉一件，或者折成 $%d" % LOST_CASH
 	if kind == "device":

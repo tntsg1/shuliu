@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN, TITLE, PAUSE, LOST }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN, TITLE, PAUSE, LOST, LIBRARY, CONTRACT }
 
 var run: Run
 var mode := M.WALK
@@ -24,6 +24,9 @@ var bottles: Node2D         # 束流配额气瓶架
 var stash: Node2D           # 回收站 / 注入器瓶座 / 储备柜（Q70）
 var basement: Node2D        # 地下储藏室（M5a）
 var lift: Node2D            # 货梯
+var office: Node2D          # 楼上退休教授办公室（M5b）
+var library: Control        # 教授书架借阅
+var contract_ui: Control    # 办公桌上的合同
 var ride := {}              # 正在坐货梯 {t, from, to}
 var letter: Control         # 开场信
 var goal_card := Callable()   # 庆祝播到 1.5 秒时升起“下一阶段目标”卡
@@ -93,6 +96,8 @@ func _ready() -> void:
 	lab = _node("res://scripts/world/lab.gd", world)
 	basement = _node("res://scripts/world/basement.gd", world)
 	basement.set("main", self)
+	office = _node("res://scripts/world/office.gd", world)
+	office.set("main", self)
 	ringmap = _node("res://scripts/world/ringmap.gd", world)
 	ringmap.set("main", self)
 	detector = _node("res://scripts/world/detector.gd", world)
@@ -141,6 +146,12 @@ func _ready() -> void:
 	shop = _ctrl("res://scripts/ui/shop.gd", ui)
 	plans = _ctrl("res://scripts/ui/plans.gd", ui)
 	plans.chosen.connect(_on_plan_chosen)
+	library = _ctrl("res://scripts/ui/library.gd", ui)
+	library.set("main", self)
+	library.closed.connect(_office_ui_closed)
+	contract_ui = _ctrl("res://scripts/ui/contract_ui.gd", ui)
+	contract_ui.set("main", self)
+	contract_ui.closed.connect(_office_ui_closed)
 	shop.closed.connect(_on_shop_closed)
 	tutorial = Control.new()
 	tutorial.set_script(load("res://scripts/ui/tutorial.gd"))
@@ -348,6 +359,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 				to_title()
 			elif ev.is_action("interact") or ev.is_action("accelerate"):
 				close_pause()
+		M.LIBRARY:
+			library.handle(ev)
+		M.CONTRACT:
+			contract_ui.handle(ev)
 		M.LOST:
 			if ev.is_action("interact") or ev.is_action("accelerate"):
 				_lost_take()
@@ -428,17 +443,43 @@ func _unhandled_input(ev: InputEvent) -> void:
 				go_endless()
 
 func _near_console() -> bool:
-	return not underground() and absf(player.position.x - Geo.CONSOLE_STAND) < 70.0
+	return on_lab_floor() and absf(player.position.x - Geo.CONSOLE_STAND) < 70.0
 
 func _near_review() -> bool:
-	return not underground() and absf(player.position.x - review.STAND) < 60.0
+	return on_lab_floor() and absf(player.position.x - review.STAND) < 60.0
 
 func _near_terminal() -> bool:
-	return not underground() and absf(player.position.x - (Geo.TERMINAL_X + 35)) < 60.0
+	return on_lab_floor() and absf(player.position.x - (Geo.TERMINAL_X + 35)) < 60.0
 
 ## 主角在地下储藏室（或正坐货梯往下）
 func underground() -> bool:
 	return player.position.y > Geo.FLOOR + 4.0
+
+## 主角在楼上办公室（或正爬梯子往上）
+func upstairs() -> bool:
+	return player.position.y < Geo.FLOOR - 4.0
+
+func on_lab_floor() -> bool:
+	return not underground() and not upstairs()
+
+# —— 墙边直梯（M5b）：走到梯子脚下按 E，爬上楼上办公室；镜头跟着往上移 ——
+const CLIMB_T := 1.7
+
+func _climb_start() -> void:
+	if not ride.is_empty() or player.busy():
+		return
+	var up := not upstairs()
+	ride = {"t": 0.0, "from": player.position.y, "to": Geo.O_FLOOR if up else Geo.FLOOR, "kind": "ladder", "dur": CLIMB_T}
+	player.input_enabled = false
+	player.auto_target = -1.0
+	player.position.x = Geo.LADDER_X
+	prompt.hide_now()
+	Sfx.play("metal", -14.0, 1.4)
+
+func _office_ui_closed() -> void:
+	if mode == M.LIBRARY or mode == M.CONTRACT:
+		mode = M.WALK
+		player.input_enabled = true
 
 # —— 货梯（M5a）：站上平台按 E，平台带着主角上下，镜头跟着往下移 ——
 const RIDE_T := 2.0
@@ -461,16 +502,32 @@ func _ride_tick(dt: float) -> void:
 	if ride.is_empty():
 		return
 	ride.t += dt
-	var k := clampf(ride.t / RIDE_T, 0.0, 1.0)
+	var ladder: bool = ride.get("kind", "") == "ladder"
+	var k := clampf(ride.t / float(ride.get("dur", RIDE_T)), 0.0, 1.0)
 	var e := Ink.ease_in_out(k)
 	var y: float = lerpf(ride.from, ride.to, e)
 	player.position.y = y
-	lift.plat_y = y
+	if ladder:
+		# 爬梯子：左右轻轻晃，每一档一声
+		player.position.x = Geo.LADDER_X + sin(ride.t * 14.0) * 2.5
+		var rung := int(absf(y - float(ride.from)) / 28.0)
+		if rung != int(ride.get("rung", -1)):
+			ride["rung"] = rung
+			Sfx.play("tick", -14.0, 0.9 + randf() * 0.2, 0.05)
+	else:
+		lift.plat_y = y
 	if k >= 1.0:
 		ride = {}
 		lift.running = false
 		player.input_enabled = mode == M.WALK
 		player.auto_target = -1.0
+		if ladder:
+			player.position.x = Geo.LADDER_X
+			player.auto_target = Geo.LADDER_X + 70.0     # 从舱口迈出来一步
+			Sfx.play("paper", -12.0, 0.9)
+			if upstairs():
+				overlay.say("书架借书花科研声望；办公桌上的合同要在第一束实验之前签")
+			return
 		Sfx.play("metal", -6.0, 0.8)
 		Sfx.play("hit_low", -14.0, 1.2)
 		shake = 0.25
@@ -801,6 +858,11 @@ func _lose(r: Dictionary) -> void:
 func extract() -> void:
 	if run.beam == null or cooldown > 0.0:
 		return
+	if not run.can_extract():
+		overlay.say("挑战合同：能级到 E8 才能引出（现在 E%d）" % run.beam.energy)
+		Sfx.play("hit_low", -10.0, 1.3)
+		cooldown = 0.4
+		return
 	mode = M.SHOT
 	timer = 0.0
 	panel.pull()
@@ -1032,11 +1094,17 @@ func submit() -> void:
 func _meta_lines(m: Dictionary) -> Array:
 	var out: Array = []
 	var tail := "" if Meta.get_v("office_open", false) else "（教授办公室开放后可用）"
-	out.append("科研声望 +%d · 共 %d%s" % [m.gain, Meta.prestige(), tail])
+	if m.get("mult", 1.0) > 1.0:
+		out.append("科研声望 +%d（挑战合同「%s」×%.2f）· 共 %d%s" % [m.gain, Contracts.CHALLENGES[run.challenge].name, m.mult, Meta.prestige(), tail])
+	else:
+		out.append("科研声望 +%d · 共 %d%s" % [m.gain, Meta.prestige(), tail])
 	if m.opened.has("storage"):
 		out.append("地下储藏室开放了：坐采购终端旁边的货梯下去，每局可以在失物招领箱免费抽一件。")
 	if m.opened.has("office"):
-		out.append("楼上的退休教授办公室开放了。")
+		out.append("楼上的退休教授办公室开放了：爬左边墙上的直梯上去，用声望借书、签合同。")
+	for o in m.opened:
+		if String(o).begins_with("group:"):
+			out.append("新的课题组合同：%s（去教授办公室签）" % Contracts.GROUPS[String(o).substr(6)].name)
 	return out
 
 func _on_plan_chosen(id: String) -> void:
@@ -1254,10 +1322,14 @@ func _process(dt: float) -> void:
 			cam_target = Vector2(848, 520)
 			zoom_target = 1.35
 			_demo_tick(dt)
-		M.WALK, M.LOST:
+		M.WALK, M.LOST, M.LIBRARY, M.CONTRACT:
 			# 在储藏室（或坐货梯途中）镜头跟着主角往下移
-			var dk := clampf((player.position.y - Geo.FLOOR) / (Geo.B_FLOOR - Geo.FLOOR), 0.0, 1.0)
-			cam_target = Vector2(960 + clampf((player.position.x - 960) * 0.05, -36, 36), lerpf(540.0, Geo.B_CAM_Y, dk))
+			var cy := 540.0
+			if player.position.y > Geo.FLOOR:
+				cy = lerpf(540.0, Geo.B_CAM_Y, clampf((player.position.y - Geo.FLOOR) / (Geo.B_FLOOR - Geo.FLOOR), 0.0, 1.0))
+			elif player.position.y < Geo.FLOOR:
+				cy = lerpf(540.0, Geo.O_CAM_Y, clampf((Geo.FLOOR - player.position.y) / (Geo.FLOOR - Geo.O_FLOOR), 0.0, 1.0))
+			cam_target = Vector2(960 + clampf((player.position.x - 960) * 0.05, -36, 36), cy)
 			zoom_target = 1.04
 			if intro.active:
 				cam_target = Vector2(1000, 520)
@@ -1491,6 +1563,12 @@ func _mouse(ev: InputEventMouse) -> void:
 	if mode == M.PLAN:
 		plans.mouse(ev)
 		return
+	if mode == M.LIBRARY:
+		library.mouse(ev)
+		return
+	if mode == M.CONTRACT:
+		contract_ui.mouse(ev)
+		return
 	if ev is InputEventMouseMotion:
 		if panel.dragging:
 			panel.drag_to(sp.y)
@@ -1548,10 +1626,12 @@ func _mouse(ev: InputEventMouse) -> void:
 			var wp := _to_world(sp)
 			if not ride.is_empty():
 				return
-			if underground():
+			if underground() or upstairs():
+				var y0: float = Geo.B_CEIL if underground() else Geo.O_CEIL
+				var y1: float = Geo.B_FLOOR if underground() else Geo.O_FLOOR
 				if _spot_at(wp) != "":
 					_walk_to(float(_spots()[_spot_at(wp)][0]), "spot:" + _spot_at(wp))
-				elif wp.y > Geo.B_CEIL and wp.y < Geo.B_FLOOR + 30:
+				elif wp.y > y0 and wp.y < y1 + 30:
 					_walk_to(wp.x, "")
 				return
 			if notice.rect().has_point(wp):
@@ -1592,12 +1672,18 @@ func _leave_tab_go() -> void:
 
 # —— 氢气瓶的几个地点（Q70）：全手动——回收站扔空瓶、气瓶架取新瓶、注入器装瓶；储备柜存取满瓶 ——
 # 站位让开一点：主角站在瓶座右边、伸手去够，不挡住瓶子
-const SPOTS := {"bin": [122.0, 44.0], "cradle": [282.0, 28.0], "rack": [354.0, 42.0], "cab": [1560.0, 34.0], "lift": [Geo.LIFT_X, 40.0]}
+const SPOTS := {"bin": [122.0, 44.0], "cradle": [282.0, 28.0], "rack": [354.0, 42.0], "cab": [1560.0, 34.0], "lift": [Geo.LIFT_X, 40.0], "ladder": [Geo.LADDER_X + 8.0, 22.0]}
 ## 地下储藏室里的地点（M5a）
 const B_SPOTS := {"lift_b": [Geo.LIFT_X, 40.0], "lostbox": [Geo.LOST_X - 60.0, 60.0]}
+## 楼上办公室里的地点（M5b）
+const O_SPOTS := {"ladder_o": [Geo.LADDER_X + 10.0, 34.0], "shelf": [730.0, 430.0], "desk": [1390.0, 120.0]}
 
 func _spots() -> Dictionary:
-	return B_SPOTS if underground() else SPOTS
+	if underground():
+		return B_SPOTS
+	if upstairs():
+		return O_SPOTS
+	return SPOTS
 
 func _spot() -> String:
 	if not ride.is_empty():
@@ -1622,6 +1708,10 @@ func _spot_rect(id: String) -> Rect2:
 		"lift": return lift.rect_lab()
 		"lift_b": return lift.rect_b1()
 		"lostbox": return basement.lost_rect().grow(8)
+		"ladder": return Rect2(Geo.LADDER_X - 30, Geo.CEIL, 60, Geo.FLOOR - Geo.CEIL)
+		"ladder_o": return Rect2(Geo.LADDER_X - 30, Geo.O_FLOOR - 90, 60, 90)
+		"shelf": return office.SHELF
+		"desk": return Rect2(office.DESK.position + Vector2(0, -60), office.DESK.size + Vector2(0, 60))
 	return Rect2()
 
 ## 这个地点现在按 E 会做什么（"" = 什么也做不了）
@@ -1649,6 +1739,14 @@ func _spot_label(id: String) -> String:
 			return "坐货梯去地下储藏室" if Meta.storage_open() else "货梯维修中"
 		"lift_b":
 			return "坐货梯回实验室"
+		"ladder":
+			return "爬梯子去教授办公室" if Meta.get_v("office_open", false) else "楼上 · 尚未开放"
+		"ladder_o":
+			return "爬梯子回实验室"
+		"shelf":
+			return "教授书架 · 借书（声望 %d）" % Meta.prestige()
+		"desk":
+			return "签合同" if run.can_sign() else "看看合同（本局已开始）"
 		"lostbox":
 			if run.lost_pick != "":
 				return "看看翻出来的那件"
@@ -1670,6 +1768,21 @@ func _spot_do(id: String) -> void:
 				_ride_start()
 		"lostbox":
 			_lost_open()
+		"ladder", "ladder_o":
+			if id == "ladder" and not Meta.get_v("office_open", false):
+				err = "楼上的退休教授办公室还没开放：第一次通过第 5 阶段后开放"
+			else:
+				_climb_start()
+		"shelf":
+			mode = M.LIBRARY
+			player.input_enabled = false
+			prompt.hide_now()
+			library.show_lib()
+		"desk":
+			mode = M.CONTRACT
+			player.input_enabled = false
+			prompt.hide_now()
+			contract_ui.show_ui()
 		"bin":
 			err = run.toss_empty()
 			if err == "":
@@ -1817,7 +1930,7 @@ func _hover() -> void:
 	match mode:
 		M.WALK:
 			notice.hot = lerpf(notice.hot, 1.0 if notice.rect().has_point(wp) and not underground() else 0.0, 0.3)
-			if underground() or not ride.is_empty():
+			if not on_lab_floor() or not ride.is_empty():
 				if ride.is_empty() and _spot_at(wp) != "" and _spot_label(_spot_at(wp)) != "":
 					var bsid := _spot_at(wp)
 					hand = true

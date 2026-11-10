@@ -5,8 +5,7 @@ func _ready() -> void:
 	Pal.changed.connect(queue_redraw)
 
 func _draw() -> void:
-	_office()
-	# 储藏室改成完整房间，由 basement.gd 画（M5a）
+	# 楼上办公室、地下储藏室都改成完整房间，由 office.gd / basement.gd 画（M5a/M5b）
 	_main_room()
 	_main_ring()
 	_injector()

@@ -21,7 +21,7 @@ static func _off() -> bool:
 
 static func _fresh() -> Dictionary:
 	return {"_ver": VER, "runs": 0, "prestige": 0, "prestige_total": 0, "unlocked": [],
-		"storage_open": false, "office_open": false, "best_stage": 0, "clears": 0}
+		"storage_open": false, "office_open": false, "best_stage": 0, "clears": 0, "groups": ["base"]}
 
 static func ensure() -> void:
 	if _loaded:
@@ -89,7 +89,12 @@ static func settle(run: Run) -> Dictionary:
 	var reached: int = run.stage + (0 if run.won() else 1)
 	var stages: int = maxi(0, reached - run.meta_paid)
 	var clear: bool = run.won() and not run.meta_cleared
-	var gain := stages * PER_STAGE + (CLEAR_BONUS if clear else 0)
+	var base := stages * PER_STAGE + (CLEAR_BONUS if clear else 0)
+	# 挑战合同：声望按倍数多给（M5-16；评审等级的倍数 M5c 再乘上）
+	var mult := 1.0
+	if run.challenge != "":
+		mult *= 1.0 + float(Contracts.CHALLENGES[run.challenge].bonus)
+	var gain := int(round(base * mult))
 	run.meta_paid += stages
 	if clear:
 		run.meta_cleared = true
@@ -107,5 +112,40 @@ static func settle(run: Run) -> Dictionary:
 	if not d.office_open and int(d.best_stage) >= 5:   # 通过第 5 阶段
 		d.office_open = true           # 第一次通过第 5 阶段（M5b 再做办公室本身）
 		opened.append("office")
+	# 课题组解锁（M5-15）
+	var g: Array = d.groups
+	var want := {"theory": int(d.best_stage) >= 3, "engineering": run.eng_full_pass, "finance": run.spent >= 300, "postdoc": int(d.clears) >= 1}
+	for gid in Contracts.GROUP_ORDER:
+		if want.get(gid, false) and not g.has(gid):
+			g.append(gid)
+			opened.append("group:" + gid)
 	save()
-	return {"gain": gain, "stages": stages, "clear": clear, "opened": opened}
+	return {"gain": gain, "base": base, "mult": mult, "stages": stages, "clear": clear, "opened": opened}
+
+static func group_open(id: String) -> bool:
+	ensure()
+	return id == "base" or (d.groups as Array).has(id)
+
+# —— 教授书架借阅（M5-9）——
+static func borrow_price(id: String) -> int:
+	return BORROW[Items.ALL[id].rarity]
+
+## 借不了的原因（"" = 可以借）
+static func borrow_block(id: String) -> String:
+	ensure()
+	if unlocked(id):
+		return "已借阅"
+	if Items.ALL[id].rarity == Items.LEGEND and int(d.clears) < 1:
+		return "传说那一格：第一次通关后打开"
+	if prestige() < borrow_price(id):
+		return "声望不够（要 %d，现有 %d）" % [borrow_price(id), prestige()]
+	return ""
+
+static func borrow(id: String) -> String:
+	var why := borrow_block(id)
+	if why != "":
+		return why
+	d.prestige = prestige() - borrow_price(id)
+	(d.unlocked as Array).append(id)
+	save()
+	return ""

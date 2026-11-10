@@ -188,7 +188,7 @@ func _refresh() -> void:
 			stamp_t[i] = -1.0
 		Sfx.play("paper", -4.0, 1.1)
 	else:
-		_say("经费不够刷新")
+		_say("挑战合同：本局不许刷新" if main.run.ch("no_refresh") else "经费不够刷新")
 
 func _say(s: String) -> void:
 	msg = s
