@@ -82,11 +82,11 @@ func _initialize() -> void:
 			check(v >= -1e-12, "修正后非负")
 			sq += v
 		check(absf(sq - 1.0) < 1e-9, "修正后和为 1")
-	# 超导磁铁：E9 丢失 45% → 40%
+	# 超导磁铁：E9 丢失 45% → ×0.85 = 38.25%
 	var rm := Run.new(5)
 	rm.devices.append("magnet_sc")
 	rm.start_experiment(); rm.beam.energy = 9
-	check(absf(rm.odds()[Odds.LOSS] - 0.40) < 1e-9, "超导磁铁 -5pp (%f)" % rm.odds()[Odds.LOSS])
+	check(absf(rm.odds()[Odds.LOSS] - 0.3825) < 1e-9, "超导磁铁 ×0.85 (%f)" % rm.odds()[Odds.LOSS])
 	# 导师的最后通牒：前 3 次必定至少成功；第 4 次起丢失 +10pp
 	for sd in 30:
 		var ru := Run.new(100 + sd)
@@ -240,20 +240,11 @@ func _initialize() -> void:
 	var m3_o0: Dictionary = m3_ra.offers[0]
 	check(m3_o0.price == int(ceil(Items.ALL[m3_o0.id].price * 0.5)), "申报书第一件半价")
 	check(m3_ra.offers[1].price == Items.ALL[m3_ra.offers[1].id].price, "申报书只管第一件")
-	# 校准记录：首次锁相升级为完全同步（无稳定/失谐）
+	# 校准记录（Q69）：锁相充能 6 → 4 格
 	var m3_rc := Run.new(45)
+	check(m3_rc.lock_need() == 6, "默认 6 格锁相")
 	m3_rc.relics.append("calib_log")
-	m3_rc.start_experiment()
-	m3_rc.beam.energy = 6; m3_rc.beam.charge = 5
-	var m3_guard := 0
-	while m3_rc.beam != null and not m3_rc.beam.locked() and m3_guard < 200:
-		m3_rc.beam.energy = 6
-		m3_rc.accelerate()
-		m3_guard += 1
-	if m3_rc.beam != null and m3_rc.beam.locked():
-		check(m3_rc.beam.full_sync, "校准记录：完全同步")
-		var m3_q := m3_rc.odds()
-		check(m3_q[Odds.STABLE] == 0.0 and m3_q[Odds.DETUNE] == 0.0 and m3_q[Odds.LOSS] == 0.0, "完全同步只剩成功类")
+	check(m3_rc.lock_need() == 4, "校准记录：4 格锁相")
 	# 诺奖名单：E12 锁相时超级同步翻倍
 	var m3_rn := Run.new(46)
 	m3_rn.start_experiment(); m3_rn.beam.energy = 13; m3_rn.beam.lock_left = 3
@@ -332,7 +323,7 @@ func _initialize() -> void:
 	var b3w := Run.new(62)
 	b3w.relics.append("wipes")
 	b3w.start_experiment(); b3w.beam.energy = 9
-	check(absf(b3w.odds()[Odds.LOSS] - (Odds.table(9)[Odds.LOSS] - 0.06)) < 1e-9, "湿巾 -6pp")
+	check(absf(b3w.odds()[Odds.LOSS] - Odds.table(9)[Odds.LOSS] * 0.82) < 1e-9, "湿巾 ×0.82")
 	b3w.extract()
 	check(not b3w.has("wipes"), "湿巾用完消失")
 	var b3m := Run.new(63)
@@ -345,12 +336,11 @@ func _initialize() -> void:
 	b3b.relics.append("bandaid")
 	var conv := 0
 	for i in 600:
-		b3b.beam = Beam.new(); b3b.beam.energy = 4; b3b.beam.lock_left = 3; b3b.beam.lock_used = true
+		b3b.beam = Beam.new(); b3b.beam.energy = 4
 		var r := b3b.accelerate()
 		for tg in r.triggers:
 			if tg[0] == "bandaid" and tg[2].hit: conv += 1
-	# Q69 锁相里不再出现保持稳定，创可贴暂时永远触发不了，等用户定新效果
-	check(conv == 0, "创可贴：锁相已无保持稳定（%d）" % conv)
+	check(conv > 10, "创可贴：保持稳定转成功（%d）" % conv)
 
 	# —— M3 第 4 批：证章 ——
 	var b4 := Run.new(71)
@@ -369,7 +359,7 @@ func _initialize() -> void:
 	var b4d := Run.new(73)
 	b4d.relics.append("dose_card")
 	b4d.start_experiment(); b4d.beam.energy = 11
-	check(b4d.odds()[Odds.PERFECT] > Odds.table(11)[Odds.PERFECT] + 0.059, "剂量卡 +6pp")
+	check(b4d.odds()[Odds.PERFECT] > Odds.table(11)[Odds.PERFECT] + 0.079, "剂量卡 +8pp")
 	var b4m := Run.new(74)
 	b4m.relics.append("meal_card")
 	var m0b := b4m.money
@@ -436,7 +426,7 @@ func _initialize() -> void:
 	var b5c := Run.new(85)
 	b5c.devices.append("cryo_magnet")
 	b5c.start_experiment(); b5c.beam.energy = 11
-	check(absf(b5c.odds()[Odds.LOSS] - (Odds.table(11)[Odds.LOSS] - 0.08)) < 1e-9, "低温磁体 -8pp")
+	check(absf(b5c.odds()[Odds.LOSS] - Odds.table(11)[Odds.LOSS] * 0.75) < 1e-9, "低温磁体 ×0.75")
 	var b5k := Run.new(86)
 	b5k.relics.append("lab8_key")
 	var free_n := 0

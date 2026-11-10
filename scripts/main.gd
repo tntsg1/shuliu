@@ -556,7 +556,7 @@ func press_red() -> void:
 			Sfx.play("arc", -2.0, 1.1)
 			Sfx.play("ring", -5.0, 1.2)
 			overlay.flash_lock()
-			overlay.stamp("完全同步！", Pal.c("lock"))
+			overlay.stamp("锁相！", Pal.c("lock"))
 			hitstop(0.12)
 			_sync()
 		2:
@@ -1381,7 +1381,7 @@ func _hover() -> void:
 			panel.hover_leave = mode == M.CONSOLE and panel.leave_rect.has_point(sp)
 			panel.hover_red = mode == M.CONSOLE and panel.red_rect.has_point(sp)
 			if panel.hover_red:
-				tip = PackedStringArray(["绝对不能按的红色按钮", "潜在成果 ×10（10%）· 4 次完全同步（25%）", "束流直接丢失（35%）· 随机精良以上饰品（30%）"])
+				tip = PackedStringArray(["绝对不能按的红色按钮", "潜在成果 ×10（10%）· 4 次锁相（25%）", "束流直接丢失（35%）· 随机精良以上饰品（30%）"])
 			panel.hover_knob = mode == M.CONSOLE and panel.hit_knob(sp)
 			hand = panel.hover_btn or panel.hover_knob or panel.hover_leave or panel.hover_red or panel.dragging or mode == M.SPIN
 			var k: int = panel.seg_at(sp)

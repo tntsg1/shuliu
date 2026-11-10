@@ -72,7 +72,7 @@ func seed_text() -> String:
 
 ## 攒满几格进入锁相（没洗的咖啡杯 -1）
 func lock_need() -> int:
-	return Odds.LOCK_NEED - (1 if has("coffee_cup") else 0) - (2 if plan == "lock_rush" else 0)
+	return maxi(2, Odds.LOCK_NEED - (1 if has("coffee_cup") else 0) - (2 if plan == "lock_rush" else 0) - (2 if has("calib_log") else 0))
 
 ## 打开采购终端（饭卡）
 var meal_ready := true     # 饭卡：每次实验结束后（和开局）第一次打开才给，防止反复开关刷钱
@@ -150,17 +150,22 @@ func odds() -> PackedFloat64Array:
 	var b := beam
 	var p := Odds.table(b.energy)
 	var d := PackedFloat64Array([0, 0, 0, 0, 0, 0])
-	if has("magnet_sc"): d[Odds.LOSS] -= 0.05
-	if has("collimator"): d[Odds.LOSS] -= 0.04
+	# 降丢失的饰品按比例（Q69）：丢失率 ×系数，能级越高省得越多；代价类仍是加百分点
+	var lm := 1.0
+	if has("magnet_sc"): lm *= 0.85
+	if has("collimator"): lm *= 0.88
+	if has("koi") and b.koi > 0: lm *= pow(0.95, b.koi)
+	if plan == "energy_save": lm *= 0.92
+	if b.wipes: lm *= 0.82
+	if has("cryo_magnet") and b.energy >= 10: lm *= 0.75
+	d[Odds.LOSS] -= p[Odds.LOSS] * (1.0 - lm)
 	if has("injector_hi"): d[Odds.LOSS] += 0.05
-	if has("quad_array"): d[Odds.SUCCESS] += 0.08
-	if has("rf_backup"): d[Odds.PERFECT] += 0.04
-	if has("koi") and b.koi > 0: d[Odds.LOSS] -= 0.02 * b.koi
+	if has("quad_array"): d[Odds.SUCCESS] += 0.12
+	if has("rf_backup"): d[Odds.PERFECT] += 0.06
 	if has("ultimatum") and b.presses >= 3: d[Odds.LOSS] += 0.10
 	if has("fast_clock") and b.presses == 0: d[Odds.LOSS] += 0.05
 	match plan:
 		"high_energy": d[Odds.LOSS] += 0.03
-		"energy_save": d[Odds.LOSS] -= 0.03
 		"safety": d[Odds.PERFECT] -= 0.03
 		"top_journal":
 			d[Odds.PERFECT] += 0.04
@@ -168,9 +173,7 @@ func odds() -> PackedFloat64Array:
 		"open_day":
 			if b.presses == 0: d[Odds.LOSS] += 0.05
 	if has("duty_roster") and b.presses == 0: d[Odds.SUCCESS] += 0.15
-	if b.wipes: d[Odds.LOSS] -= 0.06
-	if has("dose_card") and b.energy >= 10: d[Odds.PERFECT] += 0.06
-	if has("cryo_magnet") and b.energy >= 10: d[Odds.LOSS] -= 0.08
+	if has("dose_card") and b.energy >= 10: d[Odds.PERFECT] += 0.08
 	# 束流位置监测器：保持稳定的一半转给加速成功
 	if has("bpm"):
 		d[Odds.STABLE] -= p[Odds.STABLE] * 0.5
@@ -261,7 +264,7 @@ func accelerate() -> Dictionary:
 		trig.append(["wrong_answer", "错得很对：失谐 → 完美同步" if hit else "这次是真的错了", {"p": 0.2, "hit": hit}])
 		if hit:
 			k = Odds.PERFECT
-	if k == Odds.STABLE and has("bandaid") and b.locked():
+	if k == Odds.STABLE and has("bandaid"):
 		var hit2 := _hit(0.4)
 		trig.append(["bandaid", "稳定 → 加速成功" if hit2 else "没粘住", {"p": 0.4, "hit": hit2}])
 		if hit2:
@@ -442,7 +445,7 @@ func accelerate() -> Dictionary:
 		if not b.lock_used:
 			b.charge = 0 if k == Odds.DETUNE else b.charge + Odds.CHARGE[k]
 			if b.charge >= lock_need():
-				b.charge = Odds.LOCK_NEED
+				b.charge = lock_need()
 				b.lock_left = lock_n
 				b.lock_used = true
 				res.lock_started = true
@@ -465,12 +468,8 @@ func accelerate() -> Dictionary:
 		promise = 0
 	if res.lock_started and has("fast_clock"):
 		trig.append(["fast_clock", "锁相 +2"])
-	if res.lock_started and has("calib_log") and not b.calib_used:
-		b.calib_used = true
-		b.full_sync = true
-		b.synced = true
-		res["full_sync"] = true
-		trig.append(["calib_log", "完全同步"])
+	if res.lock_started and has("calib_log"):
+		trig.append(["calib_log", "校准过的设备：4 格就锁相"])
 	# 便利贴：成功率够高时预备下一次必定成功
 	if has("note100") and not b.guaranteed_next:
 		var q := odds()
@@ -496,7 +495,7 @@ func sch_end() -> Dictionary:
 	return fin
 
 ## 绝对不能按的红色按钮：每次实验一次，四种结果概率公开
-const RED_SEGS := [[0.10, "潜在成果 ×10"], [0.25, "4 次完全同步"], [0.35, "束流直接丢失"], [0.30, "随机精良以上饰品"]]
+const RED_SEGS := [[0.10, "潜在成果 ×10"], [0.25, "4 次锁相"], [0.35, "束流直接丢失"], [0.30, "随机精良以上饰品"]]
 
 func can_press_red() -> bool:
 	return beam != null and has("red_button") and not beam.red_used
