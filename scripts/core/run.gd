@@ -5,13 +5,13 @@ extends RefCounted
 ## 结算顺序（GDD 4.6）：最终概率 → 抽取 → 重抽 → 结果转化 → 破碎抵挡 → 科研抢救 → 执行与后续效果
 
 # 8 个阶段（DECISIONS Q56）：第 4、8 阶段是大考（线跳高、奖金翻倍）；数值由 tests/bot_balance.gd 校准
-static var LINES := [150, 700, 1500, 2800, 3800, 5400, 7700, 12000]   # Q69 新曲线下机器人重定
+static var LINES := [150, 1400, 3500, 7000, 12000, 19000, 28000, 40000]   # 2026-11-10 去掉够线扣分后机器人重定（智能 E10 通关约 40%）
 const BIG := [3, 7]
 const ENDLESS_G := 1.55          # 无尽：第 9 阶段起每阶段考核线 ×1.55
 const PER_STAGE := 3
 static var LEFTOVER_PAY := 20    # 提前提交：每束没用的束流折 $LEFTOVER_PAY + 阶段 × LEFTOVER_STEP
 static var LEFTOVER_STEP := 4
-static var OVERLINE_TAX := 0.3   # 已够线还继续赌，束流丢了：扣掉累计分的 30%（可能跌回线下）
+static var OVERLINE_TAX := 0.0   # 够线后继续实验丢了不扣分（用户 2026-11-10：新实验只消耗氢气瓶，不扣分不扣钱）；机器人可用 tax= 参数对比旧规则
 const START_MONEY := 30
 const REFRESH_BASE := 3
 

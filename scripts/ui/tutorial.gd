@@ -112,7 +112,7 @@ func _ready() -> void:
 			"at": func(): return Vector2(400, 300), "note": func(): return Vector2(440, 120)},
 		{"id": "submit", "text": "科研点达到本轮要求以后，就可以去审核台提交评审，不需要把所有氢气瓶都用完。
 如果还有剩余的氢气瓶，提交时会自动退回，并且按照数量折算成经费。
-当然，你也可以继续进行实验，多赚一些科研点，不过后面的实验如果失败，就会扣除之前累计科研点的 30%，所以要考虑好再决定。
+当然，你也可以继续进行实验，多赚一些科研点。就算失败了，也只是用掉一个氢气瓶，之前累计的科研点不会减少。
 等所有氢气瓶都用完以后，就必须提交评审了。",
 			"say": func(): return ("科研成果的分数已经能通过考核了，但是你还是剩下了几个气瓶，\n不过好心提醒你一下，你剩下的%d瓶也会被回收哦" % main.run.experiments_left) if main.run.total >= main.run.line() and main.run.experiments_left > 0 else "",
 			"show": func(): return (main.mode == main.M.CONSOLE and main.run.beam == null or main.mode == main.M.WALK) and main.run.experiment_no >= 1 and shown.has("clips"),
