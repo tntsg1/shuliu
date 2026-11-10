@@ -86,12 +86,17 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam != null and main.run.beam.energy >= 4,
 			"done": func(): return main.run.experiment_no > 1 or main.run.beam == null,
 			"at": func(): return _panel(Vector2(1760, 110)), "note": func(): return _panel(Vector2(1530, -200))},
-		{"id": "report", "text": "装着成果的氢气瓶已经放进审核台的篮子里了，你可以在这里查看本轮评审需要的科研点数，以及目前已经累计的科研点数。
+		{"id": "report", "text": "这一束的成果已经装回注入器上的氢气瓶里了。拿起它送到审核台，按 E 放进篮子，才算这一轮的科研点。
+你可以在审核台查看本轮评审需要的科研点数，以及目前已经累计的科研点数。
 只要累计的科研点达到要求，就可以提交本轮评审。",
 			"say": "第一次科研成果成功出炉了，我们看一看得分如何呢",
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
 			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > _rt(7.0),
-			"at": func(): return _w(Vector2(main.review.X + 75, Geo.FLOOR - 200)), "note": func(): return _w(Vector2(main.review.X - 120, Geo.FLOOR - 420))},
+			"at": func(): return _w(Vector2(246, 690)), "note": func(): return _w(Vector2(main.review.X - 120, Geo.FLOOR - 420))},
+		{"id": "deliver", "text": "拿着成果瓶走到审核台，按 E 放进篮子。",
+			"show": func(): return main.mode == main.M.WALK and main.run.held == "full" and main.run.basket.is_empty() and main.run.stage == 0,
+			"done": func(): return main.run.held != "full",
+			"at": func(): return _w(Vector2(main.review.X + 40, Geo.FLOOR - 110)), "note": func(): return _w(Vector2(main.review.X - 420, Geo.FLOOR - 460))},
 		{"id": "toss", "text": "实验失败以后，瓶座上会留下一只空瓶。
 按 E 把它取下来，扔进最左边的空瓶回收站，才能装下一瓶。",
 			"show": func(): return main.mode == main.M.WALK and main.run.inj == "empty" and main.run.beam == null,

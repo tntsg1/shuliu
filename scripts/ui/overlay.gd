@@ -308,7 +308,10 @@ func _tally(vp: Vector2) -> void:
 	var home := Vector2(vp.x * 0.5, 150.0)
 	# 实验报告送进审核台的收件盘（DECISIONS Q64）
 	var dest := Vector2(230.0, 250.0)
-	if main and main.review:
+	if main and main.run and main.run.inj == "full":
+		# 成果瓶回到注入器瓶座上，等玩家拿去审核台
+		dest = get_viewport().get_canvas_transform() * (main.stash.CRADLE + Vector2(0, -20))
+	elif main and main.review:
 		dest = get_viewport().get_canvas_transform() * (main.review.inbox() as Vector2)
 	var has_bt: bool = not tl.get("bottle", {}).is_empty()
 	var p := Vector2(home.x, lerpf(-80.0, home.y, drop))

@@ -1,9 +1,9 @@
 extends Node2D
 ## 研究员：程序化骨骼走路（支撑脚贴地不打滑、膝盖朝前、肘部朝后、身体起伏）+ 白大褂弹簧下摆 + 脚步声
 
-const SPEED := 250.0
-const ACCEL := 9.0
-const STRIDE := 21.0        # 单脚前后摆幅（像素）：支撑期脚相对身体后移速度 = 身体速度
+const SPEED := 400.0        # 用户 2026-11-09：走快点（250 → 400）
+const ACCEL := 13.0
+const STRIDE := 28.0        # 单脚前后摆幅（像素）：支撑期脚相对身体后移速度 = 身体速度
 const LIFT := 10.0
 
 var vx := 0.0

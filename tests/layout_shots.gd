@@ -22,7 +22,8 @@ func _save(img: Image, r: Rect2i, sc: float, name: String) -> void:
 
 func _go() -> void:
 	await frames(10)
-	main.run.inj = "empty"
+	main.run.inj = "full"
+	main.run.inj_bt = {"value": 372, "energy": 7}
 	main.stash.bin_n = 2
 	main.run.cab = [{"value": 1133, "energy": 10}]
 	main.run.basket = [{"value": 84, "energy": 3}, {"value": 256, "energy": 6}, {"value": 539, "energy": 8}]

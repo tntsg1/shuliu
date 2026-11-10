@@ -54,7 +54,9 @@ func _draw() -> void:
 	# —— 注入器瓶座：一只卡箍 + 软管接到进气口 ——
 	var c := CRADLE
 	Ink.box(self, Rect2(c.x - 16, c.y - 8, 32, 8), Pal.c("equip_dark"), el, Ink.W2, 703)
-	if inj != "":
+	if inj == "full":
+		full_bottle(self, Vector2(c.x, c.y - 8), 1.0, main.run.inj_bt)
+	elif inj != "":
 		_bottle(c, inj == "empty")
 		# 软管：瓶阀 → 注入器底座
 		var vt := Vector2(c.x, c.y - 8 - 92 - 11 - 10)

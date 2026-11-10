@@ -24,7 +24,11 @@ var experiments_left := PER_STAGE
 var total := 0
 # —— 氢气瓶（Q70）：全手动换瓶，成果装回瓶里，满瓶进当前评审的篮子；储备柜存不交的满瓶，留着翻身 ——
 const CAB_SLOTS := 2
-var inj := ""              # 注入器瓶座："" 空 / "fresh" 装着新瓶 / "empty" 实验后的空瓶
+## 真实游戏里（main 打开）：引出的满瓶留在注入器瓶座上，要玩家拿去审核台放进篮子才算科研点（用户 2026-11-09）。
+## 规则测试和平衡机器人不开：满瓶直接进篮子，结果等价于“每瓶都送到了”
+static var MANUAL_BASKET := false
+var inj := ""              # 注入器瓶座："" 空 / "fresh" 装着新瓶 / "empty" 实验后的空瓶 / "full" 装着成果的满瓶
+var inj_bt := {}           # 瓶座上那只满瓶 {value, energy}
 var held := ""             # 主角手里："" / "fresh" / "empty" / "full"
 var held_bt := {}          # 手里那只满瓶 {value, energy}
 var basket: Array = []     # 本次评审篮子里的满瓶 {value, energy}，提交后清空
@@ -603,11 +607,17 @@ func _finish(v: int) -> Dictionary:
 	var e_end := beam.energy if beam != null else 1
 	beam = null
 	if v > 0:
-		# 成果装回瓶座上的瓶子，满瓶进篮子（瓶座空出来）
-		basket.append({"value": v, "energy": e_end})
-		inj = ""
+		# 成果装回瓶座上的瓶子
+		if MANUAL_BASKET:
+			# 满瓶留在瓶座上，玩家拿去审核台放进篮子才计分
+			inj = "full"
+			inj_bt = {"value": v, "energy": e_end}
+		else:
+			basket.append({"value": v, "energy": e_end})
+			inj = ""
 	meal_ready = true
-	total += v
+	if not MANUAL_BASKET:
+		total += v
 	experiments_left -= 1
 	var income := int(floor(2.0 + 1.6 * sqrt(float(v))))
 	if plan == "night_shift":
@@ -831,6 +841,18 @@ func load_fresh() -> String:
 		return "瓶座上已经有一瓶了"
 	held = ""
 	inj = "fresh"
+	return ""
+
+## 从瓶座上拿下满瓶（成果），送去审核台
+func pick_full() -> String:
+	if inj != "full":
+		return "瓶座上没有成果瓶"
+	if held != "":
+		return "手里已经拿着东西了"
+	held_bt = inj_bt
+	inj_bt = {}
+	inj = ""
+	held = "full"
 	return ""
 
 func pick_empty() -> String:

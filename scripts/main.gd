@@ -113,6 +113,7 @@ func _ready() -> void:
 	bottles.set("main", self)
 	stash = _node("res://scripts/world/stash.gd", world)
 	stash.set("main", self)
+	Run.MANUAL_BASKET = true      # 满瓶要玩家亲手送到审核台才计分
 	player = _node("res://scripts/world/player.gd", world)
 	prompt = _node("res://scripts/world/prompt.gd", world)
 	cam = Camera2D.new()
@@ -432,7 +433,7 @@ func enter_console() -> void:
 			Sfx.play("hit_low", -10.0, 1.3)
 			return
 		if run.inj != "fresh":
-			overlay.say("注入器上还没装新瓶：去气瓶架拿一瓶氢气，装到注入器上" if run.inj == "" else "注入器上是空瓶：先取下来扔进回收站，再装一瓶新的")
+			overlay.say(_inj_hint())
 			Sfx.play("hit_low", -10.0, 1.3)
 			return
 	mode = M.ENTER
@@ -767,6 +768,8 @@ func _idle_hint() -> void:
 	panel.dec = {}
 	if run.won() or run.failed:
 		panel.hint = ""
+	elif run.inj == "full":
+		panel.hint = "成果装在注入器的瓶子里了：拿去审核台放进篮子，才算科研点"
 	elif run.experiments_left <= 0:
 		panel.hint = "本阶段束流用完了 → 去审核台提交考核"
 	elif run.can_submit():
@@ -780,7 +783,7 @@ func _next_beam() -> void:
 		return
 	if run.can_start() and run.inj != "fresh":
 		# 全手动换瓶（Q70）：瓶座上没有新瓶，控制台里开不了下一束
-		overlay.say("注入器上没有新瓶：先离开控制台，去气瓶架拿一瓶装上")
+		overlay.say("先离开控制台：" + _inj_hint())
 		Sfx.play("hit_low", -10.0, 1.3)
 		cooldown = 0.4
 	elif run.can_start():
@@ -918,6 +921,8 @@ func open_review() -> void:
 func _review_card() -> void:
 	var lines: Array = []
 	var title_col := Pal.c("text")
+	if run.inj == "full":
+		lines.append("注入器上还有一瓶成果（%s RP）没送来——拿过来放进篮子才算分。" % fmt(int(run.inj_bt.get("value", 0))))
 	if run.beam != null:
 		lines.append("控制台那边还有一束没结束——先回去引出（或者让它丢了）才能提交。")
 	elif run.can_submit():
@@ -1047,7 +1052,10 @@ func _process(dt: float) -> void:
 	panel.show_red = (mode == M.CONSOLE or mode == M.SPIN) and run.has("red_button") and run.beam != null
 	panel.red_used = run.beam != null and run.beam.red_used
 	panel.show_leave = mode == M.CONSOLE
-	panel.leave_label = "← 去审核台" if (run.beam == null and (run.experiments_left <= 0 or run.can_submit())) else ("← 去换瓶" if run.beam == null and run.inj != "fresh" else "← 先去采购")
+	if run.beam == null and run.inj == "full":
+		panel.leave_label = "← 去拿成果"
+	else:
+		panel.leave_label = "← 去审核台" if (run.beam == null and (run.experiments_left <= 0 or run.can_submit())) else ("← 去换瓶" if run.beam == null and run.inj != "fresh" else "← 先去采购")
 	if mode == M.CONSOLE or mode == M.SPIN:
 		dang = shown_dang
 		Sfx.set_hum(true, shown_e, clampf(dang / 0.35, 0.0, 1.0), shown_lock)
@@ -1365,11 +1373,20 @@ func _mouse(ev: InputEventMouse) -> void:
 			elif wp.y > Geo.CEIL and wp.y < Geo.FLOOR + 30:
 				_walk_to(wp.x, "")
 
+## 瓶座不是新瓶时，告诉玩家下一步该干什么
+func _inj_hint() -> String:
+	match run.inj:
+		"full": return "注入器上放着这一束的成果瓶，先拿去审核台放进篮子"
+		"empty": return "注入器上是空瓶，先取下来扔进回收站，再装一瓶新的"
+	return "注入器上还没装新瓶，去气瓶架拿一瓶氢气装上"
+
 ## 面板纸签：束流用完 → 去审核台；否则 → 去采购
 func _leave_tab_go() -> void:
-	var to_review: bool = run.beam == null and (run.experiments_left <= 0 or run.can_submit())
+	var to_review: bool = run.beam == null and run.inj != "full" and (run.experiments_left <= 0 or run.can_submit())
 	leave_console()
-	if to_review:
+	if run.beam == null and run.inj == "full":
+		_walk_to(float(SPOTS["cradle"][0]), "spot:cradle")
+	elif to_review:
 		_walk_to(review.STAND, "review")
 	elif run.beam == null and run.inj != "fresh":
 		# 去换瓶：瓶座上是空瓶就先走到瓶座，否则直接去气瓶架
@@ -1405,6 +1422,8 @@ func _spot_label(id: String) -> String:
 		"bin":
 			return "扔掉空瓶" if run.held == "empty" else ""
 		"cradle":
+			if run.inj == "full" and run.held == "":
+				return "拿起成果瓶"
 			if run.inj == "empty" and run.held == "" and run.beam == null:
 				return "取下空瓶"
 			if run.inj == "" and run.held == "fresh":
@@ -1429,7 +1448,9 @@ func _spot_do(id: String) -> void:
 				stash.bin_n = mini(stash.bin_n + 1, 3)
 				Sfx.play("metal", -8.0, 0.8)
 		"cradle":
-			if run.inj == "empty":
+			if run.inj == "full":
+				err = run.pick_full()
+			elif run.inj == "empty":
 				err = run.pick_empty()
 			else:
 				err = run.load_fresh()
