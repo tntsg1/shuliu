@@ -51,6 +51,7 @@ var stage_pen_used := false
 var rejected_stacks := 0
 var best_potential := 0       # 本局到过的最高潜在成果（忘记保存的数据）
 var lost_bonus := 0           # 下一次引出额外加上的科研点
+var inherited: Array = []       # 这一束开局继承的锁相充能 [[来源 id, 格数]]（界面显示来自哪件物品）
 var lost_charge_pending := false # 丢失数据：下一束开始时获得锁相充能
 var stage_lost_data_used := false
 var stage_letter_used := false   # 推荐信：本阶段已经加成过
@@ -155,9 +156,12 @@ func can_start() -> bool:
 func start_experiment() -> void:
 	assert(can_start())
 	beam = Beam.new()
+	inherited = []
 	if lost_charge_pending:
 		beam.charge = mini(2, lock_need() - 1)
 		lost_charge_pending = false
+		if beam.charge > 0:
+			inherited.append(["lost_data", beam.charge])
 	beam.route = Forms.route_of(relics)     # 束流形态路线在注入时定下，中途买卖不换路线
 	experiment_no += 1
 	inj = "empty"           # 瓶里的氢气注进了环，瓶座上只剩空瓶
@@ -385,15 +389,15 @@ func accelerate() -> Dictionary:
 	if k == Odds.DETUNE and has("diagnostic") and not b.diag_used:
 		b.diag_used = true
 		k = Odds.STABLE
-		trig.append(["diagnostic", "诊断仪拦下失谐"])
+		trig.append(["diagnostic", "失谐 → 稳定"])
 	if k == Odds.DETUNE and has("tape_roll") and not b.tape_used:
 		b.tape_used = true
 		k = Odds.STABLE
-		trig.append(["tape_roll", "胶带粘住了"])
+		trig.append(["tape_roll", "粘住了：失谐 → 稳定"])
 	if k == Odds.DETUNE and has("badge") and not stage_badge_used:
 		stage_badge_used = true
 		k = Odds.STABLE
-		trig.append(["badge", "工牌刷开了"])
+		trig.append(["badge", "刷开了：失谐 → 稳定"])
 	# 带概率的饰品：触发记录里附上 {p, hit}，界面用它播“抽卡”
 	if k == Odds.DETUNE and has("wrong_answer"):
 		var hit := _hit(0.2)
@@ -425,18 +429,18 @@ func accelerate() -> Dictionary:
 		stage_call_used = true
 		k = Odds.STABLE
 		b.saved = true
-		trig.append(["emergency_call", "教授接了电话：挡住了"])
+		trig.append(["emergency_call", "教授接了：丢失 → 稳定"])
 	if k == Odds.LOSS and has("extinguisher") and not stage_ext_used and b.energy <= 6:
 		stage_ext_used = true
 		k = Odds.STABLE
 		b.saved = true
-		trig.append(["extinguisher", "灭火器喷上了"])
+		trig.append(["extinguisher", "喷上了：丢失 → 稳定"])
 	if k == Odds.LOSS and has("coin") and not b.coin_used:
 		b.coin_used = true
 		if _hit(0.5):
 			k = Odds.STABLE
 			b.saved = true
-			trig.append(["coin", "正面！挡住了", {"p": 0.5, "hit": true}])
+			trig.append(["coin", "正面！丢失 → 稳定", {"p": 0.5, "hit": true}])
 		else:
 			trig.append(["coin", "反面……", {"p": 0.5, "hit": false}])
 	var gamble := b.sch_gamble
@@ -500,7 +504,7 @@ func accelerate() -> Dictionary:
 				stage_lost_data_used = true
 				lost_bonus = int(floor(pot * 0.15))
 				lost_charge_pending = true
-				trig.append(["lost_data", "下次引出 +%d · 下一束锁相充能最多 +2" % lost_bonus])
+				trig.append(["lost_data", "下次引出 +%d · 下束充能 +2" % lost_bonus])
 		_log(k, from, from)
 		b.alive = false
 		_apply_tax(res)
@@ -555,11 +559,10 @@ func accelerate() -> Dictionary:
 	if k == Odds.STABLE and has("third_draft"):
 		b.draft = minf(1.0, b.draft + 0.1)
 		b.draft_stable += 1
+		trig.append(["third_draft", "第 %d 次修改：×%.1f" % [b.draft_stable, 1.0 + b.draft], {"quiet": true}])
 		if b.draft_stable % 2 == 0 and not was_locked and not b.lock_used:
 			b.charge += 1
 			trig.append(["third_draft", "稳定两次：锁相充能 +1"])
-		else:
-			trig.append(["third_draft", "倍率 +%.1f" % b.draft])
 	if good and has("nobel_list") and b.energy >= 12:
 		money += 4
 		res.money += 4
@@ -569,6 +572,7 @@ func accelerate() -> Dictionary:
 		trig.append(["grad_promise", "下次锁相 +%d" % promise])
 	if k == Odds.DETUNE and has("rejected"):
 		rejected_stacks = mini(3, rejected_stacks + 1)
+		trig.append(["rejected", "怨气 %d/3" % rejected_stacks + ("，下次成功 +3" if rejected_stacks >= 3 else ""), {"quiet": true}])
 	if (k == Odds.PERFECT or k == Odds.SUPER) and has("koi") and b.koi < 5:
 		b.koi += 1
 		trig.append(["koi", "好运 ×%d" % b.koi])

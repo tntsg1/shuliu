@@ -437,6 +437,22 @@ func _card(cr: Rect2, o: Dictionary, i: int, hot: bool) -> void:
 	if absf(sx) > 0.6:
 		Icons.draw(self, o.id, c + Vector2(0, -cr.size.y * 0.5 + 110 - 6.0 * ch), 110.0 * absf(sx) * (1.0 + 0.08 * ch), sin(t * 3.0) * 0.05 * ch)
 	draw_set_transform(c, tilt, Vector2(absf(sx), 1.0 + 0.025 * ch))
+	# 组合小签：和手上已有的某件是一套（Q75）
+	if not o.sold:
+		var cw := Items.combo_with(o.id, main.run.relics + main.run.devices)
+		if not cw.is_empty():
+			var ct: String = "和%s一套" % cw.with
+			var cfs := 13
+			var cwid := Ink.size(Pal.bold, ct, cfs).x + 14.0
+			var cp := o2 + Vector2(cr.size.x - cwid - 8.0, 38.0)
+			var crr := Rect2(cp, Vector2(cwid, 22))
+			draw_set_transform(c, tilt + 0.04, Vector2(absf(sx), 1.0 + 0.025 * ch))
+			draw_rect(Rect2(crr.position + Vector2(2, 3), crr.size), Color(0, 0, 0, 0.12))
+			draw_rect(crr, Pal.c("gold"))
+			Ink.frame(self, crr, el, Ink.W3)
+			Ink.text(self, ct, crr.position + Vector2(7, 16), cfs, ink, Pal.bold)
+			Ink.text(self, cw.combo, crr.position + Vector2(cwid - 2, 36), 11, Pal.c("text2"), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+			draw_set_transform(c, tilt, Vector2(absf(sx), 1.0 + 0.025 * ch))
 	# 名称
 	# 名字太长就缩小字号，别被截断
 	var nfs := 19

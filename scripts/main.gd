@@ -371,7 +371,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 			if ev.is_action("accelerate"):
 				panel.skip()
 		M.CONSOLE:
-			if (ev.is_action("accelerate") or ev.is_action("interact")) and overlay.tally_skip():
+			if (ev.is_action("accelerate") or ev.is_action("interact")) and (overlay.tally_skip() or charms.chain_skip()):
 				pass
 			elif ev.is_action("accelerate"):
 				if run.beam == null:
@@ -468,6 +468,9 @@ func _new_beam() -> void:
 	Sfx.play("btn2", -6.0)
 	run.start_experiment()
 	chamber.inject()
+	# 继承的锁相充能：挂板上标出来自哪件物品（劫后再战）
+	for x in run.inherited:
+		charms.nudge(x[0], "继承充能 +%d" % x[1], 0.6)
 	form.reset()
 	panel.reset_beam()
 	panel.val_disp = Odds.value_at(1)
@@ -1273,12 +1276,14 @@ func _src_name(id: String) -> String:
 
 ## 饰品/设备触发：护身符架上对应物件弹起 + 屏幕上浮出纸签
 func _triggers(r: Dictionary) -> void:
+	# 挂板在：按结算顺序逐条播放（飞出来的饰品 + 右上角结算单，Q75）；挂板没升起：屏幕上浮纸签
+	if charms.vis > 0.5:
+		charms.play_chain(r)
 	for tr in r.get("triggers", []):
 		gear.ping(tr[0])
-		if charms.vis > 0.5:
-			charms.fire(tr[0], tr[1], tr[2] if tr.size() > 2 else {})
-		else:
+		if charms.vis <= 0.5:
 			overlay.trig(tr[0], Items.ALL[tr[0]].name + " · " + tr[1])
+	if not r.get("triggers", []).is_empty():
 		Sfx.play("tick", -6.0, 1.6)
 	if r.get("money", 0) > 0:
 		Sfx.play("btn2", -8.0, 1.5)

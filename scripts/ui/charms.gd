@@ -21,6 +21,14 @@ const GAP := 62.0
 const BOARD_W := 400.0
 const FLY_END := 0.5
 const ROLL_T := 1.15
+const CHAIN_T := 0.25     # 连锁结算单：每条间隔（Q75）
+const CHAIN_W := 430.0
+## 结算顺序里的阶段名（Run.accelerate 按这个顺序处理：重抽 → 改写 → 保护 → 最终结果 → 结果类效果）
+const PHASE := {"eraser": "重抽", "diagnostic": "改写", "tape_roll": "改写", "badge": "改写", "wrong_answer": "改写",
+	"bandaid": "改写", "note100": "保底", "screw": "意外", "lab_cat": "保护", "emergency_call": "保护", "extinguisher": "保护",
+	"coin": "保护", "schrodinger": "保护", "dean_paper": "抢救", "protect_sys": "抢救"}
+
+var chain := {}           # 连锁结算单 {lines: [[阶段, 名字, 文字, 出现时刻, 颜色]], t, end}
 
 func _ready() -> void:
 	set_anchors_preset(PRESET_FULL_RECT)
@@ -50,14 +58,14 @@ func _items() -> Array:
 
 ## 触发：同一次加速里多件同时生效时依次错开出场。
 ## roll = {p, hit}：带概率的饰品，先飞到屏幕中央放大，转盘“抽卡”揭晓中没中
-func fire(id: String, text: String, roll := {}) -> void:
+func fire(id: String, text: String, roll := {}, delay := -1.0) -> void:
 	fired += 1
 	var busy := 0
 	for f in fires:
 		if f.t < f.S + 0.9:
 			busy += 1
 	var R := ROLL_T if not roll.is_empty() else 0.0
-	var f := {"id": id, "text": text, "t": -busy * 0.28, "slot": busy % 3, "parts": [], "burst": false, "landed": false,
+	var f := {"id": id, "text": text, "t": -delay if delay >= 0.0 else -busy * 0.28, "slot": busy % 3, "parts": [], "burst": false, "landed": false,
 		"R": R, "S": FLY_END + R, "roll": roll, "hit": roll.get("hit", true), "tick": -1}
 	if not roll.is_empty():
 		# 指针最终停的位置：中了落在绿色段里，没中落在灰色段里（避开边缘，看得清）
@@ -75,6 +83,95 @@ func fire(id: String, text: String, roll := {}) -> void:
 			u = randf_range(0.12, 0.88) * p if f.hit else p + randf_range(0.1, 0.9) * (1.0 - p)
 		f["spin"] = 3.0 + u        # 转 3 圈再停
 	fires.append(f)
+
+## 一次加速的全部触发按结算顺序逐条播放：飞出来的饰品依次出场（带抽卡的等转完再轮到下一件），
+## 同时右上角一张结算单逐行写出“阶段 · 物品：效果”，最后一行是最终结果。只有一件且没改结果时不出结算单。
+func play_chain(r: Dictionary) -> void:
+	var trs: Array = r.get("triggers", [])
+	var raw: int = r.get("raw", r.get("outcome", 0))
+	var out: int = r.get("outcome", raw)
+	var lines: Array = []
+	var at := 0.0
+	if raw != out:
+		lines.append(["抽到", "", Odds.NAMES[raw], 0.0, Pal.outcome(raw)])
+		at = CHAIN_T
+	for tr in trs:
+		var id: String = tr[0]
+		var extra: Dictionary = tr[2] if tr.size() > 2 else {}
+		var nm: String = Items.ALL[id].name if Items.ALL.has(id) else id
+		var show_t := at
+		if extra.get("quiet", false):
+			nudge(id, tr[1], at)
+			at += CHAIN_T
+		else:
+			var roll: Dictionary = extra
+			fire(id, tr[1], roll, at)
+			if not roll.is_empty():
+				show_t = at + FLY_END + ROLL_T      # 抽卡的：转盘停了才写上中没中
+				at += FLY_END + ROLL_T + 0.2
+			else:
+				show_t = at + 0.15
+				at += CHAIN_T
+		var col: Color = Pal.c("text")
+		if extra.has("hit") and not extra.hit:
+			col = Pal.c("text2")
+		lines.append([PHASE.get(id, "效果"), nm, tr[1], show_t, col])
+	if lines.size() < 2 and raw == out:
+		chain = {}
+		return
+	if r.get("lost", false):
+		lines.append(["结果", "", Odds.NAMES[Odds.LOSS], at + 0.1, Pal.outcome(Odds.LOSS)])
+	elif not r.get("sch", false) and r.has("outcome"):
+		lines.append(["结果", "", Odds.NAMES[out], at + 0.1, Pal.outcome(out)])
+	chain = {"lines": lines, "t": 0.0, "end": at + 0.1, "shown": 0}
+
+## 结算单还在逐条写：空格 / E 一下子全写出来（飞出来的饰品也直接落回挂板）
+func chain_skip() -> bool:
+	if chain.is_empty() or chain.t >= chain.end:
+		return false
+	var jump: float = chain.end - chain.t
+	chain.t = chain.end
+	chain.shown = chain.lines.size()
+	for f in fires:
+		if f.R <= 0.0:
+			f.t = maxf(f.t, f.S + 1.22)
+	for n in nudges:
+		n.t = maxf(n.t, 0.0)
+	return jump > 0.0
+
+func _draw_chain(a: float, el: Color) -> void:
+	if chain.is_empty():
+		return
+	var br := _board_rect()
+	var lh := 22.0
+	var n: int = chain.lines.size()
+	var fade := 1.0 - clampf((chain.t - chain.end - 2.4) / 0.4, 0.0, 1.0)
+	var ca := a * fade * clampf(chain.t / 0.12, 0.0, 1.0)
+	if ca <= 0.0:
+		return
+	var h := 30.0 + n * lh
+	var r := Rect2(br.end.x - CHAIN_W, br.position.y - h - 12.0, CHAIN_W, h)
+	draw_rect(Rect2(r.position + Vector2(4, 5), r.size), Color(0, 0, 0, 0.12 * ca))
+	draw_rect(r, Color(Pal.c("paper"), ca))
+	Ink.frame(self, r, Color(el, 0.7 * ca), Ink.W3)
+	Ink.text(self, "本次结算", Vector2(r.position.x + 12, r.position.y + 18), 12, Color(Pal.c("text2"), ca), Pal.bold)
+	for i in n:
+		var ln: Array = chain.lines[i]
+		var la := clampf((chain.t - float(ln[3])) / 0.12, 0.0, 1.0) * ca
+		if la <= 0.0:
+			continue
+		var y := r.position.y + 26.0 + i * lh + 15.0
+		var dx := (1.0 - la) * 12.0
+		var last: bool = ln[0] == "结果" or ln[0] == "抽到"
+		Ink.text(self, ln[0], Vector2(r.position.x + 12 + dx, y), 12, Color(Pal.c("text2"), la), Pal.bold)
+		if last:
+			Ink.text(self, ln[2], Vector2(r.position.x + 52 + dx, y), 15, Color(ln[4], la), Pal.bold)
+			continue
+		var nm: String = ln[1]
+		if nm.length() > 9:
+			nm = nm.substr(0, 8) + "…"
+		Ink.text(self, nm, Vector2(r.position.x + 52 + dx, y), 13, Color(Pal.c("text2"), la), Pal.font)
+		Ink.text(self, ln[2], Vector2(r.end.x - 12, y), 14, Color(ln[4], la), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 
 ## 持续生效的物品（改概率 / 改倍率）这一下起了作用：钉子上晃一下，头顶冒一张小纸签，不飞出来
 func nudge(id: String, text: String, delay := 0.0, col := Color(0, 0, 0, 0)) -> void:
@@ -122,6 +219,13 @@ func _process(dt: float) -> void:
 				swing[n.id][1] += 4.5
 			Sfx.play("tick", -18.0, 2.1, 0.08)
 	nudges = nudges.filter(func(n): return n.t < 1.2)
+	if not chain.is_empty():
+		chain.t += dt
+		while chain.shown < chain.lines.size() and chain.t >= float(chain.lines[chain.shown][3]):
+			Sfx.play("tick", -12.0, 1.2 + chain.shown * 0.07, 0.02)
+			chain.shown += 1
+		if chain.t > chain.end + 2.8:
+			chain = {}
 	# 状态签：文字变了（怨气 1/3 → 2/3、本阶段可用 → 已用）就跳一下、牌子晃一下
 	for id in _items():
 		var cs: Dictionary = main.run.charm_state(id)
@@ -257,6 +361,7 @@ func _draw() -> void:
 	for f in fires:
 		if f.t >= 0.0:
 			_fire(f, el)
+	_draw_chain(a, el)
 	# 小纸签：挂在物品头顶，往上飘一点再淡出
 	for n in nudges:
 		if n.t < 0.0 or not pos.has(n.id):

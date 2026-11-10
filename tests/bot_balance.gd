@@ -44,6 +44,9 @@ func _initialize() -> void:
 		{"name": "不买东西 E10", "T": 10, "early": false, "shop": false},
 		{"name": "智能 E10", "T": 10, "early": false, "smart": true, "shop": true},
 		{"name": "智能 E12", "T": 12, "early": false, "smart": true, "shop": true},
+		{"name": "组合 稳定修稿 E10", "T": 10, "early": false, "smart": true, "shop": true, "cab": true, "combo": 0},
+		{"name": "组合 拒稿反击 E10", "T": 10, "early": false, "smart": true, "shop": true, "cab": true, "combo": 1},
+		{"name": "组合 劫后再战 E10", "T": 10, "early": false, "smart": true, "shop": true, "cab": true, "combo": 2},
 	]
 	print("考核线: ", Run.LINES, "  成长 ×", Odds.GROWTH)
 	print("科研计划：", "全部跳过" if skip_plans else "随机选择")
@@ -89,7 +92,7 @@ func _sim(pol: Dictionary) -> Dictionary:
 			if not run.plan_offers.is_empty():
 				run.choose_plan("" if skip_plans else run.plan_offers[pick.randi() % run.plan_offers.size()])
 			if pol.shop:
-				_shop(run, pick)
+				_shop(run, pick, pol)
 			var go_now: bool = pol.early or run.experiments_left <= 0
 			if pol.get("smart", false) and run.can_submit() and run.experiments_left > 0:
 				# 算账：再做一束的期望收益 vs 丢了被扣的分（按本局已做束流的平均收益和丢失率估）
@@ -161,13 +164,18 @@ func _submit(run: Run, r: Dictionary) -> void:
 	r.cnt[s] += 1
 	run.submit()
 
-func _shop(run: Run, pick: RandomNumberGenerator) -> void:
+func _shop(run: Run, pick: RandomNumberGenerator, pol := {}) -> void:
 	var order := range(run.offers.size())
 	for i in order.size():
 		var j := pick.randi() % order.size()
 		var tmp = order[i]
 		order[i] = order[j]
 		order[j] = tmp
+	# 追组合（Q75）：只买某套组合 c 里的饰品（设备照买），先买组合件
+	if pol.has("combo"):
+		var ids: Array = Items.COMBOS[pol.combo].ids
+		order = order.filter(func(i): return ids.has(run.offers[i].id) or Items.ALL[run.offers[i].id].kind == "device")
+		order.sort_custom(func(a, b): return ids.has(run.offers[a].id) and not ids.has(run.offers[b].id))
 	for i in order:
 		var o: Dictionary = run.offers[i]
 		if o.sold:

@@ -246,3 +246,23 @@ static func ids(kind: String) -> Array:
 
 static func sell_price(id: String) -> int:
 	return int(floor(ALL[id].price * 0.5))
+
+# —— 组合（圣遗物改造第三步，Q75）：商店里能和已持有物品搭配的商品贴“和某某一套”小签 ——
+const COMBOS := [
+	{"name": "稳定修稿", "ids": ["tape_roll", "badge", "diagnostic", "third_draft", "thermos"]},
+	{"name": "拒稿反击", "ids": ["rejected", "grad_promise", "wrong_answer"]},
+	{"name": "劫后再战", "ids": ["reimburse", "beam_dump", "lost_data"]},
+]
+const SHORT := {"tape_roll": "胶带", "badge": "工牌", "diagnostic": "诊断仪", "third_draft": "修改稿", "thermos": "保温杯",
+	"rejected": "拒稿论文", "grad_promise": "毕业承诺", "wrong_answer": "错误答案",
+	"reimburse": "报销单", "beam_dump": "收集靶", "lost_data": "忘存的数据"}
+
+## 商品 id 和手上已有的哪件是一套：返回 {combo: 组合名, with: 已有那件的短名}；没有返回 {}
+static func combo_with(id: String, owned: Array) -> Dictionary:
+	for c in COMBOS:
+		if not c.ids.has(id):
+			continue
+		for o in owned:
+			if o != id and c.ids.has(o):
+				return {"combo": c.name, "with": SHORT.get(o, o)}
+	return {}
