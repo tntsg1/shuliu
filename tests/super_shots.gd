@@ -23,6 +23,7 @@ func _go() -> void:
 	await process_frame
 	await process_frame
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.4)
 	var b: Beam = main.run.beam

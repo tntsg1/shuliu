@@ -62,6 +62,7 @@ func _go() -> void:
 	var run: Run = main.run
 	run.money = 200
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	await route([], "路线一：没有饰品 · 标准束团 → 同步束 → 对撞之花")

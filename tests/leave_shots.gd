@@ -31,6 +31,7 @@ func _go() -> void:
 	var run: Run = main.run
 	run.money = 200
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	for i in 3:
@@ -61,6 +62,7 @@ func _go() -> void:
 	main.shop.hide_shop()
 	await frames(30)
 	await snap("leave_03_walk_back")
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	await frames(30)

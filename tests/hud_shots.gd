@@ -30,6 +30,7 @@ func _go() -> void:
 	await frames(3)
 	var run: Run = main.run
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	run.relics = ["coin", "emergency_call", "dean_paper"]

@@ -44,6 +44,7 @@ func _go() -> void:
 	run.relics = ["red_button", "printer", "calc7", "emergency_call"]
 	run.devices = ["daq", "bpm"]
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	await frames(90)

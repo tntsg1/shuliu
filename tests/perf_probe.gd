@@ -134,6 +134,7 @@ func _go() -> void:
 	await frames(120)
 	await measure("走动")
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	while main.mode != main.M.CONSOLE:
 		await process_frame

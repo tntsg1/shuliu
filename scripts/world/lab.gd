@@ -180,13 +180,14 @@ func _main_room() -> void:
 	for p in [sign.position + Vector2(5, 5), Vector2(sign.end.x - 5, sign.position.y + 5), sign.end - Vector2(5, 5), Vector2(sign.position.x + 5, sign.end.y - 5)]:
 		Ink.rivet(self, p, 1.6)
 	Ink.text(self, "束流运行中 · 勿开舱", Vector2(1320, 338), 15, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
-	# 灭火器：挂在墙上的托架里
-	Ink.drop(self, Rect2(1568, 712, 20, 38))
-	Ink.box(self, Rect2(1568, 712, 20, 38), Pal.c("red"), Pal.equip_line(), Ink.W2, 25)
-	draw_rect(Rect2(1570, 715, 3, 32), Color(1, 1, 1, 0.22))
-	draw_rect(Rect2(1571, 704, 14, 8), Pal.equip_line())
-	Ink.box(self, Rect2(1562, 746, 32, 6), Pal.c("equip_dark"), Pal.equip_line(), Ink.W3, 26)
-	Ink.box(self, Rect2(1562, 724, 4, 28), Pal.c("equip_dark"), Pal.equip_line(), Ink.W3, 27)
+	# 灭火器：挂在墙上的托架里（让出审核台右边给储备柜，挪到审核台左边）
+	var fx := 1352.0
+	Ink.drop(self, Rect2(fx, 712, 20, 38))
+	Ink.box(self, Rect2(fx, 712, 20, 38), Pal.c("red"), Pal.equip_line(), Ink.W2, 25)
+	draw_rect(Rect2(fx + 2, 715, 3, 32), Color(1, 1, 1, 0.22))
+	draw_rect(Rect2(fx + 3, 704, 14, 8), Pal.equip_line())
+	Ink.box(self, Rect2(fx - 6, 746, 32, 6), Pal.c("equip_dark"), Pal.equip_line(), Ink.W3, 26)
+	Ink.box(self, Rect2(fx - 6, 724, 4, 28), Pal.c("equip_dark"), Pal.equip_line(), Ink.W3, 27)
 	# 地板
 	draw_rect(Rect2(0, Geo.FLOOR - 4, Geo.W, 4), Color(Pal.c("ink"), 0.06))
 	_section(Rect2(0, Geo.FLOOR, Geo.W, 22))

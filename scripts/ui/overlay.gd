@@ -1,4 +1,5 @@
 extends Control
+const STASH := preload("res://scripts/world/stash.gd")
 ## 屏幕层：顶部纸胶带状态条、结果印章、实验结果卡、开花计数、结局卡、提示
 
 var main: Node
@@ -51,8 +52,8 @@ var cel_quip := ""
 var confetti: Array = []
 
 ## 一次实验结束：纸条从上方落下，报出这一束加了多少，然后飞进左边的考核夹板
-func tally(title: String, value: String, sub: String, col: Color) -> void:
-	tl = {"title": title, "value": value, "sub": sub, "col": col, "t": 0.0}
+func tally(title: String, value: String, sub: String, col: Color, bottle := {}) -> void:
+	tl = {"title": title, "value": value, "sub": sub, "col": col, "t": 0.0, "bottle": bottle}
 
 var strike_next := false   # 下一次盖章前，把当前章划掉（饰品改写结果）
 var prev := {}             # 被划掉的旧章 {text, col, rot, t}
@@ -309,9 +310,16 @@ func _tally(vp: Vector2) -> void:
 	var dest := Vector2(230.0, 250.0)
 	if main and main.review:
 		dest = get_viewport().get_canvas_transform() * (main.review.inbox() as Vector2)
-	var p := Vector2(home.x, lerpf(-80.0, home.y, drop)).lerp(dest, fly)
-	var sc := lerpf(1.0, 0.35, fly)
+	var has_bt: bool = not tl.get("bottle", {}).is_empty()
+	var p := Vector2(home.x, lerpf(-80.0, home.y, drop))
+	var sc := 1.0
 	var a := 1.0 - clampf((k - 2.35) / 0.25, 0.0, 1.0)
+	if has_bt:
+		# 有满瓶：报告留在原地淡出，飞进篮子的是瓶子
+		a = 1.0 - clampf((k - 1.9) / 0.4, 0.0, 1.0)
+	else:
+		p = p.lerp(dest, fly)
+		sc = lerpf(1.0, 0.35, fly)
 	draw_set_transform(p, -0.03 + 0.1 * fly, Vector2(sc, sc))
 	var w := 430.0
 	var h := 112.0
@@ -323,6 +331,16 @@ func _tally(vp: Vector2) -> void:
 	Ink.text(self, tl.sub, Vector2(w * 0.5 - 20, -h * 0.5 + 36), 15, Color(Pal.c("green"), a), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 	Ink.text(self, tl.value, Vector2(0, h * 0.5 - 20), 40, Color(tl.col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_set_transform(Vector2.ZERO)
+	if has_bt:
+		# 满瓶：在报告左边弹出来（束流装回瓶里），再飞进审核台的篮子
+		var pop := Ink.ease_out_back(clampf((k - 0.25) / 0.35, 0.0, 1.0))
+		if pop > 0.0:
+			var b0 := Vector2(home.x - 300.0, home.y + 70.0)
+			var bfly := Ink.ease_in_out(clampf((k - 1.9) / 0.6, 0.0, 1.0))
+			var bp := b0.lerp(dest + Vector2(0, 20), bfly) + Vector2(0, -sin(bfly * PI) * 80.0)
+			var bsc := lerpf(2.4 * pop, 0.45, bfly)
+			if k < 2.5:
+				STASH.full_bottle(self, bp, bsc, tl.bottle)
 
 ## 被饰品改写的旧章：往上让开、变小，一道红笔划掉，然后淡出
 func _prev_stamp(vp: Vector2) -> void:

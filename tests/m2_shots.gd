@@ -47,6 +47,7 @@ func _go() -> void:
 	main.player.position.x = Geo.CONSOLE_STAND - 60
 	await w(0.8)
 	await snap("m2_04_lab_gear")
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.4)
 	for i in 4:

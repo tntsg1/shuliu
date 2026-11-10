@@ -30,6 +30,7 @@ func _go() -> void:
 	await frames(2)
 	var run: Run = main.run
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await frames(150)
 	# 面板：用按键事件打开，装上工牌和硬币

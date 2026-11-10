@@ -10,6 +10,7 @@ func _initialize() -> void:
 func _go() -> void:
 	for i in 3: await process_frame
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	while main.mode != main.M.CONSOLE: await process_frame
 	var i := 0

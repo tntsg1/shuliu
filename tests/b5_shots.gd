@@ -41,6 +41,7 @@ func _go() -> void:
 	run.relics = ["koi", "screw", "lab8_key", "extinguisher", "wrench"]; run.devices = ["rf_cavity", "extractor", "beam_dump"]
 	await w(1.8)
 	await snap("b5_11_full_empty")
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.4)
 	for i in 5:

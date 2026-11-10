@@ -21,6 +21,7 @@ var desk: Node2D
 var review: Node2D
 var notice: Node2D          # 墙上的评审日程表 + 经费处理决定（点它重读开场信）
 var bottles: Node2D         # 束流配额气瓶架
+var stash: Node2D           # 回收站 / 注入器瓶座 / 储备柜（Q70）
 var letter: Control         # 开场信
 var goal_card := Callable()   # 庆祝播到 1.5 秒时升起“下一阶段目标”卡
 var review_passed := false   # 审核台：刚通过一个阶段，卡片只剩“好的”
@@ -110,6 +111,8 @@ func _ready() -> void:
 	notice.set("main", self)
 	bottles = _node("res://scripts/world/bottles.gd", world)
 	bottles.set("main", self)
+	stash = _node("res://scripts/world/stash.gd", world)
+	stash.set("main", self)
 	player = _node("res://scripts/world/player.gd", world)
 	prompt = _node("res://scripts/world/prompt.gd", world)
 	cam = Camera2D.new()
@@ -274,7 +277,7 @@ func _inputs() -> void:
 	var map := {
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"interact": [KEY_E], "accelerate": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER],
-		"back": [KEY_ESCAPE], "submit": [KEY_F], "help": [KEY_F1], "theme": [KEY_F2], "restart": [KEY_R],
+		"back": [KEY_ESCAPE], "submit": [KEY_F], "take": [KEY_Q], "help": [KEY_F1], "theme": [KEY_F2], "restart": [KEY_R],
 	}
 	for a in map:
 		if not InputMap.has_action(a):
@@ -349,7 +352,11 @@ func _unhandled_input(ev: InputEvent) -> void:
 				elif _near_terminal():
 					open_shop()
 				elif _near_review():
-					open_review()
+					_review_e()
+				elif _spot() != "":
+					_spot_do(_spot())
+			elif ev.is_action("take") and _near_review():
+				_review_q()
 		M.CHOICE:
 			if ev.is_action("interact"):
 				_sch_end()
@@ -392,7 +399,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 			elif ev.is_action("submit"):
 				submit()
 			elif ev.is_action("interact") or ev.is_action("accelerate"):
-				if run.can_start():
+				if run.can_start() and run.inj == "fresh":
 					_new_beam()
 			elif ev.is_action("back"):
 				leave_console()
@@ -419,6 +426,15 @@ func enter_console() -> void:
 		overlay.say("本阶段的束流用完了——去右边的审核台提交考核")
 		Sfx.play("hit_low", -10.0, 1.3)
 		return
+	if run.beam == null and not run.won() and not run.failed:
+		if run.held != "":
+			overlay.say("先把手里的瓶子放下")
+			Sfx.play("hit_low", -10.0, 1.3)
+			return
+		if run.inj != "fresh":
+			overlay.say("注入器上还没装新瓶：去气瓶架拿一瓶氢气，装到注入器上" if run.inj == "" else "注入器上是空瓶：先取下来扔进回收站，再装一瓶新的")
+			Sfx.play("hit_low", -10.0, 1.3)
+			return
 	mode = M.ENTER
 	player.input_enabled = false
 	player.auto_target = Geo.CONSOLE_STAND
@@ -732,15 +748,17 @@ func _after_experiment() -> void:
 	e_guard = 0.35
 	var g: int = fin.get("gained", 0)
 	var tax: int = fin.get("tax", 0)
+	# 有成果就装回瓶子：满瓶跟着报告一起出现，再飞进审核台的篮子（Q70）
+	var bt: Dictionary = run.basket[-1] if g > 0 and not run.basket.is_empty() else {}
 	if last_result.lost and tax > 0:
 		# 已够线还赌、丢了：扣分（可能跌回线下）
-		overlay.tally("实验 #%d · 够线后丢失 · 扣 %d%%" % [run.experiment_no, int(Run.OVERLINE_TAX * 100)], ("+%s RP" % fmt(g - tax)) if g >= tax else ("−%s RP" % fmt(tax - g)), "经费 +$%d" % fin.get("income", 0), Pal.c("red"))
+		overlay.tally("实验 #%d · 够线后丢失 · 扣 %d%%" % [run.experiment_no, int(Run.OVERLINE_TAX * 100)], ("+%s RP" % fmt(g - tax)) if g >= tax else ("−%s RP" % fmt(tax - g)), "经费 +$%d" % fin.get("income", 0), Pal.c("red"), bt)
 		clip_l.stamp("扣 %s" % fmt(tax))
 		Sfx.play("hit_low", -4.0, 0.7)
 	elif last_result.lost:
-		overlay.tally("实验 #%d · 束流丢失" % run.experiment_no, ("+%d RP（稿纸抢救）" % g) if g > 0 else "+0 RP", "经费 +$%d" % fin.get("income", 0), Pal.c("red"))
+		overlay.tally("实验 #%d · 束流丢失" % run.experiment_no, ("+%d RP（稿纸抢救）" % g) if g > 0 else "+0 RP", "经费 +$%d" % fin.get("income", 0), Pal.c("red"), bt)
 	else:
-		overlay.tally("实验 #%d · E%d 引出" % [run.experiment_no, last_result.energy], "+%s RP" % fmt(g), "经费 +$%d" % fin.get("income", 0), Pal.c("green"))
+		overlay.tally("实验 #%d · E%d 引出" % [run.experiment_no, last_result.energy], "+%s RP" % fmt(g), "经费 +$%d" % fin.get("income", 0), Pal.c("green"), bt)
 	_idle_hint()
 
 ## 控制台空着（没有束流）时面板上的提示
@@ -752,15 +770,20 @@ func _idle_hint() -> void:
 	elif run.experiments_left <= 0:
 		panel.hint = "本阶段束流用完了 → 去审核台提交考核"
 	elif run.can_submit():
-		panel.hint = "已够线：可以去审核台提交，也可以按加速再来一束（剩 %d 束）" % run.experiments_left
+		panel.hint = "已够线：可以去审核台提交，也可以去换一瓶氢气再来一束（剩 %d 瓶）" % run.experiments_left
 	else:
-		panel.hint = "按加速注入下一束（本阶段还剩 %d 束）" % run.experiments_left
+		panel.hint = "去左边换一瓶氢气，装好再回来开始下一束（本阶段还剩 %d 瓶）" % run.experiments_left
 
 ## 控制台里没有束流时按加速：注入下一束；用完了就提示去审核台
 func _next_beam() -> void:
 	if cooldown > 0.0:
 		return
-	if run.can_start():
+	if run.can_start() and run.inj != "fresh":
+		# 全手动换瓶（Q70）：瓶座上没有新瓶，控制台里开不了下一束
+		overlay.say("注入器上没有新瓶：先离开控制台，去气瓶架拿一瓶装上")
+		Sfx.play("hit_low", -10.0, 1.3)
+		cooldown = 0.4
+	elif run.can_start():
 		_new_beam()
 	elif not run.won() and not run.failed:
 		overlay.say("本阶段的束流用完了——去审核台提交考核")
@@ -1024,7 +1047,7 @@ func _process(dt: float) -> void:
 	panel.show_red = (mode == M.CONSOLE or mode == M.SPIN) and run.has("red_button") and run.beam != null
 	panel.red_used = run.beam != null and run.beam.red_used
 	panel.show_leave = mode == M.CONSOLE
-	panel.leave_label = "← 去审核台" if (run.beam == null and (run.experiments_left <= 0 or run.can_submit())) else "← 先去采购"
+	panel.leave_label = "← 去审核台" if (run.beam == null and (run.experiments_left <= 0 or run.can_submit())) else ("← 去换瓶" if run.beam == null and run.inj != "fresh" else "← 先去采购")
 	if mode == M.CONSOLE or mode == M.SPIN:
 		dang = shown_dang
 		Sfx.set_hum(true, shown_e, clampf(dang / 0.35, 0.0, 1.0), shown_lock)
@@ -1047,6 +1070,9 @@ func _process(dt: float) -> void:
 		goal_card = Callable()
 		gc.call()
 	timer += dt
+	if run != null:
+		player.carry = run.held
+		player.carry_bt = run.held_bt
 	match mode:
 		M.TITLE:
 			cam_target = Vector2(848, 520)
@@ -1063,7 +1089,15 @@ func _process(dt: float) -> void:
 			elif _near_terminal():
 				prompt.show_at(Vector2(Geo.TERMINAL_X + 35, Geo.FLOOR - 225), "E", "采购终端")
 			elif _near_review():
-				prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "E", "考核审核台")
+				if run.held == "full":
+					prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "E", "放进篮子")
+				elif run.held == "" and not run.basket.is_empty():
+					prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "E", "考核审核台 · Q 从篮子拿一瓶")
+				else:
+					prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "E", "考核审核台")
+			elif _spot() != "" and _spot_label(_spot()) != "":
+				var sid := _spot()
+				prompt.show_at(Vector2(float(SPOTS[sid][0]), _spot_rect(sid).position.y - 12), "E", _spot_label(sid))
 			elif not hover_interact:
 				prompt.hide_now()
 		M.ENTER:
@@ -1243,7 +1277,7 @@ func _card_action(a: String) -> void:
 		"close_pause": close_pause()
 		"submit": submit()
 		"new":
-			if run.can_start(): _new_beam()
+			if run.can_start() and run.inj == "fresh": _new_beam()
 		"leave": leave_console()
 		"close_review": close_review()
 		"sch_end": _sch_end()
@@ -1324,6 +1358,8 @@ func _mouse(ev: InputEventMouse) -> void:
 				_walk_to(Geo.TERMINAL_X + 35, "shop")
 			elif review.rect().has_point(wp):
 				_walk_to(review.STAND, "review")
+			elif _spot_at(wp) != "":
+				_walk_to(float(SPOTS[_spot_at(wp)][0]), "spot:" + _spot_at(wp))
 			elif _console_rect().has_point(wp):
 				_walk_to(Geo.CONSOLE_STAND, "console")
 			elif wp.y > Geo.CEIL and wp.y < Geo.FLOOR + 30:
@@ -1335,8 +1371,111 @@ func _leave_tab_go() -> void:
 	leave_console()
 	if to_review:
 		_walk_to(review.STAND, "review")
+	elif run.beam == null and run.inj != "fresh":
+		# 去换瓶：瓶座上是空瓶就先走到瓶座，否则直接去气瓶架
+		_walk_to(float(SPOTS["cradle"][0]) if run.inj == "empty" else float(SPOTS["rack"][0]), "")
 	else:
 		_walk_to(Geo.TERMINAL_X + 35, "shop")
+
+
+# —— 氢气瓶的几个地点（Q70）：全手动——回收站扔空瓶、气瓶架取新瓶、注入器装瓶；储备柜存取满瓶 ——
+const SPOTS := {"bin": [120.0, 46.0], "cradle": [246.0, 36.0], "rack": [351.0, 44.0], "cab": [1560.0, 34.0]}
+
+func _spot() -> String:
+	var best := ""
+	var bd := 1e9
+	for id in SPOTS:
+		var d := absf(player.position.x - float(SPOTS[id][0]))
+		if d < float(SPOTS[id][1]) and d < bd:
+			bd = d
+			best = id
+	return best
+
+func _spot_rect(id: String) -> Rect2:
+	match id:
+		"bin": return stash.BIN.grow(8)
+		"cradle": return Rect2(stash.CRADLE.x - 20, stash.CRADLE.y - 130, 40, 130)
+		"rack": return bottles.RACK.grow(4)
+		"cab": return stash.CAB.grow(4)
+	return Rect2()
+
+## 这个地点现在按 E 会做什么（"" = 什么也做不了）
+func _spot_label(id: String) -> String:
+	match id:
+		"bin":
+			return "扔掉空瓶" if run.held == "empty" else ""
+		"cradle":
+			if run.inj == "empty" and run.held == "" and run.beam == null:
+				return "取下空瓶"
+			if run.inj == "" and run.held == "fresh":
+				return "装上氢气瓶"
+			return ""
+		"rack":
+			if run.held == "fresh":
+				return "放回架子"
+			return "拿一瓶氢气" if run.held == "" and run.rack_left() > 0 else ""
+		"cab":
+			if run.held == "full":
+				return "存进储备柜" if run.cab.size() < Run.CAB_SLOTS else ""
+			return "取出备用瓶" if run.held == "" and not run.cab.is_empty() else ""
+	return ""
+
+func _spot_do(id: String) -> void:
+	var err := ""
+	match id:
+		"bin":
+			err = run.toss_empty()
+			if err == "":
+				stash.bin_n = mini(stash.bin_n + 1, 3)
+				Sfx.play("metal", -8.0, 0.8)
+		"cradle":
+			if run.inj == "empty":
+				err = run.pick_empty()
+			else:
+				err = run.load_fresh()
+			if err == "":
+				Sfx.play("metal", -10.0, 1.2)
+		"rack":
+			err = run.return_fresh() if run.held == "fresh" else run.take_fresh()
+			if err == "":
+				Sfx.play("metal", -12.0, 1.4)
+		"cab":
+			err = run.store_in_cab() if run.held == "full" else run.take_from_cab()
+			if err == "":
+				Sfx.play("paper", -8.0, 0.8)
+				Sfx.play("metal", -14.0, 1.1)
+	if err != "":
+		overlay.say(err)
+		Sfx.play("hit_low", -12.0, 1.3)
+	else:
+		Save.write(run)
+
+## 审核台：手里拿着满瓶就放进篮子，否则打开考核
+func _review_e() -> void:
+	if run.held == "full":
+		run.put_in_basket()
+		review.bump = 1.0
+		Sfx.play("metal", -10.0, 1.0)
+		Save.write(run)
+	elif run.held != "":
+		overlay.say("先把手里的瓶子放下")
+	else:
+		open_review()
+
+func _review_q() -> void:
+	var err := run.take_from_basket()
+	if err != "":
+		overlay.say(err)
+		Sfx.play("hit_low", -12.0, 1.3)
+	else:
+		Sfx.play("metal", -12.0, 1.2)
+		Save.write(run)
+
+func _spot_at(wp: Vector2) -> String:
+	for id in SPOTS:
+		if _spot_rect(id).has_point(wp):
+			return id
+	return ""
 
 func _terminal_rect() -> Rect2:
 	return Rect2(Geo.TERMINAL_X - 10, Geo.FLOOR - 200, 90, 200)
@@ -1423,7 +1562,9 @@ func _hover() -> void:
 		elif g == "console":
 			enter_console()
 		elif g == "review":
-			open_review()
+			_review_e()
+		elif g.begins_with("spot:"):
+			_spot_do(g.substr(5))
 	elif mode == M.WALK and player.auto_target < 0.0:
 		walk_goal = ""
 

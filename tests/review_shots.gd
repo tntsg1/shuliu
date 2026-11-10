@@ -37,6 +37,7 @@ func _go() -> void:
 	await frames(2)
 	var run: Run = main.run
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	# 第 1 束：两次成功后引出
@@ -56,6 +57,7 @@ func _go() -> void:
 	# 第 2、3 束：直接丢失，用完束流
 	for b in 2:
 		main.cooldown = 0.0
+		main.run.inj = "fresh"
 		key("accelerate")          # 注入下一束
 		await until(func(): return run.beam != null)
 		await frames(10)

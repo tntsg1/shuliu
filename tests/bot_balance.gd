@@ -28,6 +28,8 @@ func _initialize() -> void:
 		elif kv[0] == "pols":
 			only = kv[1].split(",")
 	var pols := [
+		{"name": "智能 E10 + 柜子", "T": 10, "early": false, "smart": true, "shop": true, "cab": true},
+		{"name": "标准 E10 用满 + 柜子", "T": 10, "early": false, "shop": true, "cab": true},
 		{"name": "稳健 E4 早交", "T": 4, "early": true, "shop": true},
 		{"name": "标准 E5 用满", "T": 5, "early": false, "shop": true},
 		{"name": "智能 E6", "T": 6, "early": false, "smart": true, "shop": true},
@@ -98,6 +100,15 @@ func _sim(pol: Dictionary) -> Dictionary:
 			if run.must_submit():
 				_submit(run, r)
 				continue
+			if pol.get("cab", false) and run.total >= run.line():
+				# 储备柜（Q70）：够线后把篮子里最大的瓶子存进柜子，压到线下，再丢也不扣分；提交前再放回去
+				while run.cab.size() < Run.CAB_SLOTS and not run.basket.is_empty() and run.total >= run.line():
+					var bi := 0
+					for k in run.basket.size():
+						if int(run.basket[k].value) > int(run.basket[bi].value):
+							bi = k
+					run.take_from_basket(bi)
+					run.store_in_cab()
 			run.start_experiment()
 			run.on_shop_open()
 			var last: bool = run.experiments_left == 1
@@ -138,6 +149,9 @@ func _sim(pol: Dictionary) -> Dictionary:
 	return r
 
 func _submit(run: Run, r: Dictionary) -> void:
+	while not run.cab.is_empty():
+		run.take_from_cab()
+		run.put_in_basket()
 	var s := run.stage
 	r.tot[s] += run.total
 	r.cnt[s] += 1

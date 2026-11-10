@@ -30,6 +30,7 @@ func _go() -> void:
 	var run: Run = main.run
 	run.relics = ["bandaid", "coin", "wrong_answer"]
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.6)
 	main.charms.fire("bandaid", "稳定 → 加速成功", {"p": 0.4, "hit": true})

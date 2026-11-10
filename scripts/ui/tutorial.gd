@@ -50,9 +50,19 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.SHOP,
 			"done": func(): return main.mode != main.M.SHOP,
 			"at": null, "note": func(): return Vector2(1500, 800)},
+		# —— 氢气瓶全手动（Q70，便条文字是草稿，等用户改）——
+		{"id": "take", "text": "左边的气瓶架上放着这一轮的氢气瓶。
+走到气瓶架前按 E，拿起一瓶。",
+			"show": func(): return main.mode == main.M.WALK and main.run.held == "" and main.run.inj == "" and main.run.beam == null,
+			"done": func(): return main.run.held == "fresh" or main.run.inj == "fresh" or main.run.experiment_no > 0,
+			"at": func(): return _w(Vector2(351, 680)), "note": func(): return _w(Vector2(520, 520))},
+		{"id": "load", "text": "把氢气瓶装到注入器前面的瓶座上：走到注入器前再按 E。",
+			"show": func(): return main.mode == main.M.WALK and main.run.held == "fresh",
+			"done": func(): return main.run.inj == "fresh" or main.run.experiment_no > 0,
+			"at": func(): return _w(Vector2(246, 700)), "note": func(): return _w(Vector2(500, 520))},
 		{"id": "console", "text": "观测舱前面有一台控制台，点击控制台就可以把第一瓶氢气注入设备，准备开始实验。",
 			"say": "可以在这里把氢气加速到接近光速进行对撞，产生科研成果",
-			"show": func(): return main.mode == main.M.WALK,
+			"show": func(): return main.mode == main.M.WALK and main.run.inj == "fresh",
 			"done": func(): return main.mode != main.M.WALK and main.mode != main.M.SHOP,
 			"at": func(): return _w(Vector2(Geo.CONSOLE_STAND + 30, Geo.FLOOR - 150)), "note": func(): return _w(Vector2(Geo.CONSOLE_STAND + 150, Geo.FLOOR - 520))},
 		{"id": "space", "text": "点击红色按钮，或者按空格键，就可以开始加速。
@@ -76,12 +86,23 @@ func _ready() -> void:
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam != null and main.run.beam.energy >= 4,
 			"done": func(): return main.run.experiment_no > 1 or main.run.beam == null,
 			"at": func(): return _panel(Vector2(1760, 110)), "note": func(): return _panel(Vector2(1530, -200))},
-		{"id": "report", "text": "实验报告已经放在审核台上了，你可以在这里查看本轮评审需要的科研点数，以及目前已经累计的科研点数。
+		{"id": "report", "text": "装着成果的氢气瓶已经放进审核台的篮子里了，你可以在这里查看本轮评审需要的科研点数，以及目前已经累计的科研点数。
 只要累计的科研点达到要求，就可以提交本轮评审。",
 			"say": "第一次科研成果成功出炉了，我们看一看得分如何呢",
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
 			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > _rt(7.0),
 			"at": func(): return _w(Vector2(main.review.X + 75, Geo.FLOOR - 200)), "note": func(): return _w(Vector2(main.review.X - 120, Geo.FLOOR - 420))},
+		{"id": "toss", "text": "实验失败以后，瓶座上会留下一只空瓶。
+按 E 把它取下来，扔进最左边的空瓶回收站，才能装下一瓶。",
+			"show": func(): return main.mode == main.M.WALK and main.run.inj == "empty" and main.run.beam == null,
+			"done": func(): return main.run.inj != "empty" and main.run.held != "empty",
+			"at": func(): return _w(Vector2(246, 700)) if main.run.held != "empty" else _w(Vector2(116, 720)), "note": func(): return _w(Vector2(520, 520))},
+		{"id": "cab", "text": "审核台右边是储备柜。
+站在审核台前按 Q，可以从篮子里拿出一瓶，存进储备柜，留到之后不够线的时候再拿出来放回篮子。
+储备柜最多放 2 瓶，里面的瓶子不算这一轮的科研点。",
+			"show": func(): return main.mode == main.M.WALK and main.run.basket.size() >= 1 and absf(main.player.position.x - main.review.STAND) < 160.0,
+			"done": func(): return step_t > _rt(9.0) or main.mode != main.M.WALK,
+			"at": func(): return _w(Vector2(1586, 640)), "note": func(): return _w(Vector2(1180, 330))},
 		{"id": "clips", "text": "左边的夹板可以查看当前的考核进度，还有这轮已经累计的科研点数。
 右边的夹板记录了每次实验的结果，还能查看设备显示的成功概率和实际成功频率，想知道实验结果有没有问题，可以在这里查看记录。",
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,

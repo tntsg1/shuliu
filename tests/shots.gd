@@ -30,6 +30,7 @@ func _go() -> void:
 	main.player.position.x = Geo.CONSOLE_STAND - 40
 	await wait(1.2)
 	await snap(pre + "01_walk")
+	main.run.inj = "fresh"
 	main.enter_console()
 	await wait(2.4)
 	await snap(pre + "02_console_e1")

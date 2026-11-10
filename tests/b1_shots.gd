@@ -51,6 +51,7 @@ func _go() -> void:
 		run.relics = sets[i]
 		await w(1.6)
 		await snap("b1_1%d_empty" % i)
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.6)
 	await snap("b1_20_beam_full")

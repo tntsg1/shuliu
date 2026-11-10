@@ -62,6 +62,7 @@ func setup(relics: Array, peak: int, e: int, traits := {}) -> void:
 func _go() -> void:
 	await frames(3)
 	main.player.position.x = Geo.CONSOLE_STAND - 60
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	for e in [1, 3, 5, 7, 10, 13, 15]:

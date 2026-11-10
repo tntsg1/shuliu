@@ -41,6 +41,7 @@ func _go() -> void:
 	run.relics = ["red_flag", "crooked_seal", "meal_card", "badge"]
 	await w(1.8)
 	await snap("b4_11_full_empty")
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.4)
 	for i in 5:

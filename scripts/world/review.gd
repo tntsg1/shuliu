@@ -5,6 +5,7 @@ extends Node2D
 const X := 1400.0          # 桌子左缘
 const STAND := 1478.0      # 玩家站位
 const W := 150.0
+const STASH := preload("res://scripts/world/stash.gd")
 
 var main: Node
 var t := 0.0
@@ -68,14 +69,21 @@ func _draw() -> void:
 	Ink.box(self, Rect2(X + W - 18, top + 10, 10, 64), Pal.c("equip_dark"), el, Ink.W2, 613)
 	Ink.box(self, Rect2(X + W - 60, top + 10, 42, 34), Pal.c("equip_dark"), el, Ink.W2, 614)
 	draw_rect(Rect2(X + W - 46, top + 24, 14, 3), el)
-	# 收件盘：每做完一次实验多一张报告
-	var tray := Rect2(X + 10, top - 16, 58, 16)
-	var n := mini(_last_n, 12)
-	for i in n:
-		var lift := -sin(bump * PI) * 6.0 if i == n - 1 else 0.0
-		draw_rect(Rect2(tray.position.x + 4 + (i % 2) * 1.5, tray.end.y - 4 - i * 1.6 + lift, 50, 3), Pal.c("paper"))
-		draw_line(Vector2(tray.position.x + 4, tray.end.y - 4 - i * 1.6 + lift), Vector2(tray.position.x + 54, tray.end.y - 4 - i * 1.6 + lift), Color(el, 0.4), 0.8)
-	Ink.pl(self, PackedVector2Array([tray.position, Vector2(tray.position.x, tray.end.y), tray.end, Vector2(tray.end.x, tray.position.y)]), el, 1.8)
+	# 考核篮子（Q70）：这次评审交进来的满瓶立在铁丝篮里，篮子满了就挤着放
+	var bk := Rect2(X + 6, top - 34, 70, 34)
+	var basket: Array = run.basket
+	var nb := basket.size()
+	var gap := minf(14.0, 58.0 / maxf(1.0, nb))
+	for i in nb:
+		var lift := -sin(bump * PI) * 6.0 if i == nb - 1 else 0.0
+		STASH.full_bottle(self, Vector2(bk.position.x + 10 + i * gap, top - 2 + lift), 0.42, basket[i])
+	# 铁丝篮：前面几根竖丝 + 上下沿
+	draw_line(Vector2(bk.position.x, bk.position.y + 14), Vector2(bk.end.x, bk.position.y + 14), el, Ink.W2)
+	draw_line(Vector2(bk.position.x + 2, top), Vector2(bk.end.x - 2, top), el, Ink.W2)
+	for k in 7:
+		var xx := bk.position.x + 3 + k * (bk.size.x - 6) / 6.0
+		draw_line(Vector2(xx, bk.position.y + 14), Vector2(xx + (1.0 if k < 3 else -1.0), top), Color(el, 0.7), Ink.W3)
+	draw_line(Vector2(bk.position.x + 3, bk.position.y + 24), Vector2(bk.end.x - 3, bk.position.y + 24), Color(el, 0.5), Ink.W3)
 	# 印章 + 印台
 	Ink.box(self, Rect2(X + 82, top - 8, 26, 8), Color("#3a3d42"), el, 1.0, 615)
 	draw_rect(Rect2(X + 85, top - 6, 20, 4), Pal.c("red"))

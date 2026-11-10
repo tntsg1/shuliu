@@ -22,6 +22,10 @@ var t_console := 0.0
 var _vc := 0.0
 var tap := 0.0              # 按键时手往下一拍
 var input_enabled := true
+var carry := ""            # 手里抱着的瓶子（Q70）："" / "fresh" / "empty" / "full"，main 每帧同步
+var carry_bt := {}
+var carry_t := 0.0         # 0..1 抱瓶姿势过渡
+const STASH := preload("res://scripts/world/stash.gd")
 var auto_target := -1.0
 var _prev_cos := [1.0, 1.0]
 
@@ -60,6 +64,7 @@ func _process(dt: float) -> void:
 		phase = lerpf(phase, round(phase / PI) * PI, 1.0 - exp(-8.0 * dt))
 	r = Ink.spring(hem, _vh, -vx / SPEED * 9.0, 7.0, dt); hem = r[0]; _vh = r[1]
 	r = Ink.spring(console_pose, _vc, t_console, 9.0, dt); console_pose = r[0]; _vc = r[1]
+	carry_t = move_toward(carry_t, 1.0 if carry != "" else 0.0, dt * 6.0)
 	tap = maxf(0.0, tap - dt * 7.0)
 	next_blink -= dt
 	if next_blink <= 0.0:
@@ -95,7 +100,7 @@ const STYLES := {
 		"hem": 26.0, "hem_w": 25.0, "arm1": 25.0, "arm2": 25.0, "arm_w": 7.0, "head_r": 15.0, "hair": "messy", "hair_col": "hair",
 		"glasses": "none", "clip": true, "tie": false, "pens": 1, "mous": false, "shoe": 0.95, "sleeve": 5.0},
 }
-var style := "cur"
+var style := "a"           # 用户 2026-11-09 选 A 瘦长学者
 
 func _draw() -> void:
 	var S: Dictionary = STYLES[style]
@@ -150,6 +155,16 @@ func _draw() -> void:
 	for i in int(S.pens):
 		draw_line(sh + Vector2(9 + i * 2.5, 25 - (i % 2)), sh + Vector2(9 + i * 2.5, 33), pen_cols[i], 2.0)
 	draw_rect(Rect2(sh + Vector2(-13, 24), Vector2(8, 10)), Pal.c("red"))
+	# 抱着的瓶子：立在胸前，两只手托住（画在手臂前面，手再压在瓶身上）
+	var bp := sh + Vector2(19, 78)
+	if carry != "":
+		draw_set_transform(Vector2.ZERO)
+		var at := Vector2(bp.x * face_s, bp.y)
+		if carry == "full":
+			STASH.full_bottle(self, at, 0.62, carry_bt)
+		else:
+			_carry_bottle(at, carry == "empty")
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(face_s, 1.0))
 	# 手臂：与同侧腿反向摆；肘部朝后；操作控制台时双手落在台面；拿夹板时远侧手把夹板抱在胸前
 	var clip_hand := Vector2.ZERO
 	for side in [1, 0]:
@@ -162,6 +177,8 @@ func _draw() -> void:
 		var desk := Vector2(46.0 if side == 0 else 34.0, -96.0 + tap * 7.0 * (1.0 if side == 0 else 0.3))
 		desk.y += sin(t * 7.0 + side) * 0.8
 		var hand: Vector2 = hand_walk.lerp(desk, console_pose)
+		# 抱瓶：近手托瓶底、远手扶瓶身
+		hand = hand.lerp(bp + (Vector2(-2, -6) if side == 0 else Vector2(-6, -38)), carry_t)
 		var elbow := _ik(sp, hand, S.arm1, S.arm2, -1.0)
 		var ac := coat if side == 0 else coat.darkened(0.08)
 		var aw: float = S.arm_w
@@ -178,8 +195,9 @@ func _draw() -> void:
 			clip_hand = hand
 	# 夹板：抱在胸前（操作控制台时夹在腋下）
 	if S.clip:
-		var cp := clip_hand.lerp(sh + Vector2(-8, 30), console_pose) + Vector2(-4, -4)
-		draw_set_transform(Vector2(cp.x * face_s, cp.y), (-0.25 + console_pose * 0.2) * face_s, Vector2(face_s, 1.0))
+		var tuck := maxf(console_pose, carry_t)
+		var cp := clip_hand.lerp(sh + Vector2(-8, 30), tuck) + Vector2(-4, -4)
+		draw_set_transform(Vector2(cp.x * face_s, cp.y), (-0.25 + tuck * 0.2) * face_s, Vector2(face_s, 1.0))
 		draw_rect(Rect2(-7, -18, 15, 22), Color("#8a6a48"))
 		draw_rect(Rect2(-5, -15, 11, 16), Pal.c("paper"))
 		Ink.frame(self, Rect2(-7, -18, 15, 22), el, Ink.W3)
@@ -215,6 +233,23 @@ func _draw() -> void:
 	else:
 		draw_line(hp + Vector2(hr * 0.38, hr * 0.46), hp + Vector2(hr * 0.7, hr * 0.42), Color(el, 0.6), 1.0)
 	draw_set_transform(Vector2.ZERO)
+
+## 抱在手里的新瓶 / 空瓶（p 是瓶底中心，已经按朝向翻好的本地坐标）
+func _carry_bottle(p: Vector2, empty: bool) -> void:
+	var el := Pal.equip_line()
+	var w := 15.0
+	var h := 58.0
+	var body := Color("#9fc9a3")
+	if empty:
+		body = body.lerp(Pal.c("equip_dark"), 0.6)
+	draw_rect(Rect2(p.x - w * 0.5, p.y - h, w, h), body)
+	Ink.disc(self, Vector2(p.x, p.y - h), w * 0.5, body)
+	draw_rect(Rect2(p.x - w * 0.5 + 2, p.y - h, 3, h), Color(1, 1, 1, 0.22))
+	Ink.frame(self, Rect2(p.x - w * 0.5, p.y - h, w, h), el, Ink.W2)
+	draw_arc(Vector2(p.x, p.y - h), w * 0.5, PI, TAU, 12, el, Ink.W2, true)
+	if not empty:
+		draw_rect(Rect2(p.x - w * 0.5, p.y - h + 4, w, 4), Color(Pal.c("red"), 0.8))
+	draw_rect(Rect2(p.x - 3, p.y - h - w * 0.5 - 7, 6, 7), el)
 
 ## 发型：side 侧分 / gray 灰白后退的发际线 / messy 乱蓬蓬
 func _hair(hp: Vector2, hr: float, kind: String, col: Color) -> void:

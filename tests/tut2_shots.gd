@@ -42,6 +42,7 @@ func _go() -> void:
 	await w(0.8)
 	main.player.position.x = Geo.CONSOLE_STAND - 60
 	run.experiment_no = 1
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.6)
 	await snap("tut2_02_board")

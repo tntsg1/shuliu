@@ -41,6 +41,7 @@ func _go() -> void:
 	run.relics = ["bandaid", "marker", "wipes", "tape_roll"]
 	await w(1.8)
 	await snap("b3_11_full_empty")
+	main.run.inj = "fresh"
 	main.enter_console()
 	await w(2.4)
 	for i in 5:

@@ -27,7 +27,7 @@ func _want() -> int:
 	var r: Run = main.run
 	if r.failed or r.won():
 		return 0
-	return clampi(r.experiments_left - (1 if r.beam != null else 0), 0, 4)
+	return clampi(r.rack_left(), 0, 4)
 
 ## 提前提交：n 瓶退回，换来 amount 经费（Run.submit 之后马上调）
 func refund(n: int, amount: int) -> void:
@@ -44,7 +44,8 @@ func _process(dt: float) -> void:
 	var want := _want()
 	if want < shown:
 		for i in range(shown - 1, want - 1, -1):
-			flying.append({"p0": slot_pos(i), "p1": INLET, "t": 0.0, "kind": "take", "label": ""})
+			# 主角从架子上拿走：瓶子飞进手里
+			flying.append({"p0": slot_pos(i), "p1": main.player.position + Vector2(18, -60), "t": 0.0, "kind": "take", "label": ""})
 			drops.erase(i)
 		shown = want
 		Sfx.play("metal", -14.0, 1.4)
@@ -61,7 +62,7 @@ func _process(dt: float) -> void:
 		if drops[k] >= 1.0:
 			drops.erase(k)
 	for f in flying:
-		f.t += dt / (0.7 if f.kind == "take" else 1.1)
+		f.t += dt / (0.25 if f.kind == "take" else 1.1)
 	flying = flying.filter(func(f): return f.t < 1.0)
 	var s := [shown, Pal.dark, main.run.stage if main and main.run else 0]
 	if anim or s != _sig:
@@ -75,9 +76,6 @@ func _draw() -> void:
 	Ink.box(self, Rect2(RACK.position.x, RACK.end.y - 8, RACK.size.x, 8), Pal.c("equip_dark"), el, Ink.W2, 501)
 	Ink.box(self, Rect2(RACK.position.x, RACK.position.y + 20, 6, RACK.size.y - 28), Pal.c("equip_dark"), el, Ink.W1, 502)
 	Ink.box(self, Rect2(RACK.end.x - 6, RACK.position.y + 20, 6, RACK.size.y - 28), Pal.c("equip_dark"), el, Ink.W1, 503)
-	# 进气管：架子 → 注入器底座
-	Ink.pl(self, PackedVector2Array([Vector2(RACK.position.x + 3, RACK.position.y + 40), Vector2(INLET.x + 14, RACK.position.y + 40), Vector2(INLET.x + 14, INLET.y)]), el, 3.0)
-	Ink.pl(self, PackedVector2Array([Vector2(RACK.position.x + 3, RACK.position.y + 40), Vector2(INLET.x + 14, RACK.position.y + 40), Vector2(INLET.x + 14, INLET.y)]), Pal.c("equip"), 1.4)
 	for i in shown:
 		var p := slot_pos(i)
 		var k: float = drops.get(i, 1.0)
@@ -93,10 +91,10 @@ func _draw() -> void:
 		if k < 0.0:
 			continue
 		var e := Ink.ease_in_out(k)
-		var p: Vector2 = f.p0.lerp(f.p1, e) + Vector2(0, -sin(e * PI) * (90.0 if f.kind == "take" else 40.0))
-		var sc := lerpf(1.0, 0.45, e) if f.kind == "take" else 1.0
+		var p: Vector2 = f.p0.lerp(f.p1, e) + Vector2(0, -sin(e * PI) * (30.0 if f.kind == "take" else 40.0))
+		var sc := lerpf(1.0, 0.7, e) if f.kind == "take" else 1.0
 		var a := 1.0 - clampf((k - 0.75) / 0.25, 0.0, 1.0)
-		_bottle(p, sc, (e * 1.2) if f.kind == "take" else -e * 0.4, a)
+		_bottle(p, sc, (e * 0.3) if f.kind == "take" else -e * 0.4, a)
 		if f.label != "":
 			Ink.text(self, f.label, f.p0 + Vector2(95, -170 - k * 60.0), 24, Color(Pal.c("green"), a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 

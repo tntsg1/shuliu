@@ -22,6 +22,13 @@ var stage := 0
 var endless := false             # 通过第 8 阶段后选择继续挑战
 var experiments_left := PER_STAGE
 var total := 0
+# —— 氢气瓶（Q70）：全手动换瓶，成果装回瓶里，满瓶进当前评审的篮子；储备柜存不交的满瓶，留着翻身 ——
+const CAB_SLOTS := 2
+var inj := ""              # 注入器瓶座："" 空 / "fresh" 装着新瓶 / "empty" 实验后的空瓶
+var held := ""             # 主角手里："" / "fresh" / "empty" / "full"
+var held_bt := {}          # 手里那只满瓶 {value, energy}
+var basket: Array = []     # 本次评审篮子里的满瓶 {value, energy}，提交后清空
+var cab: Array = []        # 储备柜里的满瓶（最多 CAB_SLOTS 只，这一局结束清空）
 var beam: Beam = null
 var log: Array = []
 var experiment_no := 0
@@ -116,6 +123,9 @@ func _apply_tax(res: Dictionary) -> void:
 	if tax > 0:
 		total -= tax
 		res["tax"] = tax
+		# 篮子里的瓶子跟着漏掉同样的比例
+		for bt in basket:
+			bt.value = int(bt.value) - int(floor(int(bt.value) * OVERLINE_TAX))
 
 func lost() -> bool:
 	return failed
@@ -142,6 +152,7 @@ func start_experiment() -> void:
 	beam = Beam.new()
 	beam.route = Forms.route_of(relics)     # 束流形态路线在注入时定下，中途买卖不换路线
 	experiment_no += 1
+	inj = "empty"           # 瓶里的氢气注进了环，瓶座上只剩空瓶
 	if has("wipes"):
 		beam.wipes = true
 
@@ -589,7 +600,12 @@ func extract() -> Dictionary:
 func _finish(v: int) -> Dictionary:
 	if beam != null and beam.wipes:
 		relics.erase("wipes")
+	var e_end := beam.energy if beam != null else 1
 	beam = null
+	if v > 0:
+		# 成果装回瓶座上的瓶子，满瓶进篮子（瓶座空出来）
+		basket.append({"value": v, "energy": e_end})
+		inj = ""
 	meal_ready = true
 	total += v
 	experiments_left -= 1
@@ -607,6 +623,12 @@ func submit() -> Dictionary:
 		var left := maxi(0, experiments_left)
 		var leftover := left * (LEFTOVER_PAY + s * LEFTOVER_STEP)
 		money += leftover
+		basket.clear()
+		# 没用上的新瓶（手里的、瓶座上的）和架子上的一起退回
+		if held == "fresh":
+			held = ""
+		if inj == "fresh":
+			inj = ""
 		stage += 1
 		experiments_left = PER_STAGE
 		stage_badge_used = false
@@ -780,3 +802,92 @@ func protections() -> Array:
 	if plan == "safety" and not stage_safety_used: out.append("安全整改保 50%")
 	if has("protect_sys") and not stage_protect_used: out.append("保护系统保 30%")
 	return out
+
+# —— 氢气瓶操作（Q70）：都返回 "" 表示做到了，否则返回一句为什么不行 ——
+## 气瓶架上还剩几瓶（本阶段剩余次数，减去正在用的、已经拿下来的）
+func rack_left() -> int:
+	return maxi(0, experiments_left - (1 if beam != null else 0) - (1 if held == "fresh" else 0) - (1 if inj == "fresh" else 0))
+
+func take_fresh() -> String:
+	if held != "":
+		return "手里已经拿着东西了"
+	if rack_left() <= 0:
+		return "这一轮的氢气瓶用完了"
+	held = "fresh"
+	return ""
+
+func return_fresh() -> String:
+	if held != "fresh":
+		return "手里没有新瓶"
+	held = ""
+	return ""
+
+func load_fresh() -> String:
+	if held != "fresh":
+		return "先去气瓶架拿一瓶氢气"
+	if inj == "empty":
+		return "瓶座上还有空瓶，先拿下来扔掉"
+	if inj != "":
+		return "瓶座上已经有一瓶了"
+	held = ""
+	inj = "fresh"
+	return ""
+
+func pick_empty() -> String:
+	if inj != "empty":
+		return "瓶座上没有空瓶"
+	if held != "":
+		return "手里已经拿着东西了"
+	if beam != null:
+		return "实验还在进行"
+	inj = ""
+	held = "empty"
+	return ""
+
+func toss_empty() -> String:
+	if held != "empty":
+		return "手里没有空瓶"
+	held = ""
+	return ""
+
+## 从篮子里拿一瓶出来（i = -1 拿最后放进去的那瓶）
+func take_from_basket(i := -1) -> String:
+	if held != "":
+		return "手里已经拿着东西了"
+	if basket.is_empty():
+		return "篮子是空的"
+	var k := i if i >= 0 and i < basket.size() else basket.size() - 1
+	held_bt = basket[k]
+	basket.remove_at(k)
+	total = maxi(0, total - int(held_bt.value))
+	held = "full"
+	return ""
+
+func put_in_basket() -> String:
+	if held != "full":
+		return "手里没有满瓶"
+	basket.append(held_bt)
+	total += int(held_bt.value)
+	held_bt = {}
+	held = ""
+	return ""
+
+func store_in_cab() -> String:
+	if held != "full":
+		return "手里没有满瓶"
+	if cab.size() >= CAB_SLOTS:
+		return "储备柜满了"
+	cab.append(held_bt)
+	held_bt = {}
+	held = ""
+	return ""
+
+func take_from_cab() -> String:
+	if held != "":
+		return "手里已经拿着东西了"
+	if cab.is_empty():
+		return "储备柜是空的"
+	held_bt = cab.pop_back()
+	held = "full"
+	return ""
+

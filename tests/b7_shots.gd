@@ -43,6 +43,7 @@ func _go() -> void:
 	main.player.position.x = Geo.CONSOLE_STAND - 60
 	await frames(200)
 	await snap("b7_poll_empty")
+	main.run.inj = "fresh"
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
 	run.beam.energy = 9
