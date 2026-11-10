@@ -2,7 +2,7 @@ extends SceneTree
 ## 主角造型草案：现版 + A/B/C 三个，各截站立、走路、控制台前三个姿势，拼成一张对比图
 
 var main: Node
-const ORDER := ["a", "a2", "a3"]
+const ORDER := ["a2", "s"]
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots/hero/"))

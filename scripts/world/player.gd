@@ -134,7 +134,7 @@ const STYLES := {
 		"hem": 26.0, "hem_w": 25.0, "arm1": 25.0, "arm2": 25.0, "arm_w": 7.0, "head_r": 15.0, "hair": "messy", "hair_col": "hair",
 		"glasses": "none", "clip": true, "tie": false, "pens": 1, "mous": false, "shoe": 0.95, "sleeve": 5.0},
 }
-var style := "a"           # 用户 2026-11-09 选 A 瘦长学者
+var style := "s"           # 用户 2026-11-09：简笔画（不画手和五官，衣服细节照画）
 
 func _draw() -> void:
 	if STYLES2.has(style):
@@ -340,6 +340,10 @@ func _ellipse(c: Vector2, rx: float, ry: float) -> PackedVector2Array:
 ## —— 第二版画法（v2）：锥形袖子和裤腿、连指手套式的手、圆头鞋、翻领、侧脸五官、背光一侧压暗一档 ——
 ## 骨骼和动作沿用第一版（脚贴地 IK、手臂反向摆、控制台/抱瓶姿势），只换“皮”。
 const STYLES2 := {
+	# s：简笔画（用户 2026-11-09 定）——四肢一笔线条、没有手、头是一个圆不画五官；白大褂的细节照画
+	"s": {"stick": true, "hip": 70.0, "l1": 35.0, "l2": 35.0, "sh": 134.0, "lean": 3.0, "head_r": 15.0, "neck": 6.0,
+		"coat_top": 13.0, "coat_mid": 15.0, "hem": 30.0, "hem_w": 19.0, "arm1": 28.0, "arm2": 27.0,
+		"sleeve_w": [8.5, 7.0, 5.5], "leg_w": [8.5, 6.5, 5.0], "hair": "part", "glasses": "", "clip": true, "pens": 2},
 	# a2：瘦长学者，正常头身比（约 7 头身）
 	"a2": {"hip": 74.0, "l1": 37.0, "l2": 37.0, "sh": 140.0, "lean": 4.0, "head_r": 12.5, "neck": 7.0,
 		"coat_top": 13.0, "coat_mid": 15.0, "hem": 30.0, "hem_w": 19.0, "arm1": 29.0, "arm2": 28.0,
@@ -403,6 +407,12 @@ func _draw_v2() -> void:
 		var knee := _ik(h2, foot, S.l1, S.l2, 1.0)
 		var ankle := foot + Vector2(0, -4)
 		var c := trou if side == 0 else trou.darkened(0.25)
+		if S.get("stick", false):
+			# 简笔：一笔腿 + 一笔脚
+			Ink.pl(self, PackedVector2Array([h2, knee, foot + Vector2(0, -1)]), el if side == 0 else Color(el, 0.75), 3.4)
+			var toe2 := -0.25 * maxf(0.0, cos(ph)) * stride
+			draw_line(foot + Vector2(-1, -1), foot + Vector2(8, -1 + toe2 * 20.0), el if side == 0 else Color(el, 0.75), 3.4, true)
+			continue
 		_fill_line(_tube([h2, knee, ankle], lw), c, el, Ink.W2)
 		# 圆头皮鞋：鞋底一条，脚尖抬脚时略翘
 		var toe := -0.25 * maxf(0.0, cos(ph)) * stride
@@ -490,8 +500,17 @@ func _draw_v2() -> void:
 		draw_rect(Rect2(-3, -20, 7, 3), Pal.c("equip_dark"))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(face_s, 1.0))
 	_arm_v2(arms[1], S, el, coat, skin)
-	# —— 头：脖子、侧脸（鼻子、下巴）、耳朵、侧分短发、圆眼镜 ——
 	var hr: float = S.head_r
+	if S.get("stick", false):
+		# 简笔：一笔脖子 + 一个圆头，头顶一片短发，不画五官
+		var hp2 := sh + Vector2(2 + lean * 0.45, -hr - float(S.neck))
+		draw_line(sh + Vector2(2, 0), hp2 + Vector2(0, hr), el, 3.4, true)
+		Ink.disc(self, hp2, hr, Pal.c("paper"))
+		_hair(hp2, hr, S.hair, Pal.c("hair"))
+		draw_arc(hp2, hr, 0, TAU, 40, el, Ink.W1, true)
+		draw_set_transform(Vector2.ZERO)
+		return
+	# —— 头：脖子、侧脸（鼻子、下巴）、耳朵、侧分短发、圆眼镜 ——
 	var hp := sh + Vector2(2 + lean * 0.45, -hr - float(S.neck))
 	draw_rect(Rect2(sh + Vector2(-1, -float(S.neck) - 3), Vector2(7, float(S.neck) + 5)), skin.darkened(0.08))
 	var head := PackedVector2Array()
@@ -534,6 +553,12 @@ func _arm_v2(a: Array, S: Dictionary, el: Color, sleeve: Color, skin: Color) -> 
 	var elbow: Vector2 = a[1]
 	var hand: Vector2 = a[2]
 	var dir := (hand - elbow).normalized()
+	if S.get("stick", false):
+		# 简笔：袖子一直到底，不画手
+		_fill_line(_tube([sp, elbow, hand], S.sleeve_w), sleeve, el, Ink.W2)
+		var nn2 := Vector2(-dir.y, dir.x) * float(S.sleeve_w[2]) * 0.5
+		draw_line(hand + nn2 - dir * 4.0, hand - nn2 - dir * 4.0, Color(el, 0.6), Ink.W3)
+		return
 	var cuff := hand - dir * 4.0
 	_fill_line(_tube([sp, elbow, cuff], S.sleeve_w), sleeve, el, Ink.W2)
 	var sw: Array = S.sleeve_w
