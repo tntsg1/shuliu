@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # 渲染测试：不抢焦点、不碰鼠标（窗口移出屏幕 + 点击穿透）。用法: tools/run_test.sh <test.gd> [args...]
 cd "$(dirname "$0")/.."
+# 测试结束、被中断、超时都要删掉 override.cfg：它留在项目里会让正式运行的游戏窗口跑到屏幕外（灰屏）
+trap 'rm -f override.cfg' EXIT INT TERM HUP
 cat > override.cfg <<'CFG'
 [display]
 window/size/no_focus=true
