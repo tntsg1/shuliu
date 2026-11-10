@@ -280,6 +280,83 @@ func odds_notes() -> Array:
 	if has("dose_card") and b.energy >= 10: out.append(["dose_card", "完美 +8%"])
 	return out
 
+## 挂板上每张牌底下的状态签（圣遗物改造第二步）：{t: 文字, dim: 已用/没生效时变灰}；没有状态的物品返回 {}
+## 周期：本局 / 本阶段（通过考核重置）/ 本束（注入新束流重置）。没在做实验时，本束类显示“每束一次”。
+func charm_state(id: String) -> Dictionary:
+	var b := beam
+	var e := 0 if b == null else b.energy
+	match id:
+		# —— 攒进度 ——
+		"rejected": return _cs("怨气 %d/3" % rejected_stacks, rejected_stacks == 0)
+		"coffee":
+			if b == null: return _cs("连成 0/3", true)
+			return _cs("已用", true) if b.coffee_used else _cs("连成 %d/3" % mini(3, b.streak), b.streak == 0)
+		"alarm_4am":
+			if b == null: return _cs("加速 0/7", true)
+			return _cs("已用", true) if b.alarm_used else _cs("加速 %d/7" % mini(7, b.presses), b.presses == 0)
+		"third_draft":
+			if b == null: return _cs("稳定 0/2", true)
+			return _cs("×%.1f · %d/2" % [1.0 + b.draft, b.draft_stable % 2], b.draft <= 0.0)
+		"koi": return _cs("好运 0/5", true) if b == null else _cs("好运 %d/5" % b.koi, b.koi == 0)
+		"grad_promise": return _cs("承诺 %d/4" % promise, promise == 0)
+		"chair":
+			if b == null or b.chair <= 0.0: return _cs("×1.0", true)
+			return _cs("×%.1f" % (1.0 + b.chair), false)
+		"daq":
+			if b == null: return _cs("×1.00", true)
+			return _cs("×%.2f" % (1.0 + minf(0.6, b.streak * 0.03)), b.streak == 0)
+		"budget": return _cs("×%.2f" % (1.0 + minf(0.5, floor(money / 10.0) * 0.05)), money < 10)
+		"screw": return {} if b == null or b.screw_mult <= 1.0 else _cs("×%d" % int(b.screw_mult), false)
+		"impossible": return _cs("完美<5%", true) if b == null or b.imp_mult <= 1.0 else _cs("×5", false)
+		"note100": return _cs("下次必成", false) if b != null and b.guaranteed_next else _cs("成功≥75%", true)
+		# —— 本阶段一次 ——
+		"badge": return _once(stage_badge_used, "本阶段")
+		"extinguisher": return _once(stage_ext_used, "本阶段")
+		"emergency_call": return _once(stage_call_used, "本阶段")
+		"rec_letter": return _once(stage_letter_used, "本阶段")
+		"schrodinger": return _once(stage_sch_used, "本阶段")
+		"protect_sys": return _once(stage_protect_used, "本阶段")
+		"lost_data":
+			if lost_charge_pending or lost_bonus > 0: return _cs("待兑现 +%d" % lost_bonus, false)
+			return _once(stage_lost_data_used, "本阶段")
+		"dean_pen": return _cs("之后 ×0.8", true) if stage_pen_used else _cs("首次 ×3", false)
+		"red_flag": return _cs("已收起", true) if stage_had_loss else _cs("×1.4 有效", false)
+		# —— 本局一次 ——
+		"dean_paper": return _once(paper_used, "本局")
+		# —— 本束一次 ——
+		"tape_roll": return _beam_once(b, "tape_used")
+		"lab_cat": return _beam_once(b, "cat_used")
+		"coin": return _beam_once(b, "coin_used")
+		"diagnostic": return _beam_once(b, "diag_used")
+		"red_button": return _beam_once(b, "red_used")
+		"marker":
+			if b == null: return _cs("×1.15 待兑现", true)
+			return _cs("失谐了", true) if b.had_detune else _cs("×1.15 待兑现", false)
+		"meal_card": return _cs("可领 $2", false) if meal_ready else _cs("已领", true)
+		# —— 条件生效 ——
+		"dose_card": return _cs("E10 起", e < 10)
+		"cryo_magnet": return _cs("E10 起", e < 10)
+		"nobel_list": return _cs("E12 起", e < 12)
+		"calorimeter": return _cs("E8 起", e < 8)
+		"last_slide": return _cs("最后一束", experiments_left != 1)
+		"phd_cert": return _cs("背水一战", not (experiments_left == 1 and total < line()))
+		"duty_roster": return _cs("第 1 下", b == null or b.presses != 0)
+		"ultimatum":
+			if b == null or b.presses < 3: return _cs("必成 %d/3" % (0 if b == null else b.presses), false)
+			return _cs("丢失 +10%", false)
+	return {}
+
+func _cs(t: String, dim: bool) -> Dictionary:
+	return {"t": t, "dim": dim}
+
+func _once(used: bool, per: String) -> Dictionary:
+	return _cs("已用", true) if used else _cs(per + "可用", false)
+
+func _beam_once(b: Beam, field: String) -> Dictionary:
+	if b == null:
+		return _cs("每束一次", true)
+	return _cs("已用", true) if bool(b.get(field)) else _cs("本束可用", false)
+
 func potential() -> int:
 	return 0 if beam == null else int(floor(beam.value_base() * multiplier()))
 

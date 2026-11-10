@@ -12,9 +12,11 @@ var fires: Array = []    # 正在表演的触发
 var pos := {}            # id -> 挂板上的屏幕位置（每帧更新）
 var vis := 0.0
 var fired := 0            # 本局触发过几次（新手便条用）
+var states := {}         # id -> {t, dim, pulse}：状态签当前文字，文字变了 pulse 从 0 涨到 1 跳一下
 var nudges: Array = []   # 持续生效的物品这一下起了作用：晃一下 + 头顶冒一张小纸签 {id, text, t, col}
 
 const TOK := 48.0
+const ROW := 80.0         # 一排高度：纸牌 + 底下的状态签
 const GAP := 62.0
 const BOARD_W := 400.0
 const FLY_END := 0.5
@@ -104,7 +106,7 @@ func _board_rect() -> Rect2:
 	var rows := 0
 	if not main.run.devices.is_empty(): rows += 1
 	if not main.run.relics.is_empty(): rows += 1
-	var h := 14.0 + rows * 64.0
+	var h := 22.0 + rows * ROW
 	return Rect2(vp.x - BOARD_W - 34.0, panel_top - h - 6.0, BOARD_W, h)
 
 func _process(dt: float) -> void:
@@ -120,6 +122,26 @@ func _process(dt: float) -> void:
 				swing[n.id][1] += 4.5
 			Sfx.play("tick", -18.0, 2.1, 0.08)
 	nudges = nudges.filter(func(n): return n.t < 1.2)
+	# 状态签：文字变了（怨气 1/3 → 2/3、本阶段可用 → 已用）就跳一下、牌子晃一下
+	for id in _items():
+		var cs: Dictionary = main.run.charm_state(id)
+		if cs.is_empty():
+			states.erase(id)
+			continue
+		var old: Dictionary = states.get(id, {})
+		if old.is_empty():
+			states[id] = {"t": cs.t, "dim": cs.dim, "pulse": 1.0}
+		elif old.t != cs.t:
+			old.t = cs.t
+			old.dim = cs.dim
+			old.pulse = 0.0
+			if vis > 0.5 and swing.has(id):
+				swing[id][1] += 3.5
+				Sfx.play("tick", -16.0, 1.7, 0.06)
+		else:
+			old.dim = cs.dim
+	for id in states:
+		states[id].pulse = minf(1.0, states[id].pulse + dt * 2.2)
 	var d := minf(dt, 1.0 / 30.0)
 	for id in _items():
 		if not swing.has(id):
@@ -215,7 +237,7 @@ func _draw() -> void:
 		var list: Array = main.run.devices if kind == "device" else main.run.relics
 		if list.is_empty():
 			continue
-		var ry := br.position.y + 10.0 + row * 64.0
+		var ry := br.position.y + 10.0 + row * ROW
 		Ink.sticker(self, "设备" if kind == "device" else "护身符", Vector2(br.position.x + 30, ry + 26), -0.08, 11)
 		for j in list.size():
 			var id: String = list[j]
@@ -223,6 +245,7 @@ func _draw() -> void:
 			pos[id] = hook
 			if _flying(id):
 				Ink.disc(self, hook, 3.0, Color(el, a))
+				_state_tag(id, hook, a, el)
 				continue
 			if id == hover_id:
 				hot_tok = [id, hook]
@@ -286,8 +309,29 @@ func _token(id: String, hook: Vector2, a: float, el: Color) -> void:
 		draw_rect(r, Color(1, 1, 1, 0.7 * (1.0 - absf(pre * 2.0 - 1.0))))
 	draw_set_transform(Vector2.ZERO)
 	Icons.draw(self, id, ctr + Vector2(0, 3 - 4 * h).rotated(rot), 40.0 * sc, rot)
+	_state_tag(id, hook, a, el)
 	if main.run.uses.has(id):
 		Ink.text(self, "×%d" % main.run.uses[id], ctr + Vector2(TOK * 0.5 + 2, TOK * 0.5 + 4) * sc, 12, Pal.c("red"), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+
+## 牌子底下的小状态签：不随牌子晃（钉在挂板上），亮=还能用/在生效，灰=已用/条件没满足
+func _state_tag(id: String, hook: Vector2, a: float, el: Color) -> void:
+	if not states.has(id):
+		return
+	var st: Dictionary = states[id]
+	var k: float = st.pulse
+	var pop := sin(minf(1.0, k * 1.6) * PI) * (1.0 - k) * 1.0
+	var c := hook + Vector2(0, 66.0 - 4.0 * pop)
+	var sz := 10.0
+	var tw := Ink.size(Pal.bold, st.t, int(sz)).x + 8.0
+	var r := Rect2(c.x - tw * 0.5, c.y - 7.0, tw, 14.0)
+	var ink: Color = Pal.c("ink") if not st.dim else Pal.c("ink").lerp(Pal.c("paper2"), 0.55)
+	var bg: Color = Pal.c("paper") if not st.dim else Pal.c("paper2")
+	if k < 1.0:
+		bg = bg.lerp(Pal.c("gold"), 0.45 * (1.0 - k))
+	draw_rect(Rect2(r.position + Vector2(1, 2), r.size), Color(0, 0, 0, 0.10 * a))
+	draw_rect(r, Color(bg, a))
+	Ink.frame(self, r, Color(el, a * (0.35 if st.dim else 0.7)), Ink.W4)
+	Ink.text(self, st.t, Vector2(c.x, c.y + 4.0), int(sz), Color(ink, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 
 ## 一次触发的完整表演
 func _fire(f: Dictionary, el: Color) -> void:
