@@ -1,7 +1,7 @@
 extends Node2D
 ## 墙上的主环平面图海报：26.7 km 大环 + 八个实验站 + “你在这里”；束流在环上跑，每次加速绕一圈
 
-const RECT := Rect2(540, 566, 196, 168)
+const RECT := Rect2(626, 566, 196, 168)   # M5a 右移，给货梯让位
 var main: Node
 var ang := -PI * 0.5
 var lap_t := 0.0

@@ -1,7 +1,7 @@
 extends Node2D
 ## 主控：行走 ↔ 控制台推近 ↔ 引出开花 ↔ 结算（DECISIONS Q19/Q20/Q26）
 
-enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN, TITLE, PAUSE }
+enum M { WALK, ENTER, CONSOLE, SPIN, SHOT, BLOOM, LOSING, RESULT, END, SHOP, REVIEW, CHOICE, PLAN, TITLE, PAUSE, LOST }
 
 var run: Run
 var mode := M.WALK
@@ -22,6 +22,9 @@ var review: Node2D
 var notice: Node2D          # 墙上的评审日程表 + 经费处理决定（点它重读开场信）
 var bottles: Node2D         # 束流配额气瓶架
 var stash: Node2D           # 回收站 / 注入器瓶座 / 储备柜（Q70）
+var basement: Node2D        # 地下储藏室（M5a）
+var lift: Node2D            # 货梯
+var ride := {}              # 正在坐货梯 {t, from, to}
 var letter: Control         # 开场信
 var goal_card := Callable()   # 庆祝播到 1.5 秒时升起“下一阶段目标”卡
 var review_passed := false   # 审核台：刚通过一个阶段，卡片只剩“好的”
@@ -88,6 +91,8 @@ func _ready() -> void:
 	world = Node2D.new()
 	add_child(world)
 	lab = _node("res://scripts/world/lab.gd", world)
+	basement = _node("res://scripts/world/basement.gd", world)
+	basement.set("main", self)
 	ringmap = _node("res://scripts/world/ringmap.gd", world)
 	ringmap.set("main", self)
 	detector = _node("res://scripts/world/detector.gd", world)
@@ -113,6 +118,8 @@ func _ready() -> void:
 	bottles.set("main", self)
 	stash = _node("res://scripts/world/stash.gd", world)
 	stash.set("main", self)
+	lift = _node("res://scripts/world/lift.gd", world)
+	lift.set("main", self)
 	Run.MANUAL_BASKET = true      # 满瓶要玩家亲手送到审核台才计分
 	player = _node("res://scripts/world/player.gd", world)
 	prompt = _node("res://scripts/world/prompt.gd", world)
@@ -215,6 +222,7 @@ func _on_title_continue() -> void:
 ## 接着玩一局读回来的存档（测试也直接调这个）
 func resume(loaded: Run) -> void:
 	run = loaded
+	_reset_floor()
 	tutorial.stop()      # 读档接着玩不重放教程
 	live_save = true
 	_save_sig = 0
@@ -340,7 +348,16 @@ func _unhandled_input(ev: InputEvent) -> void:
 				to_title()
 			elif ev.is_action("interact") or ev.is_action("accelerate"):
 				close_pause()
+		M.LOST:
+			if ev.is_action("interact") or ev.is_action("accelerate"):
+				_lost_take()
+			elif ev.is_action("take"):
+				_lost_cash()
+			elif ev.is_action("back"):
+				_lost_close()
 		M.WALK:
+			if not ride.is_empty():
+				return
 			if ev.is_action("back"):
 				open_pause()
 			elif ev.is_action("interact"):
@@ -411,13 +428,118 @@ func _unhandled_input(ev: InputEvent) -> void:
 				go_endless()
 
 func _near_console() -> bool:
-	return absf(player.position.x - Geo.CONSOLE_STAND) < 70.0
+	return not underground() and absf(player.position.x - Geo.CONSOLE_STAND) < 70.0
 
 func _near_review() -> bool:
-	return absf(player.position.x - review.STAND) < 60.0
+	return not underground() and absf(player.position.x - review.STAND) < 60.0
 
 func _near_terminal() -> bool:
-	return absf(player.position.x - (Geo.TERMINAL_X + 35)) < 60.0
+	return not underground() and absf(player.position.x - (Geo.TERMINAL_X + 35)) < 60.0
+
+## 主角在地下储藏室（或正坐货梯往下）
+func underground() -> bool:
+	return player.position.y > Geo.FLOOR + 4.0
+
+# —— 货梯（M5a）：站上平台按 E，平台带着主角上下，镜头跟着往下移 ——
+const RIDE_T := 2.0
+
+func _ride_start() -> void:
+	if not ride.is_empty() or player.busy():
+		return
+	var down := not underground()
+	ride = {"t": 0.0, "from": player.position.y, "to": Geo.B_FLOOR if down else Geo.FLOOR}
+	player.input_enabled = false
+	player.auto_target = Geo.LIFT_X
+	player.position.x = Geo.LIFT_X
+	prompt.hide_now()
+	lift.running = true
+	Sfx.play("btn", -8.0, 1.3)
+	Sfx.play("metal", -12.0, 0.6)
+	Sfx.play("whoosh", -16.0, 0.5)
+
+func _ride_tick(dt: float) -> void:
+	if ride.is_empty():
+		return
+	ride.t += dt
+	var k := clampf(ride.t / RIDE_T, 0.0, 1.0)
+	var e := Ink.ease_in_out(k)
+	var y: float = lerpf(ride.from, ride.to, e)
+	player.position.y = y
+	lift.plat_y = y
+	if k >= 1.0:
+		ride = {}
+		lift.running = false
+		player.input_enabled = mode == M.WALK
+		player.auto_target = -1.0
+		Sfx.play("metal", -6.0, 0.8)
+		Sfx.play("hit_low", -14.0, 1.2)
+		shake = 0.25
+		if underground() and not run.lost_drawn and run.lost_pick == "":
+			overlay.say("失物招领箱在右边：每局可以免费抽一件")
+
+## 重开 / 回主页 / 读档：主角回到实验室，货梯回到一楼
+func _reset_floor() -> void:
+	ride = {}
+	player.position.y = Geo.FLOOR
+	lift.plat_y = Geo.FLOOR
+	lift.running = false
+
+# —— 失物招领箱（M5-3）——
+func _lost_open() -> void:
+	if run.lost_drawn and run.lost_pick == "":
+		overlay.say("本局已经领过一件了，下一局再来")
+		Sfx.play("hit_low", -10.0, 1.3)
+		return
+	var fresh := run.lost_pick == ""
+	var id := run.lost_roll()
+	if id == "":
+		overlay.say("箱子里空空的")
+		return
+	player.act(Vector2(Geo.LOST_X, Geo.B_FLOOR - 80), 0.4)
+	basement.box_bump = 1.0
+	Sfx.play("paper", -6.0, 0.8)
+	Sfx.play("metal", -14.0, 1.4)
+	if fresh:
+		Sfx.play("perfect", -10.0, 1.2)
+	mode = M.LOST
+	player.input_enabled = false
+	_lost_card()
+
+func _lost_card() -> void:
+	var id := run.lost_pick
+	var d: Dictionary = Items.ALL[id]
+	var sub: String = ("设备" if d.kind == "device" else "饰品") + " · " + Items.RARITY_NAME[d.rarity]
+	if not Meta.unlocked(id):
+		sub += " · 还没借阅：本局试用"
+	overlay.show_card({"title": "失物招领箱 · 翻出来一件", "title_col": Icons.rarity_col(d.rarity), "value": d.name, "sub": sub,
+		"lines": [d.get("big", d.desc), d.desc], "keys": "E  收下      Q  折成 $%d      Esc  先放着" % Run.LOST_CASH})
+
+func _lost_take() -> void:
+	var id := run.lost_pick
+	var err := run.lost_take()
+	if err != "":
+		overlay.say(err)
+		Sfx.play("hit_low", -10.0, 1.3)
+		return
+	overlay.hide_card()
+	overlay.say("收下了：" + Items.ALL[id].name + ("（本局试用）" if run.trial.has(id) else ""))
+	Sfx.play("grab", -6.0, 1.0)
+	Sfx.play("ring", -12.0, 1.3)
+	_lost_close()
+
+func _lost_cash() -> void:
+	var n := run.lost_cash()
+	if n <= 0:
+		return
+	overlay.hide_card()
+	overlay.say("折成经费 +$%d" % n)
+	Sfx.play("btn2", -6.0, 1.4)
+	_lost_close()
+
+func _lost_close() -> void:
+	overlay.hide_card()
+	mode = M.WALK
+	player.input_enabled = true
 
 # —— 流程 ——
 func enter_console() -> void:
@@ -862,9 +984,11 @@ func submit() -> void:
 		if run.won():
 			mode = M.END
 			Save.clear()
+			var wl: Array = ["实验室保住了。至少保住到下一个财年。", "想看看能撑到第几阶段？继续挑战：考核线每阶段 ×%.2f，没有终点。" % Run.ENDLESS_G]
+			wl.append_array(_meta_lines(Meta.settle(run)))
 			overlay.show_card({"title": "科研资助续期！", "title_col": Pal.c("green"), "value": fmt(run.total) + " RP",
 				"sub": "%d 个阶段全部通过 · 共 %d 次实验" % [Run.LINES.size(), run.experiment_no],
-				"lines": ["实验室保住了。至少保住到下一个财年。", "想看看能撑到第几阶段？继续挑战：考核线每阶段 ×%.2f，没有终点。" % Run.ENDLESS_G],
+				"lines": wl,
 				"keys": "C  继续挑战（无尽）      R  重新开始"})
 			return
 		mode = M.REVIEW
@@ -899,8 +1023,21 @@ func submit() -> void:
 		mode = M.END
 		Save.clear()
 		Sfx.play("boom", -3.0, 0.7)
+		var fl: Array = ["“经费的事，明年再说吧。” —— 校长"]
+		fl.append_array(_meta_lines(Meta.settle(run)))
 		overlay.show_card({"title": "科研资助终止", "title_col": Pal.c("red"), "value": fmt(run.total) + " / " + fmt(run.line()),
-			"sub": "第 %d 阶段考核未达标" % (run.stage + 1), "lines": ["“经费的事，明年再说吧。” —— 校长"], "keys": "R  重新开始"})
+			"sub": "第 %d 阶段考核未达标" % (run.stage + 1), "lines": fl, "keys": "R  重新开始"})
+
+## 一局结束的局外结算写进结算卡（M5-8 / M5-17）
+func _meta_lines(m: Dictionary) -> Array:
+	var out: Array = []
+	var tail := "" if Meta.get_v("office_open", false) else "（教授办公室开放后可用）"
+	out.append("科研声望 +%d · 共 %d%s" % [m.gain, Meta.prestige(), tail])
+	if m.opened.has("storage"):
+		out.append("地下储藏室开放了：坐采购终端旁边的货梯下去，每局可以在失物招领箱免费抽一件。")
+	if m.opened.has("office"):
+		out.append("楼上的退休教授办公室开放了。")
+	return out
 
 func _on_plan_chosen(id: String) -> void:
 	var r := run.choose_plan(id)
@@ -1046,6 +1183,8 @@ func go_endless() -> void:
 
 func restart() -> void:
 	run = Run.new()
+	run.pool = Meta.pool()
+	_reset_floor()
 	tutorial.stop()
 	if letter.open:
 		letter.open = false
@@ -1109,13 +1248,16 @@ func _process(dt: float) -> void:
 	if run != null:
 		player.carry = run.held
 		player.carry_bt = run.held_bt
+	_ride_tick(dt)
 	match mode:
 		M.TITLE:
 			cam_target = Vector2(848, 520)
 			zoom_target = 1.35
 			_demo_tick(dt)
-		M.WALK:
-			cam_target = Vector2(960 + clampf((player.position.x - 960) * 0.05, -36, 36), 540)
+		M.WALK, M.LOST:
+			# 在储藏室（或坐货梯途中）镜头跟着主角往下移
+			var dk := clampf((player.position.y - Geo.FLOOR) / (Geo.B_FLOOR - Geo.FLOOR), 0.0, 1.0)
+			cam_target = Vector2(960 + clampf((player.position.x - 960) * 0.05, -36, 36), lerpf(540.0, Geo.B_CAM_Y, dk))
 			zoom_target = 1.04
 			if intro.active:
 				cam_target = Vector2(1000, 520)
@@ -1135,7 +1277,7 @@ func _process(dt: float) -> void:
 				prompt.hide_now()
 			elif _spot() != "" and _spot_label(_spot()) != "":
 				var sid := _spot()
-				prompt.show_at(Vector2(float(SPOTS[sid][0]), _spot_rect(sid).position.y - 12), "E", _spot_label(sid))
+				prompt.show_at(Vector2(float(_spots()[sid][0]), _spot_rect(sid).position.y - 12), "E", _spot_label(sid))
 			elif not hover_interact:
 				prompt.hide_now()
 		M.ENTER:
@@ -1296,6 +1438,8 @@ func card_buttons() -> Array:
 		if run.won():
 			return [{"label": "继续挑战（无尽）", "key": "C", "action": "endless"}, {"label": "重新开始", "key": "R", "action": "restart"}]
 		return [{"label": "重新开始", "key": "R", "action": "restart"}]
+	if mode == M.LOST:
+		return [{"label": "收下", "key": "E", "action": "lost_take"}, {"label": "折成 $%d" % Run.LOST_CASH, "key": "Q", "action": "lost_cash"}, {"label": "先放着", "key": "Esc", "action": "lost_close"}]
 	if mode == M.CHOICE:
 		return [{"label": "结束，保留 30%", "key": "E", "action": "sch_end"}, {"label": "再加速一次", "key": "空格", "action": "sch_go"}]
 	if mode == M.REVIEW:
@@ -1330,6 +1474,9 @@ func _card_action(a: String) -> void:
 		"close_review": close_review()
 		"sch_end": _sch_end()
 		"sch_go": _sch_go()
+		"lost_take": _lost_take()
+		"lost_cash": _lost_cash()
+		"lost_close": _lost_close()
 
 # —— 鼠标 ——
 func _mouse(ev: InputEventMouse) -> void:
@@ -1374,7 +1521,7 @@ func _mouse(ev: InputEventMouse) -> void:
 	if mb.button_index != MOUSE_BUTTON_LEFT:
 		return
 	match mode:
-		M.RESULT, M.END, M.REVIEW, M.CHOICE, M.PAUSE:
+		M.RESULT, M.END, M.REVIEW, M.CHOICE, M.PAUSE, M.LOST:
 			var a: String = overlay.button_at(sp)
 			if a != "":
 				_card_action(a)
@@ -1399,6 +1546,14 @@ func _mouse(ev: InputEventMouse) -> void:
 				_finish_bloom()
 		M.WALK:
 			var wp := _to_world(sp)
+			if not ride.is_empty():
+				return
+			if underground():
+				if _spot_at(wp) != "":
+					_walk_to(float(_spots()[_spot_at(wp)][0]), "spot:" + _spot_at(wp))
+				elif wp.y > Geo.B_CEIL and wp.y < Geo.B_FLOOR + 30:
+					_walk_to(wp.x, "")
+				return
 			if notice.rect().has_point(wp):
 				Sfx.play("paper", -6.0, 1.0)
 				open_letter()
@@ -1407,7 +1562,7 @@ func _mouse(ev: InputEventMouse) -> void:
 			elif review.rect().has_point(wp):
 				_walk_to(review.STAND, "review")
 			elif _spot_at(wp) != "":
-				_walk_to(float(SPOTS[_spot_at(wp)][0]), "spot:" + _spot_at(wp))
+				_walk_to(float(_spots()[_spot_at(wp)][0]), "spot:" + _spot_at(wp))
 			elif _console_rect().has_point(wp):
 				_walk_to(Geo.CONSOLE_STAND, "console")
 			elif wp.y > Geo.CEIL and wp.y < Geo.FLOOR + 30:
@@ -1437,14 +1592,22 @@ func _leave_tab_go() -> void:
 
 # —— 氢气瓶的几个地点（Q70）：全手动——回收站扔空瓶、气瓶架取新瓶、注入器装瓶；储备柜存取满瓶 ——
 # 站位让开一点：主角站在瓶座右边、伸手去够，不挡住瓶子
-const SPOTS := {"bin": [122.0, 44.0], "cradle": [282.0, 28.0], "rack": [354.0, 42.0], "cab": [1560.0, 34.0]}
+const SPOTS := {"bin": [122.0, 44.0], "cradle": [282.0, 28.0], "rack": [354.0, 42.0], "cab": [1560.0, 34.0], "lift": [Geo.LIFT_X, 40.0]}
+## 地下储藏室里的地点（M5a）
+const B_SPOTS := {"lift_b": [Geo.LIFT_X, 40.0], "lostbox": [Geo.LOST_X - 60.0, 60.0]}
+
+func _spots() -> Dictionary:
+	return B_SPOTS if underground() else SPOTS
 
 func _spot() -> String:
+	if not ride.is_empty():
+		return ""
 	var best := ""
 	var bd := 1e9
-	for id in SPOTS:
-		var d := absf(player.position.x - float(SPOTS[id][0]))
-		if d < float(SPOTS[id][1]) and d < bd:
+	var tbl := _spots()
+	for id in tbl:
+		var d := absf(player.position.x - float(tbl[id][0]))
+		if d < float(tbl[id][1]) and d < bd:
 			bd = d
 			best = id
 	return best
@@ -1456,6 +1619,9 @@ func _spot_rect(id: String) -> Rect2:
 		"cradle": return Rect2(stash.CRADLE.x - 20, stash.CRADLE.y - 130, 40, 130)
 		"rack": return bottles.RACK.grow(4)
 		"cab": return stash.CAB.grow(4)
+		"lift": return lift.rect_lab()
+		"lift_b": return lift.rect_b1()
+		"lostbox": return basement.lost_rect().grow(8)
 	return Rect2()
 
 ## 这个地点现在按 E 会做什么（"" = 什么也做不了）
@@ -1479,6 +1645,14 @@ func _spot_label(id: String) -> String:
 			if run.held == "full":
 				return "存进储备柜" if run.cab.size() < Run.CAB_SLOTS else ""
 			return "取出备用瓶" if run.held == "" and not run.cab.is_empty() else ""
+		"lift":
+			return "坐货梯去地下储藏室" if Meta.storage_open() else "货梯维修中"
+		"lift_b":
+			return "坐货梯回实验室"
+		"lostbox":
+			if run.lost_pick != "":
+				return "看看翻出来的那件"
+			return "失物招领：抽一件（每局一次）" if not run.lost_drawn else "本局已经领过了"
 	return ""
 
 ## 搬瓶的每个动作：规则先改好，画面上主角弯腰伸手、瓶子沿弧线飞过去，落位那一下出声、卡箍合上、桶晃、柜门开合
@@ -1489,6 +1663,13 @@ func _spot_do(id: String) -> void:
 	var cp: Vector2 = player.carry_point()
 	var cradle: Vector2 = stash.CRADLE + Vector2(0, -8)
 	match id:
+		"lift", "lift_b":
+			if id == "lift" and not Meta.storage_open():
+				err = "货梯维修中：第一局结束后，地下储藏室才开放"
+			else:
+				_ride_start()
+		"lostbox":
+			_lost_open()
 		"bin":
 			err = run.toss_empty()
 			if err == "":
@@ -1606,7 +1787,7 @@ func _review_q() -> void:
 		Save.write(run)
 
 func _spot_at(wp: Vector2) -> String:
-	for id in SPOTS:
+	for id in _spots():
 		if _spot_rect(id).has_point(wp):
 			return id
 	return ""
@@ -1635,8 +1816,14 @@ func _hover() -> void:
 	review.hot = lerpf(review.hot, 1.0 if (mode == M.WALK and (review.rect().has_point(wp) or _near_review())) else 0.0, 0.25)
 	match mode:
 		M.WALK:
-			notice.hot = lerpf(notice.hot, 1.0 if notice.rect().has_point(wp) else 0.0, 0.3)
-			if notice.rect().has_point(wp):
+			notice.hot = lerpf(notice.hot, 1.0 if notice.rect().has_point(wp) and not underground() else 0.0, 0.3)
+			if underground() or not ride.is_empty():
+				if ride.is_empty() and _spot_at(wp) != "" and _spot_label(_spot_at(wp)) != "":
+					var bsid := _spot_at(wp)
+					hand = true
+					hover_interact = true
+					prompt.show_at(Vector2(_spot_rect(bsid).get_center().x, _spot_rect(bsid).position.y - 12), "点击 / E", _spot_label(bsid))
+			elif notice.rect().has_point(wp):
 				hand = true
 				hover_interact = true
 				prompt.show_at(Vector2(notice.NOTE.get_center().x, notice.NOTE.position.y - 14), "点击", "重读那封信")
@@ -1648,7 +1835,7 @@ func _hover() -> void:
 				var sid := _spot_at(wp)
 				hand = true
 				hover_interact = true
-				prompt.show_at(Vector2(float(SPOTS[sid][0]), _spot_rect(sid).position.y - 12), "点击 / E", _spot_label(sid))
+				prompt.show_at(Vector2(float(_spots()[sid][0]), _spot_rect(sid).position.y - 12), "点击 / E", _spot_label(sid))
 			elif _terminal_rect().has_point(wp) or _console_rect().has_point(wp):
 				hand = true
 				hover_interact = true
@@ -1666,7 +1853,7 @@ func _hover() -> void:
 			if k >= 0 and run.beam != null:
 				var p := run.odds()
 				tip = PackedStringArray([Odds.NAMES[k], "下一次加速出现这个结果的真实概率：%.1f%%" % (p[k] * 100.0)])
-		M.RESULT, M.END, M.REVIEW, M.CHOICE, M.PAUSE:
+		M.RESULT, M.END, M.REVIEW, M.CHOICE, M.PAUSE, M.LOST:
 			overlay.hover_btn = overlay.hover_at(sp)
 			hand = overlay.hover_btn >= 0
 	if tip.is_empty() and mode != M.SHOP:
@@ -1777,6 +1964,8 @@ func _begin_tutorial() -> void:
 func _on_title_start() -> void:
 	_begin_tutorial()
 	run = Run.new()
+	run.pool = Meta.pool()
+	_reset_floor()
 	Save.clear()
 	live_save = true
 	_save_sig = 0

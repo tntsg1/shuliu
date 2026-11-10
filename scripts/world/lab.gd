@@ -6,7 +6,7 @@ func _ready() -> void:
 
 func _draw() -> void:
 	_office()
-	_storage()
+	# 储藏室改成完整房间，由 basement.gd 画（M5a）
 	_main_room()
 	_main_ring()
 	_injector()

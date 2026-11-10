@@ -219,10 +219,11 @@ const TAG := {
 	"emergency_call": "电子", "red_button": "电子", "printer": "电子", "last_slide": "电子", "calc7": "电子",
 	"impossible": "书籍", "schrodinger": "书籍", "qm_book2": "书籍", "plant": "吉祥物", "lab_cat": "吉祥物",
 }
-## 基础池（DECISIONS Q36）：首局就会出现；其余等 M5 局外进度解锁（M5 之前全部进池）
-const BASE := ["magnet_sc", "quad_array", "collimator", "rf_backup", "diagnostic", "injector_hi",
-	"eraser", "coin", "badge", "note100", "wrong_answer", "koi", "lucky_cat", "chair", "budget", "coffee",
-	"duty_roster", "third_draft", "reimburse", "coffee_cup", "bandaid", "marker", "wipes", "tape_roll", "meal_card", "dose_card", "extractor", "beam_dump", "extinguisher", "bpm", "printer", "daq", "plant", "qm_book2"]
+## 基础池（DECISIONS Q36 → M5-10）：首局就会出现的 25 件
+const BASE := [   # M5-10：首局 25 件（设备 7 + 饰品 18），其余在教授办公室借阅解锁
+	"beam_dump", "collimator", "rf_backup", "bpm", "magnet_sc", "quad_array", "diagnostic",
+	"tape_roll", "bandaid", "chair", "duty_roster", "koi", "lucky_cat", "marker", "wipes",
+	"coin", "eraser", "third_draft", "rejected", "reimburse", "coffee", "note100", "red_flag", "dean_paper", "lab_cat"]
 
 static func tag_of(id: String) -> String:
 	return TAG.get(id, "")

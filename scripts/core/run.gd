@@ -45,6 +45,13 @@ var money := START_MONEY
 var relics: Array = []        # 饰品 id
 var devices: Array = []       # 设备 id
 var uses := {}                # 有使用次数的饰品剩余次数
+# —— 局外（M5）——
+var pool: Array = []             # 本局商店能出的物品（开局从 Meta.pool() 取）；空 = 全部（规则测试、机器人）
+var meta_paid := 0               # 已经结算过声望的阶段数
+var meta_cleared := false        # 通关奖励已给
+var meta_counted := false        # 已计入局数
+var lost_drawn := false          # 失物招领箱本局已经抽过
+var trial: Array = []            # 失物招领抽到的未解锁物品（本局试用）
 var paper_used := false       # 校长稿纸：每局一次
 var stage_badge_used := false
 var stage_pen_used := false
@@ -820,6 +827,8 @@ func _pick(kind: String, exclude: Array) -> String:
 	for id in Items.ids(kind):
 		if has(id) or exclude.has(id):
 			continue
+		if not pool.is_empty() and not pool.has(id):
+			continue
 		for i in weights[Items.ALL[id].rarity]:
 			pool.append(id)
 	if pool.is_empty():
@@ -1044,3 +1053,49 @@ func take_from_cab() -> String:
 	held = "full"
 	return ""
 
+
+# —— 失物招领箱（M5-3）：每局免费抽 1 件；可能抽到还没借阅的（本局试用）；不想要可折 $10 ——
+const LOST_CASH := 10
+var lost_pick := ""              # 抽到、还没决定收不收的那件（存档里留着，退出重进不能重抽）
+
+func lost_roll() -> String:
+	if lost_drawn and lost_pick == "":
+		return ""
+	if lost_pick != "":
+		return lost_pick
+	var pool2: Array = []
+	var weights := [55, 32, 13, 4]
+	for id in Items.ALL:
+		if has(id) or id == "screw":
+			continue
+		for i in weights[Items.ALL[id].rarity]:
+			pool2.append(id)
+	if pool2.is_empty():
+		return ""
+	lost_pick = pool2[shop_rng.randi() % pool2.size()]
+	lost_drawn = true
+	return lost_pick
+
+## 收下：要有空槽；没借阅过的记进 trial（本局试用，不算解锁）
+func lost_take() -> String:
+	var id := lost_pick
+	if id == "":
+		return "没有可收的东西"
+	var kind: String = Items.ALL[id].kind
+	if not slots_free(kind, id):
+		return ("设备槽" if kind == "device" else "护身符架") + "满了：先去采购终端卖掉一件，或者折成 $%d" % LOST_CASH
+	if kind == "device":
+		devices.append(id)
+	else:
+		relics.append(id)
+	if not Meta.unlocked(id):
+		trial.append(id)
+	lost_pick = ""
+	return ""
+
+func lost_cash() -> int:
+	if lost_pick == "":
+		return 0
+	lost_pick = ""
+	money += LOST_CASH
+	return LOST_CASH
