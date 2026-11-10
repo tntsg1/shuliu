@@ -7,7 +7,6 @@ static var volume := 80          # 0..100
 static var fullscreen := false
 static var dark := false
 static var shake := true
-static var tutorial_replay := false   # 下一局重看新手教程（一次性，用完自动关）。教程平时只在全新存档的第一局放（用户 2026-11-09）
 
 static func load_and_apply() -> void:
 	if not Memes._testing():
@@ -17,7 +16,6 @@ static func load_and_apply() -> void:
 			fullscreen = bool(c.get_value("options", "fullscreen", fullscreen))
 			dark = bool(c.get_value("options", "dark", dark))
 			shake = bool(c.get_value("options", "shake", shake))
-			tutorial_replay = bool(c.get_value("options", "tutorial_replay", tutorial_replay))
 	apply()
 
 static func apply() -> void:
@@ -41,14 +39,4 @@ static func save() -> void:
 	c.set_value("options", "shake", shake)
 	if c.has_section_key("options", "tutorial"):
 		c.erase_section_key("options", "tutorial")   # 旧版“每局都放”开关，作废
-	c.set_value("options", "tutorial_replay", tutorial_replay)
-	c.save(CFG)
-
-## 新手便条重新开启（清掉“已看完”标记）
-static func reset_tutorial() -> void:
-	if Memes._testing():
-		return
-	var c := ConfigFile.new()
-	c.load(CFG)
-	c.set_value("tutorial", "done", false)
 	c.save(CFG)

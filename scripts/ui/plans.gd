@@ -19,6 +19,7 @@ var mouse_p := Vector2.ZERO
 var stage_no := 2
 var _stamped := false
 var _sign_tick := 0
+var skip_rect := Rect2()
 
 const CW := 380.0
 const CH := 520.0
@@ -53,7 +54,9 @@ func handle(ev: InputEvent) -> void:
 	if pick >= 0 or t < 0.6:
 		return
 	kb = true
-	if ev.is_action("ui_left") or ev.is_action("move_left"):
+	if ev.is_action("back") or ev.is_action("ui_cancel"):
+		_skip()
+	elif ev.is_action("ui_left") or ev.is_action("move_left"):
 		hover = maxi(0, hover - 1) if hover >= 0 else 0
 		Sfx.play("tick", -10.0, 1.2)
 	elif ev.is_action("ui_right") or ev.is_action("move_right"):
@@ -75,11 +78,22 @@ func mouse(ev: InputEventMouse) -> void:
 		if h != hover and h >= 0:
 			Sfx.play("tick", -12.0, 1.3)
 		hover = h
-		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hover >= 0 else Input.CURSOR_ARROW)
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hover >= 0 or skip_rect.has_point(ev.position) else Input.CURSOR_ARROW)
 	elif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT and t > 0.6:
+		if skip_rect.has_point(ev.position):
+			_skip()
+			return
 		for i in rects.size():
 			if rects[i].has_point(ev.position):
 				_choose(i)
+				return
+
+func _skip() -> void:
+	if not open or pick >= 0:
+		return
+	open = false
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+	chosen.emit("")
 
 func _choose(i: int) -> void:
 	pick = i
@@ -125,7 +139,7 @@ func _draw() -> void:
 	var ha := clampf(t / 0.4, 0.0, 1.0) * fade
 	Ink.text(self, "科研计划书 · 第 %d 阶段" % stage_no, Vector2(vp.x * 0.5 + 3, 110 + 3), 46, Color(0, 0, 0, 0.3 * ha), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	Ink.text(self, "科研计划书 · 第 %d 阶段" % stage_no, Vector2(vp.x * 0.5, 110), 46, Color(Pal.c("paper"), ha), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
-	Ink.text(self, "挑一份签字。每份都有好处，也都有代价。", Vector2(vp.x * 0.5, 156), 22, Color(Pal.c("paper"), 0.85 * ha), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
+	Ink.text(self, "选一份计划，或跳过并照常进行实验。", Vector2(vp.x * 0.5, 156), 22, Color(Pal.c("paper"), 0.85 * ha), Pal.hand, HORIZONTAL_ALIGNMENT_CENTER)
 	for i in offers.size():
 		if i == pick:
 			continue
@@ -133,7 +147,13 @@ func _draw() -> void:
 	if pick >= 0:
 		_card(pick, vp)
 	if pick < 0 and t > 0.6:
-		Ink.text(self, "鼠标点选 · ← → 选择  E / 空格 确定", Vector2(vp.x * 0.5, vp.y - 40), 16, Color(Pal.c("paper"), 0.8 * fade), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+		skip_rect = Rect2(vp.x * 0.5 - 130, vp.y - 123, 260, 50)
+		draw_rect(skip_rect, Color(Pal.c("paper"), fade))
+		Ink.frame(self, skip_rect, Pal.c("gold") if skip_rect.has_point(mouse_p) else Pal.equip_line(), 2.0)
+		Ink.text(self, "跳过本阶段计划", skip_rect.get_center() + Vector2(0, 7), 21, Pal.c("text"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+		Ink.text(self, "鼠标点选 · ← → 选择  E / 空格 确定 · Esc 跳过", Vector2(vp.x * 0.5, vp.y - 35), 16, Color(Pal.c("paper"), 0.8 * fade), Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		skip_rect = Rect2()
 
 func _card(i: int, vp: Vector2) -> void:
 	var id: String = offers[i]

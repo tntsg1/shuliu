@@ -33,6 +33,7 @@ var charge := 0
 var lamp_pop := PackedFloat32Array([0, 0, 0, 0, 0, 0])
 var lock_left := 0
 var locked := false
+var seg_base := PackedFloat32Array()   # 没有任何物品时的概率：和现值不同就印成“原值→现值”
 # 按钮/拉杆
 var btn_depth := 0.0
 var _vb := 0.0
@@ -114,6 +115,7 @@ func set_beam(energy: int, value: int, odds: PackedFloat64Array, ch: int, lk: in
 	locked = lk > 0
 
 func reset_beam() -> void:
+	seg_base = PackedFloat32Array()
 	e_target = 1
 	val_target = Odds.value_at(1)
 	var p := Odds.table(1)
@@ -367,7 +369,14 @@ func _tape(r: Rect2) -> void:
 		if absf(lab[i] - centers[k]) > 2.0:
 			draw_line(Vector2(centers[k], r.end.y + 2), Vector2(lab[i], r.end.y + 8), Color(el, 0.5), 1.0, true)
 		Ink.text(self, Odds.NAMES[k], Vector2(lab[i], r.end.y + 24), 15, col, Pal.bold if k == Odds.SUPER else Pal.font, HORIZONTAL_ALIGNMENT_CENTER)
-		Ink.text(self, "%.1f%%" % pct, Vector2(lab[i], r.end.y + 44), 17, col, Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+		var bpct: float = seg_base[k] * 100.0 if seg_base.size() == Odds.N else pct
+		# 和“目标值”比（纸带在动画时，现值还在往目标值走，不要一闪一闪地出箭头）
+		if seg_base.size() == Odds.N and absf(bpct - seg_t[k] * 100.0) >= 0.05:
+			# 有物品在改这一段：原值→现值，变好绿色、变差红色
+			var better := (pct < bpct) if k == Odds.LOSS or k == Odds.DETUNE or k == Odds.STABLE else (pct > bpct)
+			Ink.text(self, "%.1f→%.1f%%" % [bpct, pct], Vector2(lab[i], r.end.y + 44), 15, Pal.c("green").darkened(0.15) if better else Pal.c("red"), Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
+		else:
+			Ink.text(self, "%.1f%%" % pct, Vector2(lab[i], r.end.y + 44), 17, col, Pal.mono, HORIZONTAL_ALIGNMENT_CENTER)
 	# 指针：墨线三角 + 贯穿纸带的竖线；滑动时拖出残影
 	if ptr_vis > 0.01:
 		var u := fposmod(ptr_abs, 1.0)

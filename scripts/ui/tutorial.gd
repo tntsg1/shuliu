@@ -1,8 +1,5 @@
 extends Control
-## 新手引导（DECISIONS F20）：第一局用手写便利贴逐步提示，每张带手绘箭头指向要操作的地方；
-## 完成一步，便条打勾飞走。完成后写入 user://settings.cfg，之后不再出现；F1 可重看。
-
-const CFG := "user://settings.cfg"
+## 主页开始新游戏时，用手写便利贴和箭头逐步提示；局内重开和读档不播放。
 
 var main: Node
 var active := false
@@ -82,7 +79,7 @@ func _ready() -> void:
 			"done": func(): return main.run.log.size() >= 5 or main.mode != main.M.CONSOLE or (main.run.beam != null and main.run.beam.locked()),
 			"at": func(): return _panel(Vector2(780, 214)), "note": func(): return _panel(Vector2(560, -170))},
 		{"id": "lever", "text": "如果觉得当前的科研成果已经足够了，就把拉杆向下拖到底，或者按 E 键引出束流。
-引出成功后，这一束的潜在科研点就会计入累计分数，同时还能获得一些经费。",
+引出后成果会装进瓶子，送到审核台放进篮子才计入科研点，同时还能获得一些经费。",
 			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam != null and main.run.beam.energy >= 4,
 			"done": func(): return main.run.experiment_no > 1 or main.run.beam == null,
 			"at": func(): return _panel(Vector2(1760, 110)), "note": func(): return _panel(Vector2(1530, -200))},
@@ -90,16 +87,16 @@ func _ready() -> void:
 你可以在审核台查看本轮评审需要的科研点数，以及目前已经累计的科研点数。
 只要累计的科研点达到要求，就可以提交本轮评审。",
 			"say": "第一次科研成果成功出炉了，我们看一看得分如何呢",
-			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.experiment_no >= 1,
+			"show": func(): return main.mode == main.M.CONSOLE and main.run.beam == null and main.run.inj == "full",
 			"done": func(): return main.run.beam != null or main.mode != main.M.CONSOLE or step_t > _rt(7.0),
 			"at": func(): return _w(Vector2(246, 690)), "note": func(): return _w(Vector2(main.review.X - 120, Geo.FLOOR - 420))},
 		{"id": "deliver", "text": "拿着成果瓶走到审核台，按 E 放进篮子。",
-			"show": func(): return main.mode == main.M.WALK and main.run.held == "full" and main.run.basket.is_empty() and main.run.stage == 0,
+			"show": func(): return main.mode == main.M.WALK and main.run.held == "full",
 			"done": func(): return main.run.held != "full",
 			"at": func(): return _w(Vector2(main.review.X + 40, Geo.FLOOR - 110)), "note": func(): return _w(Vector2(main.review.X - 420, Geo.FLOOR - 460))},
 		{"id": "toss", "text": "实验失败以后，瓶座上会留下一只空瓶。
 按 E 把它取下来，扔进最左边的空瓶回收站，才能装下一瓶。",
-			"show": func(): return main.mode == main.M.WALK and main.run.inj == "empty" and main.run.beam == null,
+			"show": func(): return main.mode == main.M.WALK and (main.run.inj == "empty" or main.run.held == "empty") and main.run.beam == null,
 			"done": func(): return main.run.inj != "empty" and main.run.held != "empty",
 			"at": func(): return _w(Vector2(246, 700)) if main.run.held != "empty" else _w(Vector2(116, 720)), "note": func(): return _w(Vector2(520, 520))},
 		{"id": "cab", "text": "审核台右边是储备柜。
@@ -152,7 +149,7 @@ func _ready() -> void:
 			"done": func(): return main.run.beam == null or not main.run.beam.locked() or step_t > _rt(9.0),
 			"at": func(): return _panel(Vector2(600, 110)), "note": func(): return _panel(Vector2(420, -190))},
 	]
-	# 由 main._begin_tutorial 启动：只在全新存档的第一局，或设置里选了“下一局重看”
+	# 由主页新游戏入口启动。
 
 func start(manual: bool) -> void:
 	active = true
@@ -165,20 +162,6 @@ func stop() -> void:
 	active = false
 	idx = -1
 	queue_redraw()
-
-func _cfg_done() -> bool:
-	var c := ConfigFile.new()
-	if c.load(CFG) != OK:
-		return false
-	return bool(c.get_value("tutorial", "done", false))
-
-func _save_done() -> void:
-	if not persist or Memes._testing():
-		return
-	var c := ConfigFile.new()
-	c.load(CFG)
-	c.set_value("tutorial", "done", true)
-	c.save(CFG)
 
 ## 世界坐标 → 屏幕坐标（随相机）
 func _w(p: Vector2) -> Vector2:
@@ -227,7 +210,6 @@ func _process(dt: float) -> void:
 				shown[st.id] = true
 		if shown.size() >= steps.size():
 			active = false
-			_save_done()
 	queue_redraw()
 
 func _draw() -> void:

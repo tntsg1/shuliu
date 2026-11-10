@@ -51,6 +51,7 @@ var stage_pen_used := false
 var rejected_stacks := 0
 var best_potential := 0       # 本局到过的最高潜在成果（忘记保存的数据）
 var lost_bonus := 0           # 下一次引出额外加上的科研点
+var lost_charge_pending := false # 丢失数据：下一束开始时获得锁相充能
 var stage_lost_data_used := false
 var stage_letter_used := false   # 推荐信：本阶段已经加成过
 var stage_had_loss := false      # 流动红旗：本阶段出现过束流丢失
@@ -154,6 +155,9 @@ func can_start() -> bool:
 func start_experiment() -> void:
 	assert(can_start())
 	beam = Beam.new()
+	if lost_charge_pending:
+		beam.charge = mini(2, lock_need() - 1)
+		lost_charge_pending = false
 	beam.route = Forms.route_of(relics)     # 束流形态路线在注入时定下，中途买卖不换路线
 	experiment_no += 1
 	inj = "empty"           # 瓶里的氢气注进了环，瓶座上只剩空瓶
@@ -214,27 +218,67 @@ func guaranteed() -> bool:
 	return beam.guaranteed_next or (has("ultimatum") and beam.presses < 3)
 
 ## 当前倍率（显示与引出都用它，保证所见即所得）
+## 成果倍率逐件拆开（引出时一件一件播放给玩家看）：[来源 id, 倍率]。multiplier() 就是它们的乘积。
+## 来源 id：物品 id；计划书写成 "plan:xxx"；束流形态写 "form"
+func mult_parts() -> Array:
+	var out: Array = []
+	var b := beam
+	_mp(out, "injector_hi", 1.5, has("injector_hi"))
+	_mp(out, "collimator", 0.9, has("collimator"))
+	if b != null:
+		_mp(out, "chair", 1.0 + b.chair, has("chair"))
+		_mp(out, "third_draft", 1.0 + b.draft, has("third_draft"))
+		_mp(out, "marker", 1.15, has("marker") and not b.had_detune)
+	_mp(out, "red_flag", 1.4, has("red_flag") and not stage_had_loss)
+	_mp(out, "extractor", 1.2, has("extractor"))
+	_mp(out, "plan:high_energy", 1.3, plan == "high_energy" and b != null and b.energy >= 10)
+	_mp(out, "plan:energy_save", 0.85, plan == "energy_save")
+	if b != null:
+		_mp(out, "calorimeter", 1.6, has("calorimeter") and b.energy >= 8)
+		_mp(out, "daq", 1.0 + minf(0.6, b.streak * 0.03), has("daq"))
+		_mp(out, "last_slide", 1.5, has("last_slide") and experiments_left == 1)
+		_mp(out, "red_button", b.red_mult, true)
+		_mp(out, "impossible", b.imp_mult, true)
+		_mp(out, "screw", b.screw_mult, true)
+		_mp(out, "phd_cert", 2.0, has("phd_cert") and experiments_left == 1 and total < line())
+	_mp(out, "dean_pen", 0.8 if stage_pen_used else 3.0, has("dean_pen"))
+	_mp(out, "budget", 1.0 + minf(0.5, floor(money / 10.0) * 0.05), has("budget"))
+	if b != null:
+		_mp(out, "form", 1.0 + Forms.bonus(b.energy), true)
+	return out
+
+func _mp(out: Array, id: String, f: float, cond: bool) -> void:
+	if cond and absf(f - 1.0) > 1e-6:
+		out.append([id, f])
+
 func multiplier() -> float:
 	var m := 1.0
-	if has("injector_hi"): m *= 1.5
-	if has("collimator"): m *= 0.9
-	if beam != null and has("chair"): m *= 1.0 + beam.chair
-	if beam != null and has("third_draft"): m *= 1.0 + beam.draft
-	if beam != null and has("marker") and not beam.had_detune: m *= 1.15
-	if has("red_flag") and not stage_had_loss: m *= 1.4
-	if has("extractor"): m *= 1.2
-	if plan == "high_energy" and beam != null and beam.energy >= 10: m *= 1.3
-	if plan == "energy_save": m *= 0.85
-	if beam != null and has("calorimeter") and beam.energy >= 8: m *= 1.6
-	if beam != null and has("daq"): m *= 1.0 + minf(0.6, beam.streak * 0.03)
-	if beam != null and has("last_slide") and experiments_left == 1: m *= 1.5
-	if beam != null: m *= beam.red_mult * beam.imp_mult
-	if beam != null: m *= beam.screw_mult
-	if beam != null and has("phd_cert") and experiments_left == 1 and total < line(): m *= 2.0
-	if has("dean_pen"): m *= 0.8 if stage_pen_used else 3.0
-	if has("budget"): m *= 1.0 + minf(0.5, floor(money / 10.0) * 0.05)
-	if beam != null: m *= 1.0 + Forms.bonus(beam.energy)   # 束流形态：成形 +10%、成熟 +25%
+	for x in mult_parts():
+		m *= float(x[1])
 	return m
+
+## 这一次加速，哪些物品在改概率：[物品 id, 一句短说明]（挂板上让它们晃一下、冒个小纸签）
+func odds_notes() -> Array:
+	var b := beam
+	if b == null:
+		return []
+	var out: Array = []
+	var lock := b.locked()
+	if not lock:
+		if has("magnet_sc"): out.append(["magnet_sc", "丢失 ×0.85"])
+		if has("collimator"): out.append(["collimator", "丢失 ×0.88"])
+		if has("koi") and b.koi > 0: out.append(["koi", "丢失 ×%.2f" % pow(0.95, b.koi)])
+		if b.wipes and has("wipes"): out.append(["wipes", "丢失 ×0.82"])
+		if has("cryo_magnet") and b.energy >= 10: out.append(["cryo_magnet", "丢失 ×0.75"])
+		if has("injector_hi"): out.append(["injector_hi", "丢失 +5%"])
+		if has("ultimatum") and b.presses >= 3: out.append(["ultimatum", "丢失 +10%"])
+		if has("fast_clock") and b.presses == 0: out.append(["fast_clock", "丢失 +5%"])
+		if has("bpm"): out.append(["bpm", "稳定一半 → 成功"])
+	if has("quad_array"): out.append(["quad_array", "成功 +12%"])
+	if has("rf_backup"): out.append(["rf_backup", "完美 +6%"])
+	if has("duty_roster") and b.presses == 0: out.append(["duty_roster", "成功 +15%"])
+	if has("dose_card") and b.energy >= 10: out.append(["dose_card", "完美 +8%"])
+	return out
 
 func potential() -> int:
 	return 0 if beam == null else int(floor(beam.value_base() * multiplier()))
@@ -378,7 +422,8 @@ func accelerate() -> Dictionary:
 			if pot >= best_potential and pot > 0:
 				stage_lost_data_used = true
 				lost_bonus = int(floor(pot * 0.15))
-				trig.append(["lost_data", "下次引出 +%d" % lost_bonus])
+				lost_charge_pending = true
+				trig.append(["lost_data", "下次引出 +%d · 下一束锁相充能最多 +2" % lost_bonus])
 		_log(k, from, from)
 		b.alive = false
 		_apply_tax(res)
@@ -398,7 +443,7 @@ func accelerate() -> Dictionary:
 	if k == Odds.PERFECT and has("rf_cavity"):
 		delta += 1
 		trig.append(["rf_cavity", "完美同步再 +1"])
-	if Odds.is_good(k) and has("rejected") and rejected_stacks >= 5:
+	if Odds.is_good(k) and has("rejected") and rejected_stacks >= 3:
 		delta += 3
 		rejected_stacks = 0
 		trig.append(["rejected", "怨气爆发 +3"])
@@ -430,9 +475,14 @@ func accelerate() -> Dictionary:
 	if has("screw") and rng.randf() < 0.03:
 		b.screw_mult *= 2.0
 		trig.append(["screw", "潜在成果翻倍！", {"p": 0.03, "hit": true}])
-	if k == Odds.STABLE and has("third_draft") and b.draft < 1.0:
+	if k == Odds.STABLE and has("third_draft"):
 		b.draft = minf(1.0, b.draft + 0.1)
-		trig.append(["third_draft", "倍率 +%.1f" % b.draft])
+		b.draft_stable += 1
+		if b.draft_stable % 2 == 0 and not was_locked and not b.lock_used:
+			b.charge += 1
+			trig.append(["third_draft", "稳定两次：锁相充能 +1"])
+		else:
+			trig.append(["third_draft", "倍率 +%.1f" % b.draft])
 	if good and has("nobel_list") and b.energy >= 12:
 		money += 4
 		res.money += 4
@@ -441,7 +491,7 @@ func accelerate() -> Dictionary:
 		promise += 1
 		trig.append(["grad_promise", "下次锁相 +%d" % promise])
 	if k == Odds.DETUNE and has("rejected"):
-		rejected_stacks = mini(5, rejected_stacks + 1)
+		rejected_stacks = mini(3, rejected_stacks + 1)
 	if (k == Odds.PERFECT or k == Odds.SUPER) and has("koi") and b.koi < 5:
 		b.koi += 1
 		trig.append(["koi", "好运 ×%d" % b.koi])

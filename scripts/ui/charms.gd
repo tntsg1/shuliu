@@ -12,6 +12,7 @@ var fires: Array = []    # 正在表演的触发
 var pos := {}            # id -> 挂板上的屏幕位置（每帧更新）
 var vis := 0.0
 var fired := 0            # 本局触发过几次（新手便条用）
+var nudges: Array = []   # 持续生效的物品这一下起了作用：晃一下 + 头顶冒一张小纸签 {id, text, t, col}
 
 const TOK := 48.0
 const GAP := 62.0
@@ -73,6 +74,11 @@ func fire(id: String, text: String, roll := {}) -> void:
 		f["spin"] = 3.0 + u        # 转 3 圈再停
 	fires.append(f)
 
+## 持续生效的物品（改概率 / 改倍率）这一下起了作用：钉子上晃一下，头顶冒一张小纸签，不飞出来
+func nudge(id: String, text: String, delay := 0.0, col := Color(0, 0, 0, 0)) -> void:
+	nudges = nudges.filter(func(n): return n.id != id)
+	nudges.append({"id": id, "text": text, "t": -delay, "col": col, "kicked": false})
+
 ## 从现在起还要等多久，抽卡类饰品才揭晓完（主流程据此推迟这次加速的揭晓）
 func roll_wait() -> float:
 	var w := 0.0
@@ -106,6 +112,14 @@ func _process(dt: float) -> void:
 	if main == null or main.run == null:
 		return
 	vis = clampf(main.panel.show_v, 0.0, 1.0)
+	for n in nudges:
+		n.t += dt
+		if n.t >= 0.0 and not n.kicked:
+			n.kicked = true
+			if swing.has(n.id):
+				swing[n.id][1] += 4.5
+			Sfx.play("tick", -18.0, 2.1, 0.08)
+	nudges = nudges.filter(func(n): return n.t < 1.2)
 	var d := minf(dt, 1.0 / 30.0)
 	for id in _items():
 		if not swing.has(id):
@@ -220,6 +234,22 @@ func _draw() -> void:
 	for f in fires:
 		if f.t >= 0.0:
 			_fire(f, el)
+	# 小纸签：挂在物品头顶，往上飘一点再淡出
+	for n in nudges:
+		if n.t < 0.0 or not pos.has(n.id):
+			continue
+		var k: float = n.t
+		var na := clampf(k / 0.08, 0.0, 1.0) * (1.0 - clampf((k - 0.85) / 0.35, 0.0, 1.0)) * a
+		var tp: Vector2 = pos[n.id] + Vector2(0, -14.0 - 12.0 * Ink.ease_out_cubic(minf(1.0, k / 0.5)))
+		var tw := Ink.size(Pal.bold, n.text, 12).x + 10.0
+		var tr := Rect2(tp.x - tw * 0.5, tp.y - 15, tw, 18)
+		draw_rect(Rect2(tr.position + Vector2(2, 3), tr.size), Color(0, 0, 0, 0.12 * na))
+		draw_rect(tr, Color(Pal.c("paper"), na))
+		# 变差（丢失 +N%、倍率 ×0.x）红色，变好绿色
+		var worse: bool = n.text.contains("丢失 +") or (n.text.contains("×0.") and not n.text.contains("丢失"))
+		var nc: Color = n.col if n.col.a > 0.0 else (Pal.c("red") if worse else Pal.c("green"))
+		Ink.frame(self, tr, Color(nc, na), Ink.W3)
+		Ink.text(self, n.text, Vector2(tp.x, tp.y - 2), 12, Color(nc.darkened(0.2), na), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 
 func _flying(id: String) -> bool:
 	for f in fires:

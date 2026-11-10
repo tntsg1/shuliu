@@ -9,6 +9,7 @@ extends SceneTree
 
 var N := 2000
 var only: PackedStringArray = []
+var skip_plans := false
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -27,6 +28,8 @@ func _initialize() -> void:
 			Odds.GROWTH = float(kv[1])
 		elif kv[0] == "pols":
 			only = kv[1].split(",")
+		elif kv[0] == "plans":
+			skip_plans = kv[1] == "skip"
 	var pols := [
 		{"name": "智能 E10 + 柜子", "T": 10, "early": false, "smart": true, "shop": true, "cab": true},
 		{"name": "标准 E10 用满 + 柜子", "T": 10, "early": false, "shop": true, "cab": true},
@@ -43,6 +46,7 @@ func _initialize() -> void:
 		{"name": "智能 E12", "T": 12, "early": false, "smart": true, "shop": true},
 	]
 	print("考核线: ", Run.LINES, "  成长 ×", Odds.GROWTH)
+	print("科研计划：", "全部跳过" if skip_plans else "随机选择")
 	print("剩余束流折 $%d + 阶段×%d，达标后丢失扣 %d%%" % [Run.LEFTOVER_PAY, Run.LEFTOVER_STEP, int(Run.OVERLINE_TAX * 100)])
 	for i in pols.size():
 		if only.is_empty() or str(i) in only:
@@ -83,7 +87,7 @@ func _sim(pol: Dictionary) -> Dictionary:
 		var rv := {"sum": 0, "n": 0, "lost": 0}
 		while not run.won() and not run.failed:
 			if not run.plan_offers.is_empty():
-				run.choose_plan(run.plan_offers[pick.randi() % run.plan_offers.size()])
+				run.choose_plan("" if skip_plans else run.plan_offers[pick.randi() % run.plan_offers.size()])
 			if pol.shop:
 				_shop(run, pick)
 			var go_now: bool = pol.early or run.experiments_left <= 0

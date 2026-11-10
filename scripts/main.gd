@@ -278,7 +278,7 @@ func _inputs() -> void:
 	var map := {
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"interact": [KEY_E], "accelerate": [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER],
-		"back": [KEY_ESCAPE], "submit": [KEY_F], "take": [KEY_Q], "help": [KEY_F1], "theme": [KEY_F2], "restart": [KEY_R],
+		"back": [KEY_ESCAPE], "submit": [KEY_F], "take": [KEY_Q], "theme": [KEY_F2], "restart": [KEY_R],
 	}
 	for a in map:
 		if not InputMap.has_action(a):
@@ -326,10 +326,6 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if mode == M.TITLE:
 		title.handle(ev)
 		return
-	if ev.is_action("help"):
-		tutorial.persist = false
-		tutorial.start(true)
-		return
 	if ev.is_action("theme"):
 		Pal.set_dark(not Pal.dark)
 		overlay.say("配色：" + ("七十年代实验室（暗）" if Pal.dark else "工程图纸（亮）"))
@@ -375,7 +371,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 			if ev.is_action("accelerate"):
 				panel.skip()
 		M.CONSOLE:
-			if ev.is_action("accelerate"):
+			if (ev.is_action("accelerate") or ev.is_action("interact")) and overlay.tally_skip():
+				pass
+			elif ev.is_action("accelerate"):
 				if run.beam == null:
 					_next_beam()
 				else:
@@ -481,6 +479,11 @@ func _new_beam() -> void:
 func accelerate() -> void:
 	if cooldown > 0.0 or run.beam == null:
 		return
+	# 持续改概率的物品：这一下它们都在起作用——挂板上逐件晃一下、冒小纸签；装在束流线上的设备也弹一下
+	var notes: Array = run.odds_notes()
+	for i in notes.size():
+		charms.nudge(notes[i][0], notes[i][1], i * 0.07)
+		gear.ping(notes[i][0])
 	cooldown = 0.15
 	var b: Beam = run.beam
 	var was_locked := b.locked()
@@ -688,7 +691,19 @@ func extract() -> void:
 	bloom_form = Forms.of(run)
 	bloom_form["first"] = Forms.record(bloom_form)
 	bloom_form["no"] = run.experiment_no
+	# 倍率明细（引出结算逐件播放）：基础成果 → 每件物品的倍率 → 引出时的额外加成
+	var parts := [["", "基础成果 E%d" % run.beam.energy, float(run.beam.value_base())]]
+	for x in run.mult_parts():
+		parts.append([x[0], _src_name(x[0]), float(x[1])])
+	var lb: int = run.lost_bonus
 	var fin := run.extract()
+	if lb > 0:
+		parts.append(["lost_data", Items.ALL["lost_data"].name, "+%d" % lb])
+	for tr in fin.get("triggers", []):
+		if tr.size() > 2 and tr[2].get("hit", false):
+			if tr[0] == "rec_letter": parts.append(["rec_letter", Items.ALL["rec_letter"].name, 1.5])
+			if tr[0] == "calc7": parts.append(["calc7", Items.ALL["calc7"].name, 3.0])
+	fin["parts"] = parts
 	_triggers(fin)
 	bloom_value = fin.gained
 	last_result = {"lost": false, "energy": bloom_energy, "fin": fin}
@@ -750,7 +765,9 @@ func _after_experiment() -> void:
 	var g: int = fin.get("gained", 0)
 	var tax: int = fin.get("tax", 0)
 	# 有成果就装回瓶子：满瓶跟着报告一起出现，再飞进审核台的篮子（Q70）
-	var bt: Dictionary = run.basket[-1] if g > 0 and not run.basket.is_empty() else {}
+	var bt: Dictionary = {}
+	if g > 0:
+		bt = run.inj_bt if run.inj == "full" else (run.basket[-1] if not run.basket.is_empty() else {})
 	if last_result.lost and tax > 0:
 		# 已够线还赌、丢了：扣分（可能跌回线下）
 		overlay.tally("实验 #%d · 够线后丢失 · 扣 %d%%" % [run.experiment_no, int(Run.OVERLINE_TAX * 100)], ("+%s RP" % fmt(g - tax)) if g >= tax else ("−%s RP" % fmt(tax - g)), "经费 +$%d" % fin.get("income", 0), Pal.c("red"), bt)
@@ -759,7 +776,7 @@ func _after_experiment() -> void:
 	elif last_result.lost:
 		overlay.tally("实验 #%d · 束流丢失" % run.experiment_no, ("+%d RP（稿纸抢救）" % g) if g > 0 else "+0 RP", "经费 +$%d" % fin.get("income", 0), Pal.c("red"), bt)
 	else:
-		overlay.tally("实验 #%d · E%d 引出" % [run.experiment_no, last_result.energy], "+%s RP" % fmt(g), "经费 +$%d" % fin.get("income", 0), Pal.c("green"), bt)
+		overlay.tally("实验 #%d · E%d 引出" % [run.experiment_no, last_result.energy], "+%s RP" % fmt(g), "经费 +$%d" % fin.get("income", 0), Pal.c("green"), bt, fin.get("parts", []))
 	_idle_hint()
 
 ## 控制台空着（没有束流）时面板上的提示
@@ -769,7 +786,7 @@ func _idle_hint() -> void:
 	if run.won() or run.failed:
 		panel.hint = ""
 	elif run.inj == "full":
-		panel.hint = "成果装在注入器的瓶子里了：拿去审核台放进篮子，才算科研点"
+		panel.hint = "成果瓶在注入器上，送去审核台才算分"
 	elif run.experiments_left <= 0:
 		panel.hint = "本阶段束流用完了 → 去审核台提交考核"
 	elif run.can_submit():
@@ -884,9 +901,14 @@ func submit() -> void:
 
 func _on_plan_chosen(id: String) -> void:
 	var r := run.choose_plan(id)
-	var d: Dictionary = Plans.LIST[id]
 	mode = M.WALK
 	player.input_enabled = true
+	if id == "":
+		overlay.say("本阶段不选择科研计划")
+		Sfx.play("paper", -6.0, 1.2)
+		Save.write(run)
+		return
+	var d: Dictionary = Plans.LIST[id]
 	var note := ""
 	if r.money > 0:
 		note = "，经费 +$%d" % r.money
@@ -894,6 +916,7 @@ func _on_plan_chosen(id: String) -> void:
 		note = "，经费 −$%d" % -r.money
 	overlay.say("本阶段计划书：" + d.name + note)
 	Sfx.play("paper", -6.0, 1.2)
+	Save.write(run)
 
 ## 开发者模式：立刻发三份计划书来挑
 func dev_plans() -> void:
@@ -1020,9 +1043,10 @@ func go_endless() -> void:
 
 func restart() -> void:
 	run = Run.new()
-	_begin_tutorial()
-	if tutorial.active:
-		open_letter()
+	tutorial.stop()
+	if letter.open:
+		letter.open = false
+		letter.visible = false
 	overlay.hide_card()
 	leave_console()
 
@@ -1032,6 +1056,7 @@ func _sync() -> void:
 		return
 	var p := run.odds()
 	panel.set_beam(b.energy, run.potential(), p, b.charge, b.lock_left)
+	panel.seg_base = PackedFloat32Array(Array(Odds.table(b.energy, b.locked())))
 	shown_e = b.energy
 	shown_lock = b.locked()
 	shown_dang = 0.0 if shown_lock else p[Odds.LOSS]
@@ -1238,6 +1263,14 @@ func gear_bought() -> void:
 	for id in run.relics + run.devices:
 		gear.ping(id)
 
+## 倍率来源的名字：物品名 / 计划书名 / 束流形态
+func _src_name(id: String) -> String:
+	if id == "form":
+		return "束流形态"
+	if id.begins_with("plan:"):
+		return Plans.LIST[id.substr(5)].name
+	return Items.ALL[id].name if Items.ALL.has(id) else id
+
 ## 饰品/设备触发：护身符架上对应物件弹起 + 屏幕上浮出纸签
 func _triggers(r: Dictionary) -> void:
 	for tr in r.get("triggers", []):
@@ -1413,7 +1446,8 @@ func _spot() -> String:
 
 func _spot_rect(id: String) -> Rect2:
 	match id:
-		"bin": return stash.BIN.grow(8)
+		# 包含桶口上方的瓶颈和“空瓶回收”文字，点击文字也能扔瓶。
+		"bin": return Rect2(stash.BIN.position + Vector2(-12, -58), stash.BIN.size + Vector2(24, 66))
 		"cradle": return Rect2(stash.CRADLE.x - 20, stash.CRADLE.y - 130, 40, 130)
 		"rack": return bottles.RACK.grow(4)
 		"cab": return stash.CAB.grow(4)
@@ -1605,6 +1639,11 @@ func _hover() -> void:
 				hand = true
 				hover_interact = true
 				prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "点击", "考核审核台")
+			elif _spot_at(wp) != "" and _spot_label(_spot_at(wp)) != "":
+				var sid := _spot_at(wp)
+				hand = true
+				hover_interact = true
+				prompt.show_at(Vector2(float(SPOTS[sid][0]), _spot_rect(sid).position.y - 12), "点击 / E", _spot_label(sid))
 			elif _terminal_rect().has_point(wp) or _console_rect().has_point(wp):
 				hand = true
 				hover_interact = true
@@ -1648,7 +1687,7 @@ func _hover() -> void:
 		cursor = shape
 		Input.set_default_cursor_shape(shape)
 	# 点击寻路：到了就做事
-	if mode == M.WALK and walk_goal != "" and player.auto_target >= 0.0 and absf(player.position.x - player.auto_target) < 4.0:
+	if mode == M.WALK and walk_goal != "" and player.auto_target >= 0.0 and absf(player.position.x - player.auto_target) < 4.0 and not player.busy():
 		var g := walk_goal
 		walk_goal = ""
 		player.auto_target = -1.0
@@ -1722,18 +1761,11 @@ func _demo_tick(dt: float) -> void:
 	Sfx.play("tick", -16.0, 0.8 + b.energy * 0.03)
 	title.demo_text = "E%02d · %s" % [b.energy, form.info.get("name", "")]
 
-## 开新游戏：只有全新存档的第一局放新手教程（开场信 + 逐步引导）；失败后重开、回主页再开都不放。
-## 设置里“新手教程 · 下一局重看”可以让下一局再放一次（用完自动关）。用户 2026-11-09 定（Q68）
+## 仅从主页开始新游戏时播放；局内重开与读取存档不播放。
 func _begin_tutorial() -> void:
 	letter_seen = false
-	var fresh: bool = Memes._testing() or not tutorial._cfg_done()
-	if play_tutorial and (fresh or Options.tutorial_replay):
+	if play_tutorial:
 		tutorial.start(false)
-		# 一开局就记下“这份存档放过教程了”：哪怕第一局中途失败，重开也不再放
-		tutorial._save_done()
-		if Options.tutorial_replay:
-			Options.tutorial_replay = false
-			Options.save()
 	else:
 		tutorial.stop()
 

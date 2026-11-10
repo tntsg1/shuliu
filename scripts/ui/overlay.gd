@@ -52,8 +52,23 @@ var cel_quip := ""
 var confetti: Array = []
 
 ## 一次实验结束：纸条从上方落下，报出这一束加了多少，然后飞进左边的考核夹板
-func tally(title: String, value: String, sub: String, col: Color, bottle := {}) -> void:
-	tl = {"title": title, "value": value, "sub": sub, "col": col, "t": 0.0, "bottle": bottle}
+const PART_T := 0.24      # 倍率明细每行间隔
+
+func tally(title: String, value: String, sub: String, col: Color, bottle := {}, parts := []) -> void:
+	# 只有一行“基础成果”时不用列明细
+	var ps: Array = parts if parts.size() > 1 else []
+	tl = {"title": title, "value": value, "sub": sub, "col": col, "t": 0.0, "bottle": bottle, "parts": ps,
+		"X": ps.size() * PART_T + (0.3 if not ps.is_empty() else 0.0), "shown": 0}
+
+## 明细还在逐行播放：按空格 / E 直接全部亮出来
+func tally_skip() -> bool:
+	if tl.is_empty() or tl.parts.is_empty():
+		return false
+	var full: float = 0.35 + tl.parts.size() * PART_T
+	if tl.t < full:
+		tl.t = full
+		return true
+	return false
 
 var strike_next := false   # 下一次盖章前，把当前章划掉（饰品改写结果）
 var prev := {}             # 被划掉的旧章 {text, col, rot, t}
@@ -157,7 +172,15 @@ func _process(dt: float) -> void:
 			confetti.clear()
 	if not tl.is_empty():
 		tl.t += dt
-		if tl.t > 2.6:
+		# 明细逐行亮起：每亮一行，对应物品在挂板上晃一下，出一声
+		var nshow := 0 if tl.parts.is_empty() else clampi(int((tl.t - 0.35) / PART_T) + 1, 0, tl.parts.size())
+		while tl.shown < nshow:
+			var pr: Array = tl.parts[tl.shown]
+			if pr[0] != "" and main and main.charms:
+				main.charms.nudge(pr[0], (pr[2] if pr[2] is String else "×%s" % _fx(pr[2])), 0.0)
+			Sfx.play("tick", -10.0, 1.3 + tl.shown * 0.06, 0.02)
+			tl.shown += 1
+		if tl.t > 2.6 + tl.X:
 			tl = {}
 	if not prev.is_empty():
 		prev.t += dt
@@ -301,8 +324,12 @@ func _stamp(vp: Vector2) -> void:
 		Ink.disc(self, p, rng.randf_range(0.8, 2.4), Color(Pal.c("paper"), a * 0.7))
 	draw_set_transform(Vector2.ZERO)
 
+func _fx(f: float) -> String:
+	return ("%.2f" % f).rstrip("0").rstrip(".")
+
 func _tally(vp: Vector2) -> void:
-	var k: float = tl.t
+	# 明细播完之前，卡片停着不飞：把时间轴往后推 X 秒
+	var k: float = tl.t if tl.t < 0.35 else maxf(0.35, tl.t - tl.X)
 	var drop := Ink.ease_out_back(clampf(k / 0.35, 0.0, 1.0))
 	var fly := Ink.ease_in_out(clampf((k - 2.0) / 0.5, 0.0, 1.0))
 	var home := Vector2(vp.x * 0.5, 150.0)
@@ -333,12 +360,41 @@ func _tally(vp: Vector2) -> void:
 	Ink.text(self, tl.title, Vector2(-w * 0.5 + 20, -h * 0.5 + 36), 16, Color(Pal.c("text2"), a), Pal.bold)
 	Ink.text(self, tl.sub, Vector2(w * 0.5 - 20, -h * 0.5 + 36), 15, Color(Pal.c("green"), a), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
 	Ink.text(self, tl.value, Vector2(0, h * 0.5 - 20), 40, Color(tl.col, a), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
+	# 倍率明细：卡片下面接一条纸，逐行亮起——“名称 ×1.15 → 累计”
+	if not tl.parts.is_empty():
+		var n: int = tl.parts.size()
+		var lh := 26.0
+		var sr := Rect2(-w * 0.5 + 16, h * 0.5 - 2, w - 32, 14 + n * lh)
+		draw_rect(Rect2(sr.position + Vector2(4, 5), sr.size), Color(0, 0, 0, 0.12 * a))
+		draw_rect(sr, Color(Pal.c("paper2"), a))
+		Ink.frame(self, sr, Color(Pal.equip_line(), 0.6 * a), Ink.W3)
+		var run_v := 0.0
+		for i in n:
+			var pr: Array = tl.parts[i]
+			var la := clampf((tl.t - 0.35 - i * PART_T) / 0.12, 0.0, 1.0) * a
+			var y := sr.position.y + 8 + i * lh + 18
+			var fac := ""
+			if i == 0:
+				run_v = float(pr[2])
+			elif pr[2] is String:
+				fac = pr[2]
+				run_v += float(String(pr[2]).substr(1))
+			else:
+				fac = "×" + _fx(pr[2])
+				run_v *= float(pr[2])
+			if la <= 0.0:
+				continue
+			var good: bool = i == 0 or (pr[2] is String) or float(pr[2]) >= 1.0
+			var dx := (1.0 - la) * 14.0
+			Ink.text(self, pr[1], Vector2(sr.position.x + 14 + dx, y), 15, Color(Pal.c("text"), la), Pal.font)
+			Ink.text(self, fac, Vector2(sr.end.x - 110, y), 16, Color(Pal.c("green").darkened(0.15) if good else Pal.c("red"), la), Pal.bold, HORIZONTAL_ALIGNMENT_RIGHT)
+			Ink.text(self, str(int(floor(run_v))), Vector2(sr.end.x - 14, y), 16, Color(Pal.c("text2"), la), Pal.mono, HORIZONTAL_ALIGNMENT_RIGHT)
 	draw_set_transform(Vector2.ZERO)
 	if has_bt:
 		# 满瓶：在报告左边弹出来（束流装回瓶里），再飞进审核台的篮子
-		var pop := Ink.ease_out_back(clampf((k - 0.25) / 0.35, 0.0, 1.0))
+		var pop := Ink.ease_out_back(clampf((tl.t - 0.25) / 0.35, 0.0, 1.0))
 		if pop > 0.0:
-			var b0 := Vector2(home.x - 300.0, home.y + 70.0)
+			var b0 := Vector2(home.x - 300.0, home.y + 240.0)
 			var bfly := Ink.ease_in_out(clampf((k - 1.9) / 0.6, 0.0, 1.0))
 			var bp := b0.lerp(dest + Vector2(0, 20), bfly) + Vector2(0, -sin(bfly * PI) * 80.0)
 			var bsc := lerpf(2.4 * pop, 0.45, bfly)
