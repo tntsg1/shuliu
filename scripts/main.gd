@@ -1103,6 +1103,8 @@ func _process(dt: float) -> void:
 					prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "E", "考核审核台 · Q 从篮子拿一瓶")
 				else:
 					prompt.show_at(Vector2(review.STAND, Geo.FLOOR - 250), "E", "考核审核台")
+			elif player.busy():
+				prompt.hide_now()
 			elif _spot() != "" and _spot_label(_spot()) != "":
 				var sid := _spot()
 				prompt.show_at(Vector2(float(SPOTS[sid][0]), _spot_rect(sid).position.y - 12), "E", _spot_label(sid))
@@ -1396,7 +1398,8 @@ func _leave_tab_go() -> void:
 
 
 # —— 氢气瓶的几个地点（Q70）：全手动——回收站扔空瓶、气瓶架取新瓶、注入器装瓶；储备柜存取满瓶 ——
-const SPOTS := {"bin": [120.0, 46.0], "cradle": [246.0, 36.0], "rack": [351.0, 44.0], "cab": [1560.0, 34.0]}
+# 站位让开一点：主角站在瓶座右边、伸手去够，不挡住瓶子
+const SPOTS := {"bin": [122.0, 44.0], "cradle": [282.0, 28.0], "rack": [354.0, 42.0], "cab": [1560.0, 34.0]}
 
 func _spot() -> String:
 	var best := ""
@@ -1439,32 +1442,84 @@ func _spot_label(id: String) -> String:
 			return "取出备用瓶" if run.held == "" and not run.cab.is_empty() else ""
 	return ""
 
+## 搬瓶的每个动作：规则先改好，画面上主角弯腰伸手、瓶子沿弧线飞过去，落位那一下出声、卡箍合上、桶晃、柜门开合
 func _spot_do(id: String) -> void:
+	if player.busy():
+		return
 	var err := ""
+	var cp: Vector2 = player.carry_point()
+	var cradle: Vector2 = stash.CRADLE + Vector2(0, -8)
 	match id:
 		"bin":
 			err = run.toss_empty()
 			if err == "":
-				stash.bin_n = mini(stash.bin_n + 1, 3)
-				Sfx.play("metal", -8.0, 0.8)
+				# 扔：手往后一蓄，甩出去，瓶子打着转落进桶里
+				player.act(Vector2(stash.BIN.get_center().x, stash.BIN.position.y - 10), 0.42, true)
+				Sfx.play("whoosh", -18.0, 1.5, 0.1)
+				stash.fly("empty", {}, cp, Vector2(stash.BIN.get_center().x, stash.BIN.position.y + 26), 0.36, 0.14, 70.0, -5.5, func():
+					stash.bin_n = mini(stash.bin_n + 1, 3)
+					stash.bin_wob = 0.09
+					Sfx.play("bin_clang", -5.0, 1.0, 0.06))
 		"cradle":
-			if run.inj == "full":
-				err = run.pick_full()
-			elif run.inj == "empty":
-				err = run.pick_empty()
+			if run.inj == "full" or run.inj == "empty":
+				var kind: String = run.inj
+				var bt: Dictionary = run.inj_bt.duplicate()
+				err = run.pick_full() if kind == "full" else run.pick_empty()
+				if err == "":
+					# 拆：先咔哒松开卡箍，再把瓶子拎起来抱进怀里
+					player.act(cradle + Vector2(0, -60), 0.36)
+					player.carry_hide = 0.4
+					stash.open_clamp()
+					Sfx.play("bottle_unlock", -6.0, 1.0, 0.05)
+					stash.fly(kind, bt, cradle, cp, 0.24, 0.14, 24.0, 0.0, func():
+						Sfx.play("grab", -10.0, 1.0, 0.08)
+						stash.close_clamp())
 			else:
 				err = run.load_fresh()
-			if err == "":
-				Sfx.play("metal", -10.0, 1.2)
+				if err == "":
+					# 装：瓶子落进瓶座，卡箍“咚”地锁上，阀口嘶一小口气
+					player.act(cradle + Vector2(0, -60), 0.36)
+					stash.hide_inj = 0.36
+					stash.open_clamp()
+					stash.fly("fresh", {}, cp, cradle, 0.24, 0.08, 18.0, 0.0, func():
+						Sfx.play("bottle_lock", -3.0, 1.0, 0.04)
+						Sfx.play("gas_hiss", -15.0, 1.1, 0.08)
+						stash.lock_clamp())
 		"rack":
-			err = run.return_fresh() if run.held == "fresh" else run.take_fresh()
-			if err == "":
-				Sfx.play("metal", -12.0, 1.4)
+			var slot: Vector2 = bottles.slot_pos(maxi(0, run.rack_left() - (0 if run.held == "fresh" else 1)))
+			if run.held == "fresh":
+				err = run.return_fresh()
+				if err == "":
+					player.act(slot + Vector2(0, -70), 0.3)
+			else:
+				err = run.take_fresh()
+				if err == "":
+					player.act(slot + Vector2(0, -70), 0.34)
+					player.carry_hide = 0.38
+					Sfx.play("grab", -12.0, 1.1, 0.08)
 		"cab":
-			err = run.store_in_cab() if run.held == "full" else run.take_from_cab()
-			if err == "":
-				Sfx.play("paper", -8.0, 0.8)
-				Sfx.play("metal", -14.0, 1.1)
+			if run.held == "full":
+				var bt2: Dictionary = run.held_bt.duplicate()
+				err = run.store_in_cab()
+				if err == "":
+					var to: Vector2 = stash.cab_slot(run.cab.size() - 1)
+					player.act(to + Vector2(0, -30), 0.36)
+					stash.open_door(0.5)
+					stash.hide_cab = 0.34
+					Sfx.play("cab_door", -10.0, 1.0, 0.05)
+					stash.fly("full", bt2, cp, to, 0.26, 0.08, 16.0, 0.0, func():
+						Sfx.play("bottle_ring", -14.0, 1.4, 0.05))
+			else:
+				var from: Vector2 = stash.cab_slot(run.cab.size() - 1) if not run.cab.is_empty() else Vector2.ZERO
+				var bt3: Dictionary = run.cab[-1].duplicate() if not run.cab.is_empty() else {}
+				err = run.take_from_cab()
+				if err == "":
+					player.act(from + Vector2(0, -30), 0.36)
+					player.carry_hide = 0.4
+					stash.open_door(0.45)
+					Sfx.play("cab_door", -10.0, 1.0, 0.05)
+					stash.fly("full", bt3, from, cp, 0.24, 0.12, 16.0, 0.0, func():
+						Sfx.play("grab", -10.0, 1.0, 0.08))
 	if err != "":
 		overlay.say(err)
 		Sfx.play("hit_low", -12.0, 1.3)
@@ -1473,10 +1528,20 @@ func _spot_do(id: String) -> void:
 
 ## 审核台：手里拿着满瓶就放进篮子，否则打开考核
 func _review_e() -> void:
+	if player.busy():
+		return
 	if run.held == "full":
+		var bt: Dictionary = run.held_bt.duplicate()
+		var cp: Vector2 = player.carry_point()
 		run.put_in_basket()
-		review.bump = 1.0
-		Sfx.play("metal", -10.0, 1.0)
+		var to: Vector2 = review.basket_slot(run.basket.size() - 1)
+		player.act(to + Vector2(0, -40), 0.36)
+		review.hide_last = 0.34
+		stash.fly("full", bt, cp, to, 0.26, 0.08, 30.0, 0.0, func():
+			review.bump = 1.0
+			Sfx.play("basket_drop", -6.0, 1.0, 0.06)
+			Sfx.play("bottle_ring", -16.0, 1.5, 0.05)
+			stash.pop("+%s RP" % fmt(int(bt.get("value", 0))), to + Vector2(0, -70), Pal.c("green")))
 		Save.write(run)
 	elif run.held != "":
 		overlay.say("先把手里的瓶子放下")
@@ -1484,12 +1549,21 @@ func _review_e() -> void:
 		open_review()
 
 func _review_q() -> void:
+	if player.busy():
+		return
+	var from: Vector2 = review.basket_slot(run.basket.size() - 1) if not run.basket.is_empty() else Vector2.ZERO
+	var bt: Dictionary = run.basket[-1].duplicate() if not run.basket.is_empty() else {}
 	var err := run.take_from_basket()
 	if err != "":
 		overlay.say(err)
 		Sfx.play("hit_low", -12.0, 1.3)
 	else:
-		Sfx.play("metal", -12.0, 1.2)
+		player.act(from + Vector2(0, -40), 0.34)
+		player.carry_hide = 0.38
+		Sfx.play("basket_drop", -12.0, 1.2, 0.06)
+		stash.fly("full", bt, from, player.carry_point(), 0.24, 0.12, 24.0, 0.0, func():
+			Sfx.play("grab", -10.0, 1.0, 0.08))
+		stash.pop("−%s RP" % fmt(int(bt.get("value", 0))), from + Vector2(0, -70), Pal.c("red"))
 		Save.write(run)
 
 func _spot_at(wp: Vector2) -> String:

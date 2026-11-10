@@ -12,9 +12,16 @@ var t := 0.0
 var hot := 0.0             # 悬停/靠近高亮
 var bump := 0.0            # 新报告落进收件盘时弹一下
 var _last_n := 0
+var hide_last := 0.0       # 最后一只瓶子还在飞进篮子：先别画
 
 func rect() -> Rect2:
 	return Rect2(X - 10, Geo.FLOOR - 252, W + 20, 252)
+
+## 篮子里第 i 只瓶子的瓶底位置（世界坐标）
+func basket_slot(i: int) -> Vector2:
+	var nb: int = maxi(1, main.run.basket.size()) if main and main.run else 1
+	var gap := minf(14.0, 58.0 / float(nb))
+	return Vector2(X + 16 + i * gap, Geo.FLOOR - 76)
 
 ## 收件盘的位置（实验报告纸条飞进这里）
 func inbox() -> Vector2:
@@ -23,6 +30,7 @@ func inbox() -> Vector2:
 func _process(dt: float) -> void:
 	t += dt
 	bump = maxf(0.0, bump - dt * 2.5)
+	hide_last = maxf(0.0, hide_last - dt)
 	if main != null and main.run != null:
 		var n: int = main.run.experiment_no - (1 if main.run.beam != null else 0)
 		if n > _last_n:
@@ -75,6 +83,8 @@ func _draw() -> void:
 	var nb := basket.size()
 	var gap := minf(14.0, 58.0 / maxf(1.0, nb))
 	for i in nb:
+		if hide_last > 0.0 and i == nb - 1:
+			continue
 		var lift := -sin(bump * PI) * 6.0 if i == nb - 1 else 0.0
 		STASH.full_bottle(self, Vector2(bk.position.x + 10 + i * gap, top - 2 + lift), 0.42, basket[i])
 	# 铁丝篮：前面几根竖丝 + 上下沿

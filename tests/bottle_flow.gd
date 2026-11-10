@@ -34,6 +34,8 @@ func snap(name: String) -> void:
 	root.get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/" + name + ".png"))
 
 func at(x: float) -> void:
+	await until(func(): return not main.player.busy())
+	await frames(20)
 	main.player.position.x = x
 	main.player.auto_target = -1.0
 	await frames(3)
@@ -48,7 +50,7 @@ func _go() -> void:
 	await frames(5)
 	check(main.mode == main.M.WALK, "瓶座没装新瓶：进不了控制台")
 	# 拿瓶
-	await at(351)
+	await at(354)
 	check(main._spot() == "rack" and main._spot_label("rack") == "拿一瓶氢气", "气瓶架提示：拿一瓶氢气")
 	main._spot_do("rack")
 	check(run.held == "fresh" and run.rack_left() == 2, "手里一瓶新瓶，架子剩 2")
@@ -56,7 +58,7 @@ func _go() -> void:
 	await frames(20)
 	await snap("flow_01_carry_fresh")
 	# 装瓶
-	await at(246)
+	await at(282)
 	check(main._spot_label("cradle") == "装上氢气瓶", "瓶座提示：装上氢气瓶")
 	main._spot_do("cradle")
 	check(run.inj == "fresh" and run.held == "", "新瓶装上瓶座")
@@ -79,7 +81,7 @@ func _go() -> void:
 	check(run.inj == "full" and run.basket.is_empty() and run.total == 0, "引出：成果瓶留在注入器上，还没计分")
 	main.leave_console()
 	await until(func(): return main.mode == main.M.WALK)
-	await at(246)
+	await at(282)
 	check(main._spot_label("cradle") == "拿起成果瓶", "瓶座提示：拿起成果瓶")
 	main._spot_do("cradle")
 	check(run.held == "full" and run.inj == "", "成果瓶拿在手里")
@@ -87,8 +89,8 @@ func _go() -> void:
 	main._review_e()
 	check(run.basket.size() == 1 and run.basket[0].value == run.total and run.total > 0, "放进篮子：计分")
 	# 第二束：丢失 → 空瓶留在瓶座
-	await at(351); main._spot_do("rack")
-	await at(246); main._spot_do("cradle")
+	await at(354); main._spot_do("rack")
+	await at(282); main._spot_do("cradle")
 	await at(Geo.CONSOLE_STAND - 60)
 	main.enter_console()
 	await until(func(): return main.mode == main.M.CONSOLE)
@@ -99,11 +101,11 @@ func _go() -> void:
 	check(run.inj == "empty", "丢失：空瓶留在瓶座上")
 	main.leave_console()
 	await until(func(): return main.mode == main.M.WALK)
-	await at(246)
+	await at(282)
 	check(main._spot_label("cradle") == "取下空瓶", "瓶座提示：取下空瓶")
 	main._spot_do("cradle")
 	check(run.held == "empty" and run.inj == "", "空瓶拿在手里")
-	await at(351)
+	await at(354)
 	main._spot_do("rack")
 	check(run.held == "empty", "拿着空瓶不能再拿新瓶")
 	await at(130)
@@ -111,6 +113,7 @@ func _go() -> void:
 	await snap("flow_04_carry_empty")
 	check(main._spot() == "bin" and main._spot_label("bin") == "扔掉空瓶", "回收站提示：扔掉空瓶")
 	main._spot_do("bin")
+	await frames(40)
 	check(run.held == "" and main.stash.bin_n == 1, "空瓶扔进回收站")
 	# 篮子 → 储备柜 → 篮子
 	var t0 := run.total
@@ -125,6 +128,7 @@ func _go() -> void:
 	check(run.cab.size() == 1 and run.held == "", "满瓶存进储备柜")
 	await frames(10)
 	await snap("flow_06_cab")
+	await until(func(): return not main.player.busy())
 	main._spot_do("cab")
 	check(run.held == "full" and run.cab.is_empty(), "从储备柜取出")
 	await at(main.review.STAND)

@@ -27,3 +27,16 @@
 | confetti | Cinematic Sound Design Hybrid Game & UI Elements – Cofetti Whoosh Pluck Spill |
 | firework | Sound Villain Fireworks Malta – 006 Strong blast with medium crackles |
 | crackle_fw | InspectorJ Essentials 03 Fireworks – Fireworks Multi Close Crackle |
+
+## 搬瓶音效（2026-11-09，Sonniss GDC 免费合集，裁剪+归一化，tools 外手工处理）
+| 文件 | 来源 |
+|---|---|
+| audio/bottle_lift.ogg | Sound Spark LLC – Metal Hits, Scrapes and Squeaks / Metal_Barrel_Bolt_Lock_Loose_Handling_03 |
+| audio/bottle_lock.ogg | Epic Stock Media – HD Lock And Mechanism / MECHLtch_Click Deep Mechanism Latch Button Nearfield Thunk 02 |
+| audio/bottle_unlock.ogg | Eiravaein Sound – Latchlocker / aluminum link jostle slide click out |
+| audio/gas_hiss.ogg | Eiravaein Sound – Burst / glass release bottle spray jet fizz |
+| audio/bin_clang.ogg | RDGSFX008 – The Metal Shelf / Metal Shelf Hit 02 |
+| audio/cab_door.ogg | RZ Post – The Creepy Door / Metal Door Medium Impact 01 |
+| audio/basket_drop.ogg | SoundBits – Just Impacts Extension II / Metal_Jolt_Rattle_Scrape_52 |
+| audio/bottle_ring.ogg | Pole Position – The Metal Hit Sweeteners / Spade HIT Drumstick Ring Mute |
+| audio/grab.ogg | Gamemaster Audio – Punch and Combat Sounds / foley_object_grab_pickup_04 |

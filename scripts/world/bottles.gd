@@ -45,10 +45,10 @@ func _process(dt: float) -> void:
 	if want < shown:
 		for i in range(shown - 1, want - 1, -1):
 			# 主角从架子上拿走：瓶子飞进手里
-			flying.append({"p0": slot_pos(i), "p1": main.player.position + Vector2(18, -60), "t": 0.0, "kind": "take", "label": ""})
+			flying.append({"p0": slot_pos(i), "p1": main.player.carry_point(), "t": -0.45, "kind": "take", "label": ""})
 			drops.erase(i)
 		shown = want
-		Sfx.play("metal", -14.0, 1.4)
+		Sfx.play("bottle_lift", -6.0, 1.0, 0.08)
 	elif want > shown and hold <= 0.0:
 		for i in range(shown, want):
 			drops[i] = -(i - shown) * 0.18
@@ -58,7 +58,7 @@ func _process(dt: float) -> void:
 		var before: float = drops[k]
 		drops[k] = before + dt / 0.45
 		if before < 0.75 and drops[k] >= 0.75:
-			Sfx.play("metal", -16.0, 1.6 + k * 0.1)
+			Sfx.play("bottle_ring", -14.0, 1.2 + k * 0.08, 0.04)
 		if drops[k] >= 1.0:
 			drops.erase(k)
 	for f in flying:
