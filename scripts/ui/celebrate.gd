@@ -15,6 +15,7 @@ var sparks: Array = []
 var people: Array = []
 var hats: Array = []
 var _fired := {}
+var _voices: Array = []       # 庆祝放出去的声音：跳过时淡出
 
 const TITLE := "恭喜通过！"
 
@@ -24,6 +25,7 @@ func _ready() -> void:
 
 func start(stage: int, q: String) -> void:
 	t = 0.0
+	_voices.clear()
 	stage_no = stage
 	quip = q
 	_fired.clear()
@@ -41,10 +43,33 @@ func start(stage: int, q: String) -> void:
 			"ph": randf() * TAU, "hop": randf_range(5.0, 7.5), "coat": [Pal.c("paper"), Color("#e8e2d2"), Color("#d8e2ea")][i % 3],
 			"hair": [Color("#2b2a28"), Color("#5a3a2a"), Color("#7a6a5a"), Color("#2b2a28")][i % 4], "throw": i % 3 == 1, "thrown": false, "h": randf_range(0.9, 1.1)})
 
-## 玩家点了“好的”：快速收尾
+## 玩家点了“好的”：快速收尾。还没到点的礼花、砸字、欢呼不再补放（以前会在同一帧一起炸响），
+## 空中的礼花不再炸开，正在响的欢呼掌声烟花 0.35 秒淡出。
 func finish() -> void:
-	if t >= 0.0:
-		t = maxf(t, 9.0)
+	if t < 0.0 or t >= 9.0:
+		return
+	t = 9.0
+	for k in ["pop", "cheer", "clap"]:
+		_fired[k] = true
+	for i in 8:
+		_fired["fw%d" % i] = true
+	for i in TITLE.length():
+		_fired["ch%d" % i] = true
+	rockets.clear()
+	for p in people:
+		p.thrown = true
+	for v in _voices:
+		var pl := v as AudioStreamPlayer
+		if is_instance_valid(pl) and pl.playing:
+			var tw := pl.create_tween()
+			tw.tween_property(pl, "volume_db", -60.0, 0.35)
+			tw.tween_callback(pl.stop)
+	_voices.clear()
+
+func _sfx(n: String, vol := 0.0, pitch := 1.0) -> void:
+	var pl := Sfx.play(n, vol, pitch)
+	if pl != null:
+		_voices.append(pl)
 
 func active() -> bool:
 	return t >= 0.0
@@ -82,8 +107,8 @@ func _burst(p: Vector2, col: Color, col2: Color) -> void:
 		var a := TAU * i / 72.0 + randf_range(-0.05, 0.05)
 		var sp := randf_range(420.0, 620.0) * (1.0 if i % 2 == 0 else 0.68)
 		sparks.append({"p": p, "v": Vector2.from_angle(a) * sp, "c": col if i % 2 == 0 else col2, "life": randf_range(1.0, 1.5), "age": 0.0, "trail": []})
-	Sfx.play("firework", -6.0, randf_range(0.9, 1.1))
-	Sfx.play("crackle_fw", -8.0, randf_range(0.95, 1.1))
+	_sfx("firework", -6.0, randf_range(0.9, 1.1))
+	_sfx("crackle_fw", -8.0, randf_range(0.95, 1.1))
 
 func _process(dt: float) -> void:
 	if t < 0.0:
@@ -94,13 +119,13 @@ func _process(dt: float) -> void:
 	if _once("pop", 0.12):
 		_popper(-1.0)
 		_popper(1.0)
-		Sfx.play("confetti", 0.0, 1.0)
-		Sfx.play("confetti", -2.0, 0.9)
-		Sfx.play("boom", -8.0, 1.6)
+		_sfx("confetti", 0.0, 1.0)
+		_sfx("confetti", -2.0, 0.9)
+		_sfx("boom", -8.0, 1.6)
 	if _once("cheer", 0.3):
-		Sfx.play("cheer", -1.0)
+		_sfx("cheer", -1.0)
 	if _once("clap", 0.7):
-		Sfx.play("applause", -3.0)
+		_sfx("applause", -3.0)
 	var shots := [[0.55, 0.16, 0.3], [0.95, 0.84, 0.26], [1.35, 0.3, 0.12], [1.8, 0.7, 0.1], [2.3, 0.1, 0.5], [3.0, 0.9, 0.45], [3.6, 0.22, 0.15], [4.2, 0.78, 0.18]]
 	var pal := [[Pal.c("gold"), Pal.c("red")], [Pal.c("blue"), Pal.c("paper")], [Pal.c("red"), Pal.c("gold")], [Pal.c("paper"), Pal.c("blue")]]
 	for i in shots.size():
@@ -109,7 +134,7 @@ func _process(dt: float) -> void:
 			_rocket(vp.x * shots[i][1], vp.y * shots[i][2], cc[0], cc[1])
 	for i in TITLE.length():
 		if _once("ch%d" % i, 0.9 + i * 0.14):
-			Sfx.play("hit", -8.0, 1.2 + i * 0.08)
+			_sfx("hit", -8.0, 1.2 + i * 0.08)
 	# 持续的纸屑雨
 	if t < 7.5 and randf() < 0.6:
 		var cols := [Pal.c("red"), Pal.c("gold"), Pal.c("blue"), Pal.c("paper")]
