@@ -15,6 +15,7 @@ var borrow_rect := Rect2()
 var stamp := {}                 # id -> 借阅瞬间的时刻（盖章动画）
 var msg := ""
 var msg_t := 0.0
+var nudge_t := -9.0             # 点了物品格：借阅按钮跳一下，提示去点按钮
 
 const TILE := 66.0
 const PAD := 8.0
@@ -35,6 +36,7 @@ func show_lib() -> void:
 	Sfx.play("whoosh", -10.0, 0.9)
 
 func close() -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 	open = false
 	visible = false
 	Sfx.play("paper", -8.0, 1.1)
@@ -100,11 +102,32 @@ func mouse(ev: InputEventMouse) -> void:
 				if tiles.has(id) and (tiles[id] as Rect2).has_point(ev.position) and sel != Vector2i(x, y):
 					sel = Vector2i(x, y)
 					_tick()
+		var hot := borrow_rect.has_point(ev.position)
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hot or _tile_at(ev.position) != Vector2i(-1, -1) else Input.CURSOR_ARROW)
 	elif ev is InputEventMouseButton and ev.pressed:
 		if ev.button_index == MOUSE_BUTTON_RIGHT:
 			close()
-		elif ev.button_index == MOUSE_BUTTON_LEFT and borrow_rect.has_point(ev.position):
-			_borrow()
+		elif ev.button_index == MOUSE_BUTTON_LEFT:
+			if borrow_rect.has_point(ev.position):
+				_borrow()
+			else:
+				var p := _tile_at(ev.position)
+				if p != Vector2i(-1, -1):
+					kb = false
+					if sel != p:
+						sel = p
+					nudge_t = t
+					Sfx.play("tick", -8.0, 1.0)
+
+## 鼠标下面是哪一格；没有返回 (-1, -1)
+func _tile_at(pos: Vector2) -> Vector2i:
+	var g := _grid()
+	for x in g.size():
+		for y in (g[x] as Array).size():
+			var id: String = g[x][y]
+			if tiles.has(id) and (tiles[id] as Rect2).has_point(pos):
+				return Vector2i(x, y)
+	return Vector2i(-1, -1)
 
 func _borrow() -> void:
 	var id := selected()
@@ -224,11 +247,17 @@ func _draw() -> void:
 		var br := Rect2(cr.position.x + 20, cr.end.y - 74, cr.size.x - 40, 54)
 		borrow_rect = br
 		var can := why == ""
+		# 点了物品格：按钮弹一下（先鼓起再回落），提示“借阅点这里”
+		var nk := clampf((t - nudge_t) / 0.45, 0.0, 1.0)
+		if nk < 1.0:
+			var bump := sin(nk * PI) * (1.0 - nk * 0.5)
+			br = br.grow_individual(10 * bump, 6 * bump, 10 * bump, 6 * bump)
+			draw_rect(br.grow(6), Color(el, 0.35 * (1.0 - nk)), false, 3.0)
 		draw_rect(br, Pal.c("gold") if can else Pal.c("paper2"))
 		Ink.frame(self, br, el, Ink.W2)
 		var label := ("花费 %d 声望借阅 · 按 E 或点击" % Meta.borrow_price(id)) if can else why
 		Ink.text(self, label, br.get_center() + Vector2(0, 7), 18 if can else 15, ink if can else Pal.c("text2"), Pal.bold, HORIZONTAL_ALIGNMENT_CENTER)
 	if msg != "" and t - msg_t < 3.0:
-		Ink.text(self, msg, Vector2(pr.position.x + 40, pr.end.y - 30), 16, Pal.c("green").darkened(0.2) if msg.begins_with("借到") else Pal.c("red"), Pal.bold)
+		Ink.text(self, msg, Vector2(pr.position.x + 40, pr.end.y - 30), 16, Pal.c("green").darkened(0.2) if msg.begins_with("已成功借阅") else Pal.c("red"), Pal.bold)
 	else:
-		Ink.text(self, "方向键 选书    E / 空格 借阅    Esc / 右键 离开", Vector2(pr.position.x + 40, pr.end.y - 30), 14, Pal.c("text2"), Pal.font)
+		Ink.text(self, "方向键 / 鼠标 选书    E / 空格 / 点右边按钮 借阅    Esc / 右键 离开", Vector2(pr.position.x + 40, pr.end.y - 30), 14, Pal.c("text2"), Pal.font)
